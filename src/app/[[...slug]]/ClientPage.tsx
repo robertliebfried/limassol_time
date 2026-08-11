@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+
 
 const TRANSLATIONS = {
   en: {
@@ -556,11 +556,28 @@ const INITIAL_EMPLOYEES: Employee[] = [
     expectedShift: '11:00 AM',
     status: 'expected',
   },
+  { id: 'emp-10', name: 'Lorenzo', username: 'lorenzo', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-11', name: 'Dario', username: 'dario', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-12', name: 'Tomas', username: 'tomas', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-13', name: 'Dylan 2', username: 'dylan2', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-14', name: 'John', username: 'john', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-15', name: 'Tony', username: 'tony', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-16', name: 'Damien', username: 'damien', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-17', name: 'Jonathan', username: 'jonathan', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-18', name: 'Wolfgang', username: 'wolfgang', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-19', name: 'Mila', username: 'mila', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-20', name: 'Daniel N', username: 'danieln', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-21', name: 'Daniel B', username: 'danielb', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-22', name: 'ger1', username: 'ger1', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-23', name: 'ger2', username: 'ger2', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-24', name: 'ger3', username: 'ger3', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-25', name: 'Messi', username: 'messi', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-26', name: 'Andres', username: 'andres', pin: '1234', languages: ['EN', 'ES'], role: 'CS Agent', expectedShift: '11:00 AM', status: 'expected' },
 ];
 
 const INITIAL_LOGS: TimeLog[] = [];
 
-export default function TeamTimeTrackerPage() {
+export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { initialTab?: 'timeTracker' | 'employees' | 'reports' }) {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
   const [currentDomain, setCurrentDomain] = useState<string>('');
   
@@ -602,7 +619,7 @@ export default function TeamTimeTrackerPage() {
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
-  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports'>('timeTracker');
+  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports'>(initialTab);
 
   // Clockify Backup Integration State
   const [clockifyApiKey, setClockifyApiKey] = useState<string>('');
@@ -611,6 +628,11 @@ export default function TeamTimeTrackerPage() {
   const [clockifySyncStatus, setClockifySyncStatus] = useState<string>('');
   const [clockifyConnectedUser, setClockifyConnectedUser] = useState<string>('');
   const [clockifyLastSynced, setClockifyLastSynced] = useState<string>('');
+
+  // Real-Time Dashboard State
+  type LiveStatus = { employeeId: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
+  const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatus>>({});
+  const [liveMetrics, setLiveMetrics] = useState({ totalActive: 0, activeHoursToday: 0 });
 
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
@@ -799,7 +821,7 @@ export default function TeamTimeTrackerPage() {
 
   // 3. Load from localStorage
   useEffect(() => {
-    let parsedEmployees: Employee[] = [];
+    let parsedEmployees: Employee[] = INITIAL_EMPLOYEES;
     const savedEmployees = localStorage.getItem('team_employees_v5');
     if (savedEmployees) {
       try { 
@@ -1103,6 +1125,45 @@ export default function TeamTimeTrackerPage() {
     return Math.round(diff * 10) / 10;
   };
 
+  // Helper to merge local state with Clockify live statuses
+  const getMergedEmployeeState = (emp: Employee) => {
+    let status = emp.status;
+    let checkIn = emp.checkInTime;
+    let checkOut = emp.checkOutTime;
+    let liveDurationStr = '';
+    let isLiveFromClockify = false;
+
+    if (liveStatuses[emp.id] && liveStatuses[emp.id].status === 'online') {
+      status = 'checked_in';
+      checkIn = liveStatuses[emp.id].startTime;
+      checkOut = undefined;
+      liveDurationStr = liveStatuses[emp.id].duration;
+      isLiveFromClockify = true;
+    }
+
+    // Calculate live hours if working
+    let activeHrsDisplay = '';
+    if (status === 'checked_in' && checkIn) {
+      if (isLiveFromClockify) {
+        activeHrsDisplay = liveDurationStr; // Format e.g., '2h 15m'
+      } else {
+        const now = cyprusTime || new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Nicosia', hour: '2-digit', minute: '2-digit', hour12: true });
+        const inMins = parseTimeToMinutes(checkIn);
+        const outMins = parseTimeToMinutes(now);
+        if (outMins > inMins) {
+          const diffMs = (outMins - inMins) * 60000;
+          const hrs = Math.floor(diffMs / 3600000);
+          const mins = Math.floor((diffMs % 3600000) / 60000);
+          activeHrsDisplay = `${hrs > 0 ? hrs + 'h ' : ''}${mins}m`;
+        } else {
+          activeHrsDisplay = '0m';
+        }
+      }
+    }
+
+    return { status, checkIn, checkOut, liveDurationStr, isLiveFromClockify, activeHrsDisplay };
+  };
+
   // Calendar Helpers
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -1349,13 +1410,11 @@ export default function TeamTimeTrackerPage() {
 
   // CSV Export
   const exportToCSV = () => {
-    const headers = ['Date', 'Employee', 'Role', 'Hours', 'Project/Task', 'Cyprus Timestamp'];
+    const headers = ['Date', 'Employee', 'Hours', 'Project/Task', 'Cyprus Timestamp'];
     const rows = logs.map(l => {
-      const emp = employees.find(e => e.id === l.employeeId);
       return [
         l.date,
         `"${l.employeeName}"`,
-        `"${emp?.role || '-'}"`,
         l.hours,
         `"${l.projectTask.replace(/"/g, '""')}"`,
         `"${l.timestamp}"`,
@@ -1380,13 +1439,11 @@ export default function TeamTimeTrackerPage() {
       return true;
     });
 
-    const headers = ['Date', 'Employee Name', 'Role', 'Hours Worked', 'Shift / Task Description', 'Timestamps'];
+    const headers = ['Date', 'Employee Name', 'Hours Worked', 'Shift / Task Description', 'Timestamps'];
     const rows = filtered.map(l => {
-      const emp = employees.find(e => e.id === l.employeeId);
       return [
         l.date,
         `"${l.employeeName}"`,
-        `"${emp?.role || '-'}"`,
         l.hours,
         `"${l.projectTask.replace(/"/g, '""')}"`,
         `"${l.timestamp}"`,
@@ -1542,6 +1599,73 @@ export default function TeamTimeTrackerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clockifyApiKey, logs]);
 
+  // Fetch Live Statuses from Clockify for Dashboard
+  const fetchLiveStatuses = async () => {
+    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
+    const wsId = clockifyWorkspaceId || localStorage.getItem('clockify_workspace_id') || '';
+    if (!apiKey || !wsId) return;
+
+    try {
+      // 1. Get all users in workspace
+      const usersRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/users`, {
+        headers: { 'X-Api-Key': apiKey }
+      });
+      if (!usersRes.ok) return;
+      const wsUsers = await usersRes.json();
+
+      const newStatuses: Record<string, LiveStatus> = {};
+      let activeCount = 0;
+
+      // 2. For each user, check if they have an in-progress timer
+      for (const user of wsUsers) {
+        // Attempt to match Clockify user to our Employee by name or email
+        const empMatch = employees.find(e => 
+          (e.email && e.email.toLowerCase() === user.email.toLowerCase()) || 
+          e.name.toLowerCase() === user.name.toLowerCase()
+        );
+        
+        const empId = empMatch ? empMatch.id : `clockify-${user.id}`;
+        
+        const timerRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/user/${user.id}/time-entries?in-progress=true`, {
+          headers: { 'X-Api-Key': apiKey }
+        });
+        
+        if (timerRes.ok) {
+          const timers = await timerRes.json();
+          if (timers.length > 0) {
+            const activeTimer = timers[0];
+            const start = new Date(activeTimer.timeInterval.start);
+            const durationMs = new Date().getTime() - start.getTime();
+            const hrs = Math.floor(durationMs / 3600000);
+            const mins = Math.floor((durationMs % 3600000) / 60000);
+            
+            newStatuses[empId] = {
+              employeeId: empId,
+              status: 'online',
+              task: activeTimer.description || 'Working on task...',
+              duration: `${hrs > 0 ? hrs + 'h ' : ''}${mins}m`,
+              startTime: start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+            activeCount++;
+          }
+        }
+      }
+      setLiveStatuses(newStatuses);
+      setLiveMetrics(prev => ({ ...prev, totalActive: activeCount }));
+    } catch (e) {
+      console.error("Failed to fetch live statuses", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'timeTracker') {
+      fetchLiveStatuses();
+      const interval = setInterval(fetchLiveStatuses, 30000); // Poll every 30s
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, clockifyApiKey, clockifyWorkspaceId]);
+
   // Full Clockify Workspace Setup
   const handleFullClockifySetup = async () => {
     const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
@@ -1627,26 +1751,7 @@ export default function TeamTimeTrackerPage() {
     }
   };
 
-  // Calculating Metrics
-  const todayStr = new Date().toISOString().split('T')[0];
-  
-  // Hours Today
-  const hoursTodayTotal = logs
-    .filter(l => l.date === todayStr)
-    .reduce((sum, l) => sum + l.hours, 0);
 
-  // Hours This Week (last 7 days)
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const hoursWeekTotal = logs
-    .filter(l => new Date(l.date) >= oneWeekAgo)
-    .reduce((sum, l) => sum + l.hours, 0);
-
-  // Hours This Month (same YYYY-MM)
-  const currentMonthPrefix = todayStr.substring(0, 7);
-  const hoursMonthTotal = logs
-    .filter(l => l.date.startsWith(currentMonthPrefix))
-    .reduce((sum, l) => sum + l.hours, 0);
 
   // Domain Check: Block public karfigestsa.com
   if (isAllowedDomain === false) {
@@ -1794,17 +1899,21 @@ export default function TeamTimeTrackerPage() {
             {authRole === 'user' && activeEmployee && (activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
               <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 shadow-inner ${
                 activeEmployee.status === 'checked_in'
-                  ? 'border-emerald-500/50 bg-emerald-950/60'
-                  : 'border-amber-500/50 bg-amber-950/60'
+                  ? isDark ? 'border-emerald-500/50 bg-emerald-950/60' : 'border-emerald-400 bg-emerald-100'
+                  : isDark ? 'border-amber-500/50 bg-amber-950/60' : 'border-amber-400 bg-amber-100'
               }`}>
                 <div className="text-right">
                   <div className={`text-[0.6rem] font-extrabold uppercase tracking-widest ${
-                    activeEmployee.status === 'checked_in' ? 'text-emerald-400' : 'text-amber-400'
+                    activeEmployee.status === 'checked_in' 
+                      ? isDark ? 'text-emerald-400' : 'text-emerald-800' 
+                      : isDark ? 'text-amber-400' : 'text-amber-800'
                   }`}>
                     {activeEmployee.status === 'checked_in' ? T.liveLabel : T.onBreakLabel}
                   </div>
                   <div className={`font-mono text-sm font-black tracking-wider ${
-                    activeEmployee.status === 'checked_in' ? 'text-emerald-300' : 'text-amber-300'
+                    activeEmployee.status === 'checked_in' 
+                      ? isDark ? 'text-emerald-300' : 'text-emerald-700' 
+                      : isDark ? 'text-amber-300' : 'text-amber-700'
                   }`}>
                     {kioskBillableTime}
                   </div>
@@ -1916,26 +2025,30 @@ export default function TeamTimeTrackerPage() {
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'timeTracker'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                   }`}
                 >
                   <span>⏱️</span> Time Tracker
                 </button>
-                <Link
-                  href="/employees"
-                  className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-400 hover:text-white transition"
+                <button
+                  onClick={() => setActiveTab('employees')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                    activeTab === 'employees'
+                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
+                  }`}
                 >
-                  <span>👥</span> Employees Directory ({employees.length})
-                </Link>
+                  <span>👥</span> Employees ({employees.length})
+                </button>
                 <button
                   onClick={() => setActiveTab('reports')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'reports'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                   }`}
                 >
-                  <span>📊</span> Reports &amp; Payroll
+                  <span>📊</span> Reports & Payroll
                 </button>
               </div>
             </div>
@@ -1951,7 +2064,7 @@ export default function TeamTimeTrackerPage() {
             <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-1 text-xs font-extrabold text-emerald-300">
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-extrabold ${isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-800'}`}>
                     🟢 Employee Shift Kiosk
                   </div>
                   <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight">
@@ -1965,12 +2078,12 @@ export default function TeamTimeTrackerPage() {
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <span className={`rounded-xl px-3.5 py-2 font-mono text-sm font-extrabold shadow border ${
                       activeEmployee.status === 'checked_in'
-                        ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 animate-pulse'
+                        ? isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 animate-pulse' : 'bg-emerald-100 text-emerald-800 border-emerald-400 animate-pulse'
                         : activeEmployee.status === 'on_break'
-                        ? 'bg-amber-950/80 text-amber-300 border-amber-500/50'
+                        ? isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-amber-100 text-amber-800 border-amber-400'
                         : activeEmployee.status === 'completed'
-                        ? 'bg-blue-950/80 text-blue-300 border-blue-500/50'
-                        : 'bg-black/40 text-slate-300 border-white/20'
+                        ? isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/50' : 'bg-blue-100 text-blue-800 border-blue-400'
+                        : isDark ? 'bg-black/40 text-slate-300 border-white/20' : 'bg-slate-100 text-slate-600 border-slate-300'
                     }`}>
                       {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
                       {activeEmployee.status === 'on_break' && (
@@ -1987,11 +2100,11 @@ export default function TeamTimeTrackerPage() {
 
                     {/* Live Billable Ticking Time */}
                     {(activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
-                      <div className="rounded-xl border border-amber-500/50 bg-black/60 px-4 py-2 text-center shadow-inner">
-                        <div className="text-[0.65rem] font-extrabold uppercase tracking-wider text-amber-400">
+                      <div className={`rounded-xl border px-4 py-2 text-center shadow-inner ${isDark ? 'border-amber-500/50 bg-black/60' : 'border-amber-400 bg-amber-50'}`}>
+                        <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                           ⏱️ BILLABLE WORKING TIME
                         </div>
-                        <div className="font-mono text-xl font-black text-amber-300 tracking-wider">
+                        <div className={`font-mono text-xl font-black tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
                           {kioskBillableTime}
                         </div>
                       </div>
@@ -2198,62 +2311,7 @@ export default function TeamTimeTrackerPage() {
         {/* Admin / Manager Full Tabs View */}
         {authRole === 'admin' && activeTab === 'timeTracker' && (
           <div className="space-y-8">
-            {/* Metric Cards (Day / Week / Month) */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1 */}
-          <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-white/30 bg-[#184249] text-white' : 'border-slate-300 bg-white text-black'}`}>
-            <div className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
-              TOTAL EMPLOYEES
-            </div>
-            <div className={`mt-2 text-3xl font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>
-              {employees.length} <span className="text-sm font-bold">{lang === 'ru' ? 'активных' : 'active'}</span>
-            </div>
-            <div className={`mt-2 text-xs font-bold truncate ${isDark ? 'text-white' : 'text-black'}`}>
-              {employees.map(e => e.name).join(', ')}
-            </div>
-          </div>
 
-          {/* Card 2 */}
-          <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-emerald-400/50 bg-[#124d3e] text-white' : 'border-emerald-600 bg-emerald-50 text-black'}`}>
-            <div className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-emerald-200' : 'text-emerald-900'}`}>
-              HOURS TODAY ({todayStr})
-            </div>
-            <div className={`mt-2 text-3xl font-extrabold ${isDark ? 'text-white' : 'text-emerald-950'}`}>
-              {hoursTodayTotal} <span className="text-sm font-bold">hrs</span>
-            </div>
-            <div className={`mt-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-              {lang === 'ru' ? 'Итого за сегодня' : 'Total logged for today'}
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-sky-400/50 bg-[#143e59] text-white' : 'border-sky-600 bg-sky-50 text-black'}`}>
-            <div className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-sky-200' : 'text-sky-900'}`}>
-              HOURS THIS WEEK (7 DAYS)
-            </div>
-            <div className={`mt-2 text-3xl font-extrabold ${isDark ? 'text-white' : 'text-sky-950'}`}>
-              {hoursWeekTotal} <span className="text-sm font-bold">hrs</span>
-            </div>
-            <div className={`mt-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-              {lang === 'ru' ? 'Сводка за последние 7 дней' : 'Summary for past 7 days'}
-            </div>
-          </div>
-
-          {/* Card 4 */}
-          <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-amber-300/50 bg-[#4d3319] text-white' : 'border-amber-600 bg-amber-50 text-black'}`}>
-            <div className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
-              HOURS THIS MONTH ({currentMonthPrefix})
-            </div>
-            <div className={`mt-2 text-3xl font-extrabold ${isDark ? 'text-white' : 'text-amber-950'}`}>
-              {hoursMonthTotal} <span className="text-sm font-bold">hrs</span>
-            </div>
-            <div className={`mt-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-              {lang === 'ru' ? 'Итого за текущий месяц' : 'Current month total'}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 1: Team Shift Status (Quick Check-In & Timesheet Matrix) */}
         <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -2444,6 +2502,91 @@ export default function TeamTimeTrackerPage() {
             </div>
           )}
 
+          {/* REAL-TIME DASHBOARD WIDGETS */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Live Status Breakdown */}
+            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-extrabold text-lg flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  Live Team Status
+                </h3>
+                <span className="text-xs font-bold text-slate-400 bg-black/20 px-2 py-1 rounded">Synced with Clockify</span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {employees.map(emp => {
+                  const live = liveStatuses[emp.id];
+                  const isOnline = !!live;
+                  return (
+                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isOnline 
+                        ? (isDark ? 'border-emerald-500/30 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-emerald-200 bg-emerald-50')
+                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40' : 'bg-slate-700 text-slate-300'
+                        }`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-sm">{emp.name}</div>
+                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            {isOnline ? '🟢 ONLINE' : '⚫ OFFLINE'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isOnline && (
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-emerald-300 truncate max-w-[100px]" title={live.task}>{live.task}</div>
+                          <div className="text-[0.65rem] font-mono text-emerald-400/80">{live.duration}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Metrics & Activity Feed */}
+            <div className="space-y-6">
+              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
+                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
+                <div className="text-6xl font-black drop-shadow-md">{liveMetrics.totalActive}</div>
+                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
+              </div>
+
+              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                  {Object.values(liveStatuses).length === 0 ? (
+                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
+                  ) : (
+                    Object.values(liveStatuses).map((status, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                        <div>
+                          <div className="text-xs font-bold">
+                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                          </div>
+                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
+                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            
+          </div>
+
           {/* Search & Status Filters Bar */}
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
             {/* Search Input */}
@@ -2549,12 +2692,19 @@ export default function TeamTimeTrackerPage() {
                       </tr>
                     ) : (
                       filteredEmployees.map((emp) => {
-                        const calculatedHrs = calculateExactHours(emp.checkInTime, emp.checkOutTime);
+                        const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
+                        const calculatedHrs = calculateExactHours(checkIn, checkOut);
+                        
                         return (
                           <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
                             <td className="px-4 py-3 font-extrabold">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm">{emp.name}</span>
+                                {isLiveFromClockify && (
+                                  <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
+                                    ⏱️ CLOCKIFY
+                                  </span>
+                                )}
                                 <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
                                   {emp.languages.join('/')}
                                 </span>
@@ -2565,42 +2715,47 @@ export default function TeamTimeTrackerPage() {
                               ⏰ {emp.expectedShift}
                             </td>
                             <td className="px-4 py-3 font-mono font-bold">
-                              {emp.checkInTime ? (
-                                <span className="rounded bg-emerald-950/80 text-emerald-300 px-2 py-1 border border-emerald-500/40">
-                                  🟢 {emp.checkInTime}
+                              {checkIn ? (
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
+                                  🟢 {checkIn}
                                 </span>
                               ) : (
                                 <span className="text-slate-500 font-normal">-</span>
                               )}
                             </td>
                             <td className="px-4 py-3 font-mono font-bold">
-                              {emp.checkOutTime ? (
-                                <span className="rounded bg-blue-950/80 text-blue-300 px-2 py-1 border border-blue-500/40">
-                                  🔴 {emp.checkOutTime}
+                              {checkOut ? (
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>
+                                  🔴 {checkOut}
                                 </span>
                               ) : (
                                 <span className="text-slate-500 font-normal">-</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-400">
-                              {emp.status === 'completed' || emp.status === 'checked_in' ? `${calculatedHrs} hrs` : '-'}
+                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '-'}
                             </td>
                             <td className="px-4 py-3 font-bold">
-                              {emp.status === 'expected' && <span className="rounded-md bg-amber-950/80 text-amber-300 px-2.5 py-1 border border-amber-500/40">{T.statusExpectedBadge}</span>}
-                              {emp.status === 'checked_in' && <span className="rounded-md bg-emerald-950/80 text-emerald-300 px-2.5 py-1 border border-emerald-500/40">{T.statusWorkingBadge}</span>}
-                              {emp.status === 'completed' && <span className="rounded-md bg-blue-950/80 text-blue-300 px-2.5 py-1 border border-blue-500/40">{T.statusDoneBadge}</span>}
-                              {emp.status === 'absent' && <span className="rounded-md bg-red-950/80 text-red-300 px-2.5 py-1 border border-red-500/40">{T.statusAbsentBadge}</span>}
+                              {status === 'expected' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-800 border-amber-400'}`}>{T.statusExpectedBadge}</span>}
+                              {status === 'checked_in' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
+                              {status === 'completed' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
+                              {status === 'absent' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-red-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                {emp.status === 'expected' && (
+                                {status === 'expected' && (
                                   <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
                                     {T.arrivedBtn}
                                   </button>
                                 )}
-                                {emp.status === 'checked_in' && (
+                                {status === 'checked_in' && (
                                   <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
                                     {T.leftBtn}
+                                  </button>
+                                )}
+                                {status === 'completed' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition" title="Resume Shift">
+                                    ▶ Play
                                   </button>
                                 )}
                                 <button
@@ -2631,11 +2786,20 @@ export default function TeamTimeTrackerPage() {
                 {T.noEmpMatchFilter}
               </div>
             ) : (
-              filteredEmployees.map(emp => (
+              filteredEmployees.map(emp => {
+                const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
+                return (
               <div key={emp.id} className={`flex flex-col justify-between rounded-xl border-2 p-4 shadow-md transition ${isDark ? 'border-white/30 bg-black/40 text-white' : 'border-slate-300 bg-slate-50 text-black'}`}>
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-black'}`}>{emp.name}</span>
+                    <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-black'}`}>
+                      {emp.name}
+                      {isLiveFromClockify && (
+                        <span className="ml-2 animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
+                          ⏱️ CLOCKIFY
+                        </span>
+                      )}
+                    </span>
                     <span className={`rounded px-2 py-0.5 text-xs font-extrabold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
                       {emp.languages.join('/')}
                     </span>
@@ -2649,33 +2813,38 @@ export default function TeamTimeTrackerPage() {
                       <span className="font-extrabold text-amber-400">⏰ {emp.expectedShift}</span>
                     </div>
 
-                    {emp.status === 'expected' && (
+                    {status === 'expected' && (
                       <div className="text-amber-400 font-extrabold flex items-center gap-1 text-[0.75rem]">
                         <span>{T.notArrivedYet}</span>
                       </div>
                     )}
 
-                    {emp.status === 'checked_in' && (
+                    {status === 'checked_in' && (
                       <div className="text-emerald-400 font-extrabold flex items-center justify-between text-[0.75rem]">
                         <span>{T.arrivedAtLabel}</span>
-                        <span className="font-mono bg-emerald-950 px-1.5 py-0.5 rounded text-white">{emp.checkInTime || cyprusTime || 'Now'}</span>
+                        <div className="flex items-center gap-2">
+                          {activeHrsDisplay && (
+                            <span className="font-mono text-emerald-300">{activeHrsDisplay}</span>
+                          )}
+                          <span className="font-mono bg-emerald-950 px-1.5 py-0.5 rounded text-white">{checkIn || cyprusTime || 'Now'}</span>
+                        </div>
                       </div>
                     )}
 
-                    {emp.status === 'completed' && (
+                    {status === 'completed' && (
                       <div className="space-y-1">
                         <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
                           <span>🟢 Arrived:</span>
-                          <span className="font-mono">{emp.checkInTime || '-'}</span>
+                          <span className="font-mono">{checkIn || '-'}</span>
                         </div>
                         <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
                           <span>🔴 Left:</span>
-                          <span className="font-mono">{emp.checkOutTime || '-'}</span>
+                          <span className="font-mono">{checkOut || '-'}</span>
                         </div>
                       </div>
                     )}
 
-                    {emp.status === 'absent' && (
+                    {status === 'absent' && (
                       <div className="text-red-400 font-extrabold text-[0.75rem]">
                         <span>❌ Status: Absent / Off</span>
                       </div>
@@ -2685,7 +2854,7 @@ export default function TeamTimeTrackerPage() {
 
                 {/* Quick Action Buttons */}
                 <div className="mt-4 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                  {emp.status === 'expected' && (
+                  {status === 'expected' && (
                     <>
                       <button 
                         onClick={() => handleStatusChange(emp.id, 'checked_in')} 
@@ -2703,7 +2872,7 @@ export default function TeamTimeTrackerPage() {
                     </>
                   )}
 
-                  {emp.status === 'checked_in' && (
+                  {status === 'checked_in' && (
                     <>
                       <button 
                         onClick={() => handleStatusChange(emp.id, 'completed')} 
@@ -2721,16 +2890,24 @@ export default function TeamTimeTrackerPage() {
                     </>
                   )}
 
-                  {emp.status === 'completed' && (
-                    <button 
-                      onClick={() => handleStatusChange(emp.id, 'checked_in')} 
-                      className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
-                    >
-                      {T.resetReopenBtn}
-                    </button>
+                  {status === 'completed' && (
+                    <div className="w-full flex gap-2">
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
+                        className="w-1/2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-500 flex items-center justify-center gap-1"
+                      >
+                        ▶ Play
+                      </button>
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
+                        className="w-1/2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
+                      >
+                        {T.resetReopenBtn}
+                      </button>
+                    </div>
                   )}
 
-                  {emp.status === 'absent' && (
+                  {status === 'absent' && (
                     <button 
                       onClick={() => handleStatusChange(emp.id, 'expected')} 
                       className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
@@ -2740,7 +2917,8 @@ export default function TeamTimeTrackerPage() {
                   )}
                 </div>
               </div>
-            ))
+                );
+              })
           )}
           </div>
           )}
@@ -3678,38 +3856,19 @@ export default function TeamTimeTrackerPage() {
             <span className="text-[0.7rem] uppercase font-extrabold tracking-wider opacity-75">
               🌐 Language / Язык:
             </span>
-            <div className={`flex items-center rounded-2xl border p-1 shadow-inner ${
-              isDark ? 'border-white/20 bg-black/60' : 'border-slate-300 bg-white'
-            }`}>
-              <button
-                type="button"
-                onClick={() => {
-                  setLang('en');
-                  localStorage.setItem('team_tracker_lang', 'en');
-                }}
-                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-extrabold text-xs transition ${
-                  lang === 'en'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
-                }`}
-              >
-                <span>🇬🇧</span> English
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLang('ru');
-                  localStorage.setItem('team_tracker_lang', 'ru');
-                }}
-                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-extrabold text-xs transition ${
-                  lang === 'ru'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
-                }`}
-              >
-                <span>🇷🇺</span> Русский
-              </button>
-            </div>
+            <select
+              value={lang}
+              onChange={(e) => {
+                setLang(e.target.value as Lang);
+                localStorage.setItem('team_tracker_lang', e.target.value);
+              }}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold outline-none shadow-sm cursor-pointer transition ${
+                isDark ? 'border-white/20 bg-black/60 text-white focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-500'
+              }`}
+            >
+              <option value="en" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🇬🇧 English</option>
+              <option value="ru" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🇷🇺 Русский</option>
+            </select>
           </div>
 
         </div>
