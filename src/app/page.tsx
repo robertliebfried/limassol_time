@@ -208,12 +208,12 @@ export default function TeamTimeTrackerPage() {
 
     const savedEmployees = localStorage.getItem('team_employees_v5');
     if (savedEmployees) {
-      try { setEmployees(JSON.parse(savedEmployees)); } catch (_) {}
+      try { setEmployees(JSON.parse(savedEmployees)); } catch {}
     }
 
     const savedLogs = localStorage.getItem('team_logs_v5');
     if (savedLogs) {
-      try { setLogs(JSON.parse(savedLogs)); } catch (_) {}
+      try { setLogs(JSON.parse(savedLogs)); } catch {}
     }
   }, []);
 
