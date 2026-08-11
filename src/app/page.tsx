@@ -158,16 +158,12 @@ export default function TeamTimeTrackerPage() {
   const [newEmpLangs, setNewEmpLangs] = useState('EN');
   const [newEmpShift, setNewEmpShift] = useState('11:00 AM');
 
-  // 1. Hostname verification: Hide from public karfigestsa.com
+  // 1. Set current domain for display
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname.toLowerCase();
       setCurrentDomain(hostname);
-      if (hostname === 'karfigestsa.com' || hostname === 'www.karfigestsa.com') {
-        setIsAllowedDomain(false);
-      } else {
-        setIsAllowedDomain(true);
-      }
+      setIsAllowedDomain(true);
     }
   }, []);
 
@@ -212,12 +208,12 @@ export default function TeamTimeTrackerPage() {
 
     const savedEmployees = localStorage.getItem('team_employees_v5');
     if (savedEmployees) {
-      try { setEmployees(JSON.parse(savedEmployees)); } catch (e) {}
+      try { setEmployees(JSON.parse(savedEmployees)); } catch (_) {}
     }
 
     const savedLogs = localStorage.getItem('team_logs_v5');
     if (savedLogs) {
-      try { setLogs(JSON.parse(savedLogs)); } catch (e) {}
+      try { setLogs(JSON.parse(savedLogs)); } catch (_) {}
     }
   }, []);
 
@@ -703,7 +699,7 @@ export default function TeamTimeTrackerPage() {
                   {filteredLogs.length === 0 ? (
                     <tr>
                       <td colSpan={6} className={`px-5 py-8 text-center text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                        No time entries found for selected filter. Click "📝 Log Hours / Task" to add one.
+                        No time entries found for selected filter. Click &quot;📝 Log Hours / Task&quot; to add one.
                       </td>
                     </tr>
                   ) : (
