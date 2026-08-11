@@ -2061,6 +2061,19 @@ export default function TeamTimeTrackerPage() {
             </div>
           </div>
 
+          {/* Scheduled Email Target Notification */}
+          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-semibold text-emerald-300 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📧</span>
+              <span>Automated Reports Recipient: <strong>robertliebfried1987@gmail.com</strong></span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[0.7rem] font-bold">
+              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">⏰ Daily 1:00 PM</span>
+              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">📅 Friday 12:00 PM</span>
+              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">🏆 Monthly 1st (10:00 AM)</span>
+            </div>
+          </div>
+
           {/* Date Range Selection */}
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
             <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
