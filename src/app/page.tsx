@@ -425,6 +425,7 @@ interface Employee {
   expectedShift: string;
   status: 'expected' | 'checked_in' | 'on_break' | 'completed' | 'absent';
   breakType?: string;
+  breakStartTimestamp?: number;
   checkInTime?: string;
   checkOutTime?: string;
   checkInTimestamp?: number;
@@ -628,7 +629,8 @@ export default function TeamTimeTrackerPage() {
   const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
 
   // Search & Filter for 30+ Employees
-  const [empSearchQuery, setEmpSearchQuery] = useState<string>('');
+  const [empSearchQuery, setEmpSearchQuery] = useState('');
+  const [breakElapsedSeconds, setBreakElapsedSeconds] = useState(0);
   const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
 
   // Modals
@@ -660,6 +662,39 @@ export default function TeamTimeTrackerPage() {
 
   // Shift Event History (persisted per employee per day)
   const [shiftEvents, setShiftEvents] = useState<ShiftEvent[]>([]);
+
+  // ----------------------------------------------------
+  // Break Auto-Switch Ticking Clock Effect
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (authRole === 'user' && activeEmployee && activeEmployee.status === 'on_break' && activeEmployee.breakStartTimestamp) {
+      const interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - activeEmployee.breakStartTimestamp!) / 1000);
+        setBreakElapsedSeconds(elapsed);
+        
+        let maxSec = -1;
+        if (activeEmployee.breakType === '🚬 Smoke Break' || activeEmployee.breakType?.includes('Smoke')) maxSec = 10 * 60;
+        else if (activeEmployee.breakType === '🥪 Lunch Break' || activeEmployee.breakType?.includes('Lunch')) maxSec = 60 * 60;
+        else if (activeEmployee.breakType === '☕ Coffee / Rest' || activeEmployee.breakType?.includes('Coffee')) maxSec = 15 * 60;
+        
+        if (maxSec > 0 && elapsed >= maxSec) {
+          handleTakeBreak('❓ Short Break / Other');
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authRole, activeEmployee]);
+
+  const formatBreakTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // ----------------------------------------------------
+  // Component Render
+  // ----------------------------------------------------
 
   // Helper: persist events — used via addShiftEvent
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -764,19 +799,33 @@ export default function TeamTimeTrackerPage() {
 
   // 3. Load from localStorage
   useEffect(() => {
+    let parsedEmployees: Employee[] = [];
+    const savedEmployees = localStorage.getItem('team_employees_v5');
+    if (savedEmployees) {
+      try { 
+        parsedEmployees = JSON.parse(savedEmployees);
+        setEmployees(parsedEmployees); 
+      } catch {}
+    }
+
     const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
+    const savedRole = sessionStorage.getItem('team_tracker_role') as AuthRole;
+    const savedEmpId = sessionStorage.getItem('team_tracker_emp_id');
+    
     if (savedPinAuth === 'true') {
       setIsAuthenticated(true);
+      if (savedRole === 'admin') {
+        setAuthRole('admin');
+      } else if (savedRole === 'user' && savedEmpId) {
+        setAuthRole('user');
+        const emp = parsedEmployees.find((e: Employee) => e.id === savedEmpId);
+        if (emp) setActiveEmployee(emp);
+      }
     }
 
     const savedTheme = localStorage.getItem('team_theme');
     if (savedTheme === 'light' || savedTheme === 'dark') {
       setTheme(savedTheme);
-    }
-
-    const savedEmployees = localStorage.getItem('team_employees_v5');
-    if (savedEmployees) {
-      try { setEmployees(JSON.parse(savedEmployees)); } catch {}
     }
 
     const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
@@ -879,12 +928,13 @@ export default function TeamTimeTrackerPage() {
     const currentSessionSec = Math.max(0, Math.floor((Date.now() - startTs) / 1000));
     const totalAccumulated = (activeEmployee.accumulatedSeconds || 0) + currentSessionSec;
     const nowTime = cyprusTime || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const nowMs = Date.now();
 
     addShiftEvent(activeEmployee.id, {
       type: 'break_start',
       label: bType,
       time: nowTime,
-      timestamp: Date.now(),
+      timestamp: nowMs,
       breakType: bType,
     });
 
@@ -892,6 +942,7 @@ export default function TeamTimeTrackerPage() {
       ...e,
       status: 'on_break' as const,
       breakType: bType,
+      breakStartTimestamp: nowMs,
       accumulatedSeconds: totalAccumulated,
     } : e);
 
@@ -900,9 +951,11 @@ export default function TeamTimeTrackerPage() {
       ...prev,
       status: 'on_break',
       breakType: bType,
+      breakStartTimestamp: nowMs,
       accumulatedSeconds: totalAccumulated,
     } : null);
     setShowBreakMenu(false);
+    setBreakElapsedSeconds(0);
   };
 
   const handleResumeWork = () => {
@@ -920,6 +973,8 @@ export default function TeamTimeTrackerPage() {
     const updated = employees.map(e => e.id === activeEmployee.id ? {
       ...e,
       status: 'checked_in' as const,
+      breakType: undefined,
+      breakStartTimestamp: undefined,
       checkInTimestamp: nowTs,
     } : e);
 
@@ -927,6 +982,8 @@ export default function TeamTimeTrackerPage() {
     setActiveEmployee(prev => prev ? {
       ...prev,
       status: 'checked_in',
+      breakType: undefined,
+      breakStartTimestamp: undefined,
       checkInTimestamp: nowTs,
     } : null);
   };
@@ -1916,7 +1973,14 @@ export default function TeamTimeTrackerPage() {
                         : 'bg-black/40 text-slate-300 border-white/20'
                     }`}>
                       {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
-                      {activeEmployee.status === 'on_break' && `${T.onBreakLabel}: ${activeEmployee.breakType || 'Pause'}`}
+                      {activeEmployee.status === 'on_break' && (
+                        <div className="flex flex-col items-center">
+                          <div>{`${T.onBreakLabel}: ${activeEmployee.breakType || 'Pause'}`}</div>
+                          <div className="text-4xl mt-2 mb-1 font-mono tracking-widest text-amber-400 drop-shadow-md">
+                            {formatBreakTime(breakElapsedSeconds)}
+                          </div>
+                        </div>
+                      )}
                       {activeEmployee.status === 'completed' && `🏁 SHIFT COMPLETED (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`}
                       {activeEmployee.status === 'expected' && `⏰ EXPECTED TODAY`}
                     </span>
