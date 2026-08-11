@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "karfigestsa"
+  },
+  "targets": {
+    "karfigestsa": {
+      "hosting": {
+        "limassoltime": [
+          "limassoltime"
+        ]
+      }
+    }
+  }
+}
