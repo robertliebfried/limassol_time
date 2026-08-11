@@ -1393,30 +1393,119 @@ export default function TeamTimeTrackerPage() {
 
   return (
     <div className={`min-h-screen font-sans antialiased transition-colors duration-200 ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f4f5f7] text-black'}`}>
-      {/* Header */}
+      {/* Header & Sticky Navigation Menu */}
       <header className={`border-b sticky top-0 z-50 shadow-md ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl font-bold shadow ${isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'}`}>
+            <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl font-bold shadow ${isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'}`}>
               ⏱️
             </span>
             <div>
-              <h1 className={`font-serif text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
+              <h1 className={`font-serif text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
                 {T.appTitle}
               </h1>
-              <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {T.appSubtitle} ({currentDomain || 'limassoltime.web.app'})
+              <p className={`text-[0.7rem] font-semibold opacity-80 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Limassol, Cyprus ({currentDomain || 'limassoltime.web.app'})
               </p>
             </div>
           </div>
 
-          {/* Right Header Actions */}
-          <div className="flex flex-wrap items-center gap-4">
+          {/* Right Header Navigation Actions */}
+          <div className="flex flex-wrap items-center gap-3">
+
+            {/* 1. Actual Live Cyprus Clock */}
+            <div className={`flex items-center gap-3 rounded-xl border px-3.5 py-1.5 shadow-inner ${isDark ? 'border-white/30 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}>
+              <div className="text-right">
+                <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                  🇨🇾 CYPRUS TIME NOW
+                </div>
+                <div className="font-mono text-base font-black text-amber-400">
+                  {cyprusTime || '00:00:00 AM'}
+                </div>
+              </div>
+              <div className={`h-6 w-px ${isDark ? 'bg-white/30' : 'bg-slate-400'}`} />
+              <div className="text-[0.7rem] font-bold opacity-90">
+                {cyprusDate}
+              </div>
+            </div>
+
+            {/* 2. Quick Clock In / Clock Out Action Button */}
+            {authRole === 'user' && activeEmployee && (
+              activeEmployee.status === 'checked_in' ? (
+                <button
+                  onClick={() => {
+                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'completed' as const, checkOutTime: cyprusTime || '7:00 PM' } : e);
+                    saveEmployees(updated);
+                    setActiveEmployee(prev => prev ? { ...prev, status: 'completed', checkOutTime: cyprusTime || '7:00 PM' } : null);
+                    setLogEmployeeId(activeEmployee.id);
+                    setShowAddLogModal(true);
+                  }}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-rose-500 transition flex items-center gap-1.5 animate-pulse"
+                >
+                  🔴 Clock Out (Left)
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cyprusTime || '11:00 AM' } : e);
+                    saveEmployees(updated);
+                    setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: cyprusTime || '11:00 AM' } : null);
+                  }}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-emerald-500 transition flex items-center gap-1.5"
+                >
+                  🟢 Clock In (Arrived)
+                </button>
+              )
+            )}
+
+            {authRole === 'admin' && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const nowTime = cyprusTime || '11:00 AM';
+                    const updated = employees.map(emp => emp.status === 'expected' ? { ...emp, status: 'checked_in' as const, checkInTime: nowTime } : emp);
+                    saveEmployees(updated);
+                  }}
+                  className="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-emerald-600 transition"
+                  title="Bulk Clock In All Expected Staff"
+                >
+                  🟢 Bulk Clock In
+                </button>
+                <button
+                  onClick={() => {
+                    const nowTime = cyprusTime || '07:00 PM';
+                    const updated = employees.map(emp => emp.status === 'checked_in' ? { ...emp, status: 'completed' as const, checkOutTime: nowTime } : emp);
+                    saveEmployees(updated);
+                  }}
+                  className="rounded-xl bg-rose-700 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-rose-600 transition"
+                  title="Bulk Clock Out Working Staff"
+                >
+                  🔴 Bulk Clock Out
+                </button>
+              </div>
+            )}
+
+            {/* 3. Login / Logout Button */}
+            {isAuthenticated ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/20 px-3.5 py-1.5 text-xs font-extrabold text-red-300 hover:bg-red-500/30 transition shadow-sm"
+              >
+                <span>🚪</span> Log Out ({authRole === 'admin' ? 'Robert' : activeEmployee?.name || 'User'})
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAuthenticated(false)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-emerald-500 transition shadow-sm"
+              >
+                <span>🔑</span> Log In
+              </button>
+            )}
 
             {/* Language Toggle Button */}
             <button
               onClick={toggleLang}
-              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
+              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm transition ${
                 isDark
                   ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
                   : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
@@ -1425,41 +1514,10 @@ export default function TeamTimeTrackerPage() {
               {lang === 'en' ? '🇬🇧 EN' : '🇷🇺 RU'}
             </button>
 
-            {/* Clockify Backup Button */}
-            <button
-              onClick={() => setShowClockifyModal(true)}
-              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
-                isDark
-                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                  : 'border-amber-600 bg-amber-100 text-amber-900 hover:bg-amber-200'
-              }`}
-            >
-              ⚡ Clockify Backup
-            </button>
-
-            {/* User Account Info & Logout */}
-            <div className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm ${
-              authRole === 'admin'
-                ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
-                : 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-            }`}>
-              <span>
-                {authRole === 'admin'
-                  ? '👑 Admin (Robert)'
-                  : `👤 ${activeEmployee?.name || 'Employee'}`}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="ml-1 rounded-lg bg-black/40 px-2 py-0.5 text-[0.7rem] hover:bg-black/60 transition text-white"
-              >
-                🚪 Logout
-              </button>
-            </div>
-
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
+              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm transition ${
                 isDark
                   ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
                   : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
@@ -1468,51 +1526,56 @@ export default function TeamTimeTrackerPage() {
               {isDark ? T.lightMode : T.darkMode}
             </button>
 
-            {/* Cyprus Time Badge */}
-            <div className={`flex items-center gap-4 rounded-xl border px-4 py-2 shadow-inner ${isDark ? 'border-white/30 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}>
-              <div className="text-right">
-                <div className={`text-[0.7rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
-                  🇨🇾 CYPRUS CURRENT TIME
-                </div>
-                <div className={`font-mono text-xl font-extrabold ${isDark ? 'text-[#ffd580]' : 'text-[#b45309]'}`}>
-                  {cyprusTime || '00:00:00 AM'}
-                </div>
-              </div>
-              <div className={`h-8 w-px ${isDark ? 'bg-white/30' : 'bg-slate-400'}`} />
-              <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                {cyprusDate}
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Main Navigation Tabs: Time Tracker | Employees | Reports */}
-        <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
-          <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
-            <button
-              onClick={() => setActiveTab('timeTracker')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === 'timeTracker'
-                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>⏱️</span> Time Tracker
-            </button>
-            <button
-              onClick={() => setActiveTab('employees')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === 'employees'
-                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>👥</span> Employees ({employees.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === 'reports'
+        {/* Navigation Tabs (For Manager / Admin) */}
+        {authRole === 'admin' && (
+          <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 text-xs font-extrabold">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab('timeTracker')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                    activeTab === 'timeTracker'
+                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>⏱️</span> Time Tracker
+                </button>
+                <button
+                  onClick={() => setActiveTab('employees')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                    activeTab === 'employees'
+                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>👥</span> Employees Directory ({employees.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                    activeTab === 'reports'
+                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>📊</span> Reports &amp; Payroll
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowClockifyModal(true)}
+                className="rounded-xl border border-amber-500/50 bg-amber-500/20 px-3 py-1.5 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition flex items-center gap-1.5"
+              >
+                ⚡ Clockify Backup
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
                   ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
