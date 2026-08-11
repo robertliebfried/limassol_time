@@ -2,6 +2,217 @@
 
 import React, { useState, useEffect } from 'react';
 
+const TRANSLATIONS = {
+  en: {
+    appTitle: 'Team Hours & Shift Tracker',
+    appSubtitle: 'Limassol / Cyprus Timezone Shift Management',
+    tabTimeTracker: '⏱️ Time Tracker',
+    tabEmployees: '👥 Employees',
+    tabReports: '📊 Reports & Payroll',
+    pinTitle: 'Internal Team Tracker',
+    pinSubtitle: 'Limassol / Cyprus Timezone Shift Management',
+    pinPlaceholder: 'Enter PIN...',
+    pinButton: 'Enter',
+    pinError: 'Incorrect PIN. Try again.',
+    lightMode: '☀️ Light Mode',
+    darkMode: '🌙 Dark Mode',
+    totalEmployees: 'TOTAL EMPLOYEES',
+    active: 'active',
+    hoursToday: 'HOURS TODAY',
+    totalLoggedToday: 'Total logged for today',
+    hoursThisWeek: 'HOURS THIS WEEK (7 DAYS)',
+    summaryPast7: 'Summary for past 7 days',
+    hoursThisMonth: 'HOURS THIS MONTH',
+    currentMonthTotal: 'Current month total',
+    shiftTracker: 'Shift Arrival & Departure Tracker',
+    flexibleShifts: 'Flexible shifts (Most staff: 11:00 AM – 7:00/8:00 PM Cyprus)',
+    monthlyCalendar: '📅 Monthly Calendar',
+    dailyTimesheetTable: '📊 Daily Timesheet Table',
+    cardsView: '🎴 Cards View',
+    bulkArrive: '⚡ Bulk Arrive 11 AM',
+    bulkLeft: '⚡ Bulk Left (End Shifts)',
+    newDayReset: '🔄 New Day Reset',
+    addEmployee: '➕ Add Employee',
+    logHours: '📝 Log Hours',
+    searchEmployee: '🔍 Search employee by name, role or shift...',
+    statusAll: 'All',
+    statusWorking: '🟢 Working',
+    statusExpected: '🕐 Expected',
+    statusDone: '✅ Done',
+    statusOff: '❌ Off',
+    arrived: '🟢 Arrived',
+    leftOffice: '🔴 Left Office',
+    resetReopen: '↩️ Reset / Re-open',
+    resetToExpected: '↩️ Reset to Expected',
+    noLogsDay: 'No logs',
+    workedLabel: 'Worked:',
+    employeeDirectory: 'Employee Directory',
+    staffRoster: 'Full staff roster — 30+ CS Agents',
+    nameCol: 'Name',
+    roleCol: 'Role',
+    targetShiftCol: 'Target Shift',
+    languagesCol: 'Languages',
+    todayStatusCol: "Today's Status",
+    totalHoursCol: 'Total Worked Hours',
+    actionsCol: 'Actions',
+    editBtn: 'Edit',
+    deleteBtn: 'Delete',
+    deletedArchive: 'Deleted Employees Archive',
+    restoreBtn: '↩️ Restore',
+    noArchived: 'No archived employees yet.',
+    reportsTitle: 'Reports & Payroll Center',
+    dateRange: 'Date Range:',
+    fromLabel: 'From:',
+    toLabel: 'To:',
+    thisMonth: 'This Month',
+    past30: 'Past 30 Days',
+    exportPayroll: '📥 Export Payroll Summary CSV',
+    exportDetailed: '📥 Export Detailed Shift CSV',
+    printReport: '🖨️ Print / Save as PDF',
+    timeLogsTable: 'Time Logs Table',
+    dateCol: 'Date',
+    employeeCol: 'Employee',
+    taskCol: 'Task / Project',
+    hoursCol: 'Hours',
+    timestampCol: 'Timestamp',
+    deleteLog: 'Delete',
+    noLogs: 'No logs yet for the selected filters.',
+    addEmpTitle: 'Add New Employee',
+    empNameLabel: 'Full Name:',
+    empRoleLabel: 'Role / Position:',
+    empLangLabel: 'Languages (comma separated):',
+    empShiftLabel: 'Expected Shift Time:',
+    cancelBtn: 'Cancel',
+    saveBtn: 'Save Employee',
+    editShiftTitle: 'Edit Shift',
+    checkInLabel: 'Check-In Time:',
+    checkOutLabel: 'Check-Out Time:',
+    statusLabel: 'Status:',
+    saveChanges: 'Save Changes',
+    logWorkTitle: 'Log Work Hours & Task',
+    selectEmpLabel: 'Select Employee:',
+    selectEmpPlaceholder: '— Select employee —',
+    dateLabel: 'Date:',
+    hoursWorkedLabel: 'Hours Worked:',
+    taskLabel: 'Task / Project Description:',
+    submitLog: '✅ Submit Log',
+    clockifyTitle: '⚡ Clockify.me API Backup & Sync',
+    clockifyDesc: 'Connect your Clockify.me workspace to automatically back up attendance logs and provide your employees with Clockify\'s mobile/web app for self-tracking.',
+    clockifyKeyLabel: 'Clockify API Key:',
+    clockifyWsLabel: 'Workspace ID (Optional):',
+    fullSetupBtn: '🚀 Full Setup + Invite Employees',
+    saveSyncBtn: 'Save & Sync Now',
+    closeBtn: 'Close',
+    hideLabel: '▲ Hide',
+    showLabel: '▼ Show',
+  },
+  ru: {
+    appTitle: 'Учёт рабочего времени',
+    appSubtitle: 'Управление сменами — Лимасол / Кипр',
+    tabTimeTracker: '⏱️ Трекер смен',
+    tabEmployees: '👥 Сотрудники',
+    tabReports: '📊 Отчёты и зарплата',
+    pinTitle: 'Внутренний трекер команды',
+    pinSubtitle: 'Управление сменами — Лимасол / Кипр',
+    pinPlaceholder: 'Введите PIN...',
+    pinButton: 'Войти',
+    pinError: 'Неверный PIN. Попробуйте снова.',
+    lightMode: '☀️ Светлый',
+    darkMode: '🌙 Тёмный',
+    totalEmployees: 'ВСЕГО СОТРУДНИКОВ',
+    active: 'активных',
+    hoursToday: 'ЧАСОВ СЕГОДНЯ',
+    totalLoggedToday: 'Итого за сегодня',
+    hoursThisWeek: 'ЧАСОВ ЗА НЕДЕЛЮ (7 ДНЕЙ)',
+    summaryPast7: 'Сводка за последние 7 дней',
+    hoursThisMonth: 'ЧАСОВ В ЭТОМ МЕСЯЦЕ',
+    currentMonthTotal: 'Итого за текущий месяц',
+    shiftTracker: 'Трекер приходов и уходов',
+    flexibleShifts: 'Гибкие смены (большинство: 11:00 – 19:00/20:00 Кипр)',
+    monthlyCalendar: '📅 Календарь месяца',
+    dailyTimesheetTable: '📊 Табель за день',
+    cardsView: '🎴 Карточки',
+    bulkArrive: '⚡ Все пришли в 11:00',
+    bulkLeft: '⚡ Все ушли (конец смены)',
+    newDayReset: '🔄 Новый день',
+    addEmployee: '➕ Добавить сотрудника',
+    logHours: '📝 Записать часы',
+    searchEmployee: '🔍 Поиск по имени, роли или смене...',
+    statusAll: 'Все',
+    statusWorking: '🟢 Работает',
+    statusExpected: '🕐 Ожидается',
+    statusDone: '✅ Завершил',
+    statusOff: '❌ Отсутствует',
+    arrived: '🟢 Пришёл',
+    leftOffice: '🔴 Ушёл',
+    resetReopen: '↩️ Сбросить / Переоткрыть',
+    resetToExpected: '↩️ Вернуть в ожидание',
+    noLogsDay: 'Нет данных',
+    workedLabel: 'Отработано:',
+    employeeDirectory: 'Справочник сотрудников',
+    staffRoster: 'Полный список — 30+ CS Агентов',
+    nameCol: 'Имя',
+    roleCol: 'Должность',
+    targetShiftCol: 'Целевая смена',
+    languagesCol: 'Языки',
+    todayStatusCol: 'Статус сегодня',
+    totalHoursCol: 'Всего часов',
+    actionsCol: 'Действия',
+    editBtn: 'Изменить',
+    deleteBtn: 'Удалить',
+    deletedArchive: 'Архив удалённых сотрудников',
+    restoreBtn: '↩️ Восстановить',
+    noArchived: 'Архив пуст.',
+    reportsTitle: 'Отчёты и расчёт зарплаты',
+    dateRange: 'Период:',
+    fromLabel: 'С:',
+    toLabel: 'По:',
+    thisMonth: 'Этот месяц',
+    past30: 'Последние 30 дней',
+    exportPayroll: '📥 Экспорт сводки по зарплате (CSV)',
+    exportDetailed: '📥 Экспорт подробных смен (CSV)',
+    printReport: '🖨️ Печать / Сохранить PDF',
+    timeLogsTable: 'Таблица записей времени',
+    dateCol: 'Дата',
+    employeeCol: 'Сотрудник',
+    taskCol: 'Задача / Проект',
+    hoursCol: 'Часы',
+    timestampCol: 'Время записи',
+    deleteLog: 'Удалить',
+    noLogs: 'Нет записей для выбранных фильтров.',
+    addEmpTitle: 'Добавить нового сотрудника',
+    empNameLabel: 'Полное имя:',
+    empRoleLabel: 'Должность / Роль:',
+    empLangLabel: 'Языки (через запятую):',
+    empShiftLabel: 'Время начала смены:',
+    cancelBtn: 'Отмена',
+    saveBtn: 'Сохранить',
+    editShiftTitle: 'Редактировать смену',
+    checkInLabel: 'Время прихода:',
+    checkOutLabel: 'Время ухода:',
+    statusLabel: 'Статус:',
+    saveChanges: 'Сохранить',
+    logWorkTitle: 'Записать рабочие часы',
+    selectEmpLabel: 'Выберите сотрудника:',
+    selectEmpPlaceholder: '— Выберите сотрудника —',
+    dateLabel: 'Дата:',
+    hoursWorkedLabel: 'Отработано часов:',
+    taskLabel: 'Описание задачи / проекта:',
+    submitLog: '✅ Сохранить запись',
+    clockifyTitle: '⚡ Clockify.me API — резервное копирование',
+    clockifyDesc: 'Подключите Clockify.me для автоматического резервного копирования данных посещаемости и предоставления сотрудникам мобильного/веб-приложения.',
+    clockifyKeyLabel: 'Clockify API ключ:',
+    clockifyWsLabel: 'ID рабочего пространства (необязательно):',
+    fullSetupBtn: '🚀 Полная настройка + Приглашения',
+    saveSyncBtn: 'Сохранить и синхронизировать',
+    closeBtn: 'Закрыть',
+    hideLabel: '▲ Скрыть',
+    showLabel: '▼ Показать',
+  },
+} as const;
+
+type Lang = keyof typeof TRANSLATIONS;
+
 interface Employee {
   id: string;
   name: string;
@@ -114,6 +325,16 @@ export default function TeamTimeTrackerPage() {
   
   // Theme state: 'dark' | 'light'
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Language state: 'en' | 'ru'
+  const [lang, setLang] = useState<Lang>('en');
+  const T = TRANSLATIONS[lang];
+
+  const toggleLang = () => {
+    const next: Lang = lang === 'en' ? 'ru' : 'en';
+    setLang(next);
+    if (typeof window !== 'undefined') localStorage.setItem('team_lang', next);
+  };
 
   const [cyprusTime, setCyprusTime] = useState<string>('');
   const [cyprusDate, setCyprusDate] = useState<string>('');
@@ -998,31 +1219,39 @@ export default function TeamTimeTrackerPage() {
             </span>
             <div>
               <h1 className={`font-serif text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
-                Team Hours & Shift Tracker
+                {T.appTitle}
               </h1>
               <p className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Limassol / Cyprus Timezone Shift Management ({currentDomain || 'limassoltime.web.app'})
+                {T.appSubtitle} ({currentDomain || 'limassoltime.web.app'})
               </p>
             </div>
           </div>
 
           {/* Right Header Actions */}
           <div className="flex flex-wrap items-center gap-4">
-            {/* Clockify Integration Button */}
+
+            {/* Language Toggle Button */}
             <button
-              onClick={() => setShowClockifyModal(true)}
-              className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
-                clockifyApiKey
-                  ? 'border-emerald-500/40 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900'
-                  : isDark ? 'border-amber-400/40 bg-amber-950/80 text-amber-300 hover:bg-amber-900' : 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100'
+              onClick={toggleLang}
+              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
+                isDark
+                  ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
+                  : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
               }`}
             >
-              <span>⚡</span>
-              {clockifyApiKey
-                ? (clockifyConnectedUser
-                    ? `✅ ${clockifyConnectedUser}${clockifyLastSynced ? ` · ${clockifyLastSynced}` : ''}`
-                    : 'Clockify Connected')
-                : 'Backup to Clockify'}
+              {lang === 'en' ? '🇬🇧 EN' : '🇷🇺 RU'}
+            </button>
+
+            {/* Clockify Backup Button */}
+            <button
+              onClick={() => setShowClockifyModal(true)}
+              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
+                isDark
+                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                  : 'border-amber-600 bg-amber-100 text-amber-900 hover:bg-amber-200'
+              }`}
+            >
+              ⚡ Clockify Backup
             </button>
 
             {/* Theme Toggle Button */}
@@ -1034,7 +1263,7 @@ export default function TeamTimeTrackerPage() {
                   : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
               }`}
             >
-              {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+              {isDark ? T.lightMode : T.darkMode}
             </button>
 
             {/* Cyprus Time Badge */}
@@ -2405,95 +2634,86 @@ export default function TeamTimeTrackerPage() {
         </div>
       )}
 
-      {/* Modal 5: Clockify.me API Backup Integration */}
+      {/* Clockify Integration Modal */}
       {showClockifyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className={`w-full max-w-lg rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-amber-400/40 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
-            <div className="flex items-center justify-between border-b pb-3 mb-4 border-white/20">
-              <h3 className="text-lg font-bold font-serif flex items-center gap-2">
-                <span>⚡</span> Clockify.me API Backup & Sync
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+          <div className={`w-full max-w-xl rounded-2xl border p-6 shadow-2xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className="flex items-center justify-between border-b pb-4 border-white/20">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                ⚡ Clockify.me API Backup & Sync
               </h3>
               <button
                 onClick={() => setShowClockifyModal(false)}
-                className="text-xs font-bold opacity-75 hover:opacity-100"
+                className="rounded-lg px-2.5 py-1 hover:bg-white/10 text-xs font-bold border border-white/20"
               >
-                ✕
+                ✕ Close
               </button>
             </div>
-
-            <p className="text-xs opacity-90 leading-relaxed">
-              Connect your <strong>Clockify.me</strong> workspace to automatically back up attendance logs and provide your employees with Clockify&apos;s mobile/web app for self-tracking.
+            
+            <p className="mt-3 text-xs opacity-90 leading-relaxed">
+              Connect your Clockify.me workspace to automatically back up attendance logs and invite your employees for self-tracking.
             </p>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSaveClockifyConfig(clockifyApiKey, clockifyWorkspaceId);
-                handleSyncToClockify();
-              }}
-              className="mt-4 space-y-4 text-xs"
-            >
+            {clockifyConnectedUser && (
+              <div className="mt-3 rounded-lg bg-emerald-500/20 border border-emerald-500/30 p-2.5 text-xs font-semibold text-emerald-300 flex items-center justify-between">
+                <span>👤 Connected User: <strong>{clockifyConnectedUser}</strong></span>
+                {clockifyLastSynced && <span>Last Synced: {clockifyLastSynced}</span>}
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3">
               <div>
-                <label className="block font-bold">Clockify API Key:</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1">Clockify API Key:</label>
                 <input
                   type="password"
-                  placeholder="Paste your Clockify API Key here..."
                   value={clockifyApiKey}
                   onChange={(e) => setClockifyApiKey(e.target.value)}
-                  className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 font-mono outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
-                  }`}
+                  placeholder="Paste your Clockify API Key..."
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
                 />
-                <p className="mt-1 text-[0.65rem] opacity-75">
-                  Get your API key in Clockify: Profile Settings ➔ API ➔ Generate API Key.
-                </p>
               </div>
-
               <div>
-                <label className="block font-bold">Workspace ID (Optional):</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1">Workspace ID (Optional):</label>
                 <input
                   type="text"
-                  placeholder="e.g. 64b8a... (optional)"
                   value={clockifyWorkspaceId}
                   onChange={(e) => setClockifyWorkspaceId(e.target.value)}
-                  className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 font-mono outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
-                  }`}
+                  placeholder="Leave empty for default workspace..."
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
                 />
               </div>
 
               {clockifySyncStatus && (
-                <div className="rounded-xl border p-3 bg-black/30 border-white/20 font-mono text-xs whitespace-pre-wrap leading-relaxed">
+                <div className="rounded-xl bg-black/40 border border-white/20 p-3 text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
                   {clockifySyncStatus}
                 </div>
               )}
 
-              <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setShowClockifyModal(false)}
-                  className="rounded-xl border px-4 py-2 font-bold opacity-75 hover:opacity-100"
+                  onClick={() => handleSaveClockifyConfig(clockifyApiKey, clockifyWorkspaceId)}
+                  className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold hover:bg-white/20"
                 >
-                  Close
+                  💾 Save Config
                 </button>
                 <button
-                  type="button"
+                  onClick={() => handleSyncToClockify(false)}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow"
+                >
+                  ⚡ Sync Now
+                </button>
+                <button
                   onClick={handleFullClockifySetup}
-                  className="rounded-xl bg-emerald-700 px-4 py-2 font-extrabold text-white shadow hover:bg-emerald-600"
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow"
                 >
-                  🚀 Full Setup + Invite Employees
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-amber-600 px-5 py-2 font-extrabold text-white shadow hover:bg-amber-500"
-                >
-                  Save &amp; Sync Now
+                  🚀 Full Setup + Invite Staff
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
