@@ -827,6 +827,8 @@ export default function EmployeesPage() {
             </form>
           </div>
         </div>
+      )}
+
       {/* Footer & Language Switcher */}
       <footer className={`mt-16 border-t py-8 px-6 ${isDark ? 'border-white/10 bg-black/40 text-slate-300' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row text-xs font-bold">
