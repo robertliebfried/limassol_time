@@ -241,6 +241,15 @@ interface TimeLog {
   timestamp: string;
 }
 
+interface ShiftEvent {
+  id: string;
+  type: 'clock_in' | 'clock_out' | 'break_start' | 'break_end';
+  label: string;
+  time: string;   // Cyprus display time e.g. "11:03 AM"
+  timestamp: number; // unix ms for calculations
+  breakType?: string;
+}
+
 const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-8',
@@ -450,6 +459,31 @@ export default function TeamTimeTrackerPage() {
   const [showBreakMenu, setShowBreakMenu] = useState<boolean>(false);
   const [kioskBillableTime, setKioskBillableTime] = useState<string>('00:00:00');
 
+  // Shift Event History (persisted per employee per day)
+  const [shiftEvents, setShiftEvents] = useState<ShiftEvent[]>([]);
+
+  // Helper: persist events — used via addShiftEvent
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const saveShiftEvents = (empId: string, events: ShiftEvent[]) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const key = `shift_events_${empId}_${todayStr}`;
+    localStorage.setItem(key, JSON.stringify(events));
+    setShiftEvents(events);
+  };
+
+  const addShiftEvent = (empId: string, event: Omit<ShiftEvent, 'id'>) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const key = `shift_events_${empId}_${todayStr}`;
+    const existing: ShiftEvent[] = (() => {
+      try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+    })();
+    const newEvent: ShiftEvent = { ...event, id: `ev-${Date.now()}` };
+    const updated = [...existing, newEvent];
+    localStorage.setItem(key, JSON.stringify(updated));
+    setShiftEvents(updated);
+    return updated;
+  };
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (authRole === 'user' && activeEmployee && (activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break')) {
@@ -557,6 +591,19 @@ export default function TeamTimeTrackerPage() {
     }
   }, []);
 
+  // Load shift events when employee logs in
+  useEffect(() => {
+    if (authRole === 'user' && activeEmployee) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const key = `shift_events_${activeEmployee.id}_${todayStr}`;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || '[]');
+        setShiftEvents(saved);
+      } catch { setShiftEvents([]); }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authRole, activeEmployee?.id]);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
@@ -642,6 +689,15 @@ export default function TeamTimeTrackerPage() {
     const startTs = activeEmployee.checkInTimestamp || Date.now();
     const currentSessionSec = Math.max(0, Math.floor((Date.now() - startTs) / 1000));
     const totalAccumulated = (activeEmployee.accumulatedSeconds || 0) + currentSessionSec;
+    const nowTime = cyprusTime || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    addShiftEvent(activeEmployee.id, {
+      type: 'break_start',
+      label: bType,
+      time: nowTime,
+      timestamp: Date.now(),
+      breakType: bType,
+    });
 
     const updated = employees.map(e => e.id === activeEmployee.id ? {
       ...e,
@@ -663,6 +719,15 @@ export default function TeamTimeTrackerPage() {
   const handleResumeWork = () => {
     if (!activeEmployee) return;
     const nowTs = Date.now();
+    const nowTime = cyprusTime || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    addShiftEvent(activeEmployee.id, {
+      type: 'break_end',
+      label: '▶️ Resumed Work',
+      time: nowTime,
+      timestamp: nowTs,
+    });
+
     const updated = employees.map(e => e.id === activeEmployee.id ? {
       ...e,
       status: 'checked_in' as const,
@@ -680,12 +745,23 @@ export default function TeamTimeTrackerPage() {
   const handleClockOutSimple = () => {
     if (!activeEmployee) return;
     const nowTime = cyprusTime || '07:00 PM';
+    const nowTs = Date.now();
 
     let finalSec = activeEmployee.accumulatedSeconds || 0;
     if (activeEmployee.status === 'checked_in' && activeEmployee.checkInTimestamp) {
-      finalSec += Math.max(0, Math.floor((Date.now() - activeEmployee.checkInTimestamp) / 1000));
+      finalSec += Math.max(0, Math.floor((nowTs - activeEmployee.checkInTimestamp) / 1000));
     }
     const finalHours = Number((finalSec / 3600).toFixed(1)) || 8;
+    const hh = Math.floor(finalSec / 3600);
+    const mm = Math.floor((finalSec % 3600) / 60);
+    const totalLabel = `${hh}h ${mm}m total`;
+
+    addShiftEvent(activeEmployee.id, {
+      type: 'clock_out',
+      label: `🔴 Left Office — ${totalLabel}`,
+      time: nowTime,
+      timestamp: nowTs,
+    });
 
     const updated = employees.map(e => e.id === activeEmployee.id ? {
       ...e,
@@ -1537,31 +1613,57 @@ export default function TeamTimeTrackerPage() {
               </div>
             </div>
 
-            {/* 2. Quick Clock In / Clock Out Action Button */}
+            {/* 2. Live Total Time in Navbar (only when LIVE / checked_in) */}
+            {authRole === 'user' && activeEmployee && (activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
+              <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 shadow-inner ${
+                activeEmployee.status === 'checked_in'
+                  ? 'border-emerald-500/50 bg-emerald-950/60'
+                  : 'border-amber-500/50 bg-amber-950/60'
+              }`}>
+                <div className="text-right">
+                  <div className={`text-[0.6rem] font-extrabold uppercase tracking-widest ${
+                    activeEmployee.status === 'checked_in' ? 'text-emerald-400' : 'text-amber-400'
+                  }`}>
+                    {activeEmployee.status === 'checked_in' ? '🟢 LIVE — WORKED TODAY' : `🟡 ON BREAK`}
+                  </div>
+                  <div className={`font-mono text-sm font-black tracking-wider ${
+                    activeEmployee.status === 'checked_in' ? 'text-emerald-300' : 'text-amber-300'
+                  }`}>
+                    {kioskBillableTime}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Quick Clock In / Clock Out Action Button */}
             {authRole === 'user' && activeEmployee && (
               activeEmployee.status === 'checked_in' ? (
                 <button
-                  onClick={() => {
-                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'completed' as const, checkOutTime: cyprusTime || '7:00 PM' } : e);
-                    saveEmployees(updated);
-                    setActiveEmployee(prev => prev ? { ...prev, status: 'completed', checkOutTime: cyprusTime || '7:00 PM' } : null);
-                    setLogEmployeeId(activeEmployee.id);
-                    setShowAddLogModal(true);
-                  }}
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-rose-500 transition flex items-center gap-1.5 animate-pulse"
+                  onClick={() => handleClockOutSimple()}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-rose-500 transition flex items-center gap-1.5"
                 >
-                  🔴 Clock Out (Left)
+                  🔴 Clock Out
+                </button>
+              ) : activeEmployee.status === 'on_break' ? (
+                <button
+                  onClick={() => handleResumeWork()}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-amber-500 transition flex items-center gap-1.5 animate-pulse"
+                >
+                  ▶️ Resume
                 </button>
               ) : (
                 <button
                   onClick={() => {
-                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cyprusTime || '11:00 AM' } : e);
+                    const nowTime = cyprusTime || '11:00 AM';
+                    const nowTs = Date.now();
+                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : e);
                     saveEmployees(updated);
-                    setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: cyprusTime || '11:00 AM' } : null);
+                    setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
+                    addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });
                   }}
                   className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-emerald-500 transition flex items-center gap-1.5"
                 >
-                  🟢 Clock In (Arrived)
+                  🟢 Clock In
                 </button>
               )
             )}
@@ -1722,6 +1824,7 @@ export default function TeamTimeTrackerPage() {
                       onClick={() => {
                         const nowTime = cyprusTime || '11:00 AM';
                         const nowTs = Date.now();
+                        addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In (Start of Shift)', time: nowTime, timestamp: nowTs });
                         const updated = employees.map(e => e.id === activeEmployee.id ? { 
                           ...e, 
                           status: 'checked_in' as const, 
@@ -1824,6 +1927,7 @@ export default function TeamTimeTrackerPage() {
                       onClick={() => {
                         const nowTime = cyprusTime || '11:00 AM';
                         const nowTs = Date.now();
+                        addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In Again', time: nowTime, timestamp: nowTs });
                         const updated = employees.map(e => e.id === activeEmployee.id ? { 
                           ...e, 
                           status: 'checked_in' as const, 
@@ -1848,6 +1952,61 @@ export default function TeamTimeTrackerPage() {
 
                 </div>
               </div>
+
+              {/* ── TODAY'S SHIFT EVENT HISTORY TIMELINE ── */}
+              {shiftEvents.length > 0 && (
+                <div className={`mt-6 rounded-2xl border p-5 ${
+                  isDark ? 'border-white/10 bg-black/30' : 'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className={`mb-3 text-xs font-extrabold uppercase tracking-widest ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    📋 Today&apos;s Shift History
+                  </div>
+                  <div className="relative pl-5">
+                    {/* vertical line */}
+                    <div className={`absolute left-[7px] top-0 bottom-0 w-px ${
+                      isDark ? 'bg-white/10' : 'bg-slate-300'
+                    }`} />
+                    <div className="space-y-3">
+                      {shiftEvents.map((ev, idx) => {
+                        const dot =
+                          ev.type === 'clock_in'   ? 'bg-emerald-500' :
+                          ev.type === 'clock_out'  ? 'bg-rose-500' :
+                          ev.type === 'break_start'? 'bg-amber-400' :
+                                                    'bg-sky-400';
+                        const textColor =
+                          ev.type === 'clock_in'   ? (isDark ? 'text-emerald-300' : 'text-emerald-700') :
+                          ev.type === 'clock_out'  ? (isDark ? 'text-rose-300'    : 'text-rose-700') :
+                          ev.type === 'break_start'? (isDark ? 'text-amber-300'   : 'text-amber-700') :
+                                                    (isDark ? 'text-sky-300'     : 'text-sky-700');
+                        return (
+                          <div key={ev.id} className="flex items-start gap-3">
+                            <div className={`relative z-10 mt-1 h-3.5 w-3.5 rounded-full border-2 border-[#133137] flex-shrink-0 ${dot}`} />
+                            <div>
+                              <span className={`text-xs font-extrabold ${textColor}`}>{ev.label}</span>
+                              <span className={`ml-2 font-mono text-[0.7rem] ${
+                                isDark ? 'text-slate-400' : 'text-slate-500'
+                              }`}>{ev.time}</span>
+                              {idx > 0 && (() => {
+                                const prevTs = shiftEvents[idx - 1].timestamp;
+                                const diffSec = Math.floor((ev.timestamp - prevTs) / 1000);
+                                const dm = Math.floor(diffSec / 60);
+                                const dh = Math.floor(dm / 60);
+                                const label = dh > 0 ? `+${dh}h ${dm % 60}m` : `+${dm}m`;
+                                return (
+                                  <span className={`ml-1.5 text-[0.65rem] font-bold opacity-50`}>{label}</span>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
