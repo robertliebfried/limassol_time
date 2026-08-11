@@ -827,7 +827,38 @@ export default function EmployeesPage() {
             </form>
           </div>
         </div>
-      )}
+      {/* Footer & Language Switcher */}
+      <footer className={`mt-16 border-t py-8 px-6 ${isDark ? 'border-white/10 bg-black/40 text-slate-300' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <span>👥 Limassol Employee Directory</span>
+            <span>•</span>
+            <span>Asia/Nicosia (Cyprus Time)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[0.7rem] uppercase font-extrabold tracking-wider opacity-75">
+              🌐 Language:
+            </span>
+            <div className={`flex items-center rounded-2xl border p-1 shadow-inner ${
+              isDark ? 'border-white/20 bg-black/60' : 'border-slate-300 bg-white'
+            }`}>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 font-extrabold text-xs text-white shadow-md"
+              >
+                <span>🇬🇧</span> English
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-extrabold text-xs text-slate-400 hover:text-white"
+              >
+                <span>🇷🇺</span> Русский
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );

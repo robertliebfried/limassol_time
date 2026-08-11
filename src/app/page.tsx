@@ -223,9 +223,12 @@ interface Employee {
   languages: string[];
   role: string;
   expectedShift: string;
-  status: 'expected' | 'checked_in' | 'completed' | 'absent';
+  status: 'expected' | 'checked_in' | 'on_break' | 'completed' | 'absent';
+  breakType?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  checkInTimestamp?: number;
+  accumulatedSeconds?: number;
 }
 
 interface TimeLog {
@@ -442,6 +445,32 @@ export default function TeamTimeTrackerPage() {
   const [editEmpUsername, setEditEmpUsername] = useState('');
   const [editEmpPin, setEditEmpPin] = useState('');
 
+  // Kiosk Live Timer & Break Menu State
+  const [showBreakMenu, setShowBreakMenu] = useState<boolean>(false);
+  const [kioskBillableTime, setKioskBillableTime] = useState<string>('00:00:00');
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (authRole === 'user' && activeEmployee && (activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break')) {
+      const updateClock = () => {
+        let elapsedSec = activeEmployee.accumulatedSeconds || 0;
+        if (activeEmployee.status === 'checked_in' && activeEmployee.checkInTimestamp) {
+          elapsedSec += Math.max(0, Math.floor((Date.now() - activeEmployee.checkInTimestamp) / 1000));
+        }
+        const hrs = Math.floor(elapsedSec / 3600);
+        const mins = Math.floor((elapsedSec % 3600) / 60);
+        const secs = elapsedSec % 60;
+        setKioskBillableTime(
+          `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+        );
+      };
+
+      updateClock();
+      timer = setInterval(updateClock, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [authRole, activeEmployee]);
+
   // 1. Set current domain & load Clockify settings
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -604,6 +633,83 @@ export default function TeamTimeTrackerPage() {
     sessionStorage.removeItem('team_tracker_auth');
     sessionStorage.removeItem('team_tracker_role');
     sessionStorage.removeItem('team_tracker_emp_id');
+  };
+
+  // Kiosk Break & Clock Out Handlers
+  const handleTakeBreak = (bType: string) => {
+    if (!activeEmployee) return;
+    const startTs = activeEmployee.checkInTimestamp || Date.now();
+    const currentSessionSec = Math.max(0, Math.floor((Date.now() - startTs) / 1000));
+    const totalAccumulated = (activeEmployee.accumulatedSeconds || 0) + currentSessionSec;
+
+    const updated = employees.map(e => e.id === activeEmployee.id ? {
+      ...e,
+      status: 'on_break' as const,
+      breakType: bType,
+      accumulatedSeconds: totalAccumulated,
+    } : e);
+
+    saveEmployees(updated);
+    setActiveEmployee(prev => prev ? {
+      ...prev,
+      status: 'on_break',
+      breakType: bType,
+      accumulatedSeconds: totalAccumulated,
+    } : null);
+    setShowBreakMenu(false);
+  };
+
+  const handleResumeWork = () => {
+    if (!activeEmployee) return;
+    const nowTs = Date.now();
+    const updated = employees.map(e => e.id === activeEmployee.id ? {
+      ...e,
+      status: 'checked_in' as const,
+      checkInTimestamp: nowTs,
+    } : e);
+
+    saveEmployees(updated);
+    setActiveEmployee(prev => prev ? {
+      ...prev,
+      status: 'checked_in',
+      checkInTimestamp: nowTs,
+    } : null);
+  };
+
+  const handleClockOutSimple = () => {
+    if (!activeEmployee) return;
+    const nowTime = cyprusTime || '07:00 PM';
+
+    let finalSec = activeEmployee.accumulatedSeconds || 0;
+    if (activeEmployee.status === 'checked_in' && activeEmployee.checkInTimestamp) {
+      finalSec += Math.max(0, Math.floor((Date.now() - activeEmployee.checkInTimestamp) / 1000));
+    }
+    const finalHours = Number((finalSec / 3600).toFixed(1)) || 8;
+
+    const updated = employees.map(e => e.id === activeEmployee.id ? {
+      ...e,
+      status: 'completed' as const,
+      checkOutTime: nowTime,
+    } : e);
+
+    saveEmployees(updated);
+    setActiveEmployee(prev => prev ? {
+      ...prev,
+      status: 'completed',
+      checkOutTime: nowTime,
+    } : null);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const autoLog: TimeLog = {
+      id: `log-${Date.now()}`,
+      date: todayStr,
+      employeeId: activeEmployee.id,
+      employeeName: activeEmployee.name,
+      hours: finalHours,
+      projectTask: `Shift Attendance (${activeEmployee.checkInTime || '11:00 AM'} - ${nowTime})`,
+      timestamp: `${activeEmployee.checkInTime || '11:00 AM'} - ${nowTime}`,
+    };
+    saveLogs([autoLog, ...logs]);
   };
 
   // Add Time Log Submit
@@ -1503,17 +1609,7 @@ export default function TeamTimeTrackerPage() {
               </button>
             )}
 
-            {/* Language Toggle Button */}
-            <button
-              onClick={toggleLang}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm transition ${
-                isDark
-                  ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
-                  : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
-              }`}
-            >
-              {lang === 'en' ? '🇬🇧 EN' : '🇷🇺 RU'}
-            </button>
+
 
             {/* Theme Toggle Button */}
             <button
@@ -1563,12 +1659,7 @@ export default function TeamTimeTrackerPage() {
                 </button>
               </div>
 
-              <button
-                onClick={() => setShowClockifyModal(true)}
-                className="rounded-xl border border-amber-500/50 bg-amber-500/20 px-3 py-1.5 text-xs font-extrabold text-amber-300 hover:bg-amber-500/30 transition flex items-center gap-1.5"
-              >
-                ⚡ Clockify Backup
-              </button>
+              </div>
             </div>
           </div>
         )}
@@ -1579,53 +1670,183 @@ export default function TeamTimeTrackerPage() {
         {/* User / Employee View */}
         {authRole === 'user' && activeEmployee && (
           <div className="space-y-8">
-            <div className={`rounded-2xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-1 text-xs font-extrabold text-emerald-300">
                     🟢 Employee Shift Kiosk
                   </div>
                   <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight">
-                    Welcome back, {activeEmployee.name}!
+                    Welcome, {activeEmployee.name}!
                   </h2>
                   <p className="mt-1 text-xs font-semibold opacity-85">
                     Role: {activeEmployee.role} | Target Shift: {activeEmployee.expectedShift} (Cyprus Time)
                   </p>
-                  <div className="mt-3 text-sm font-mono font-bold">
-                    Today&apos;s Status:{' '}
-                    <span className="rounded-md bg-black/40 px-2.5 py-1 text-amber-300 border border-white/20">
-                      {activeEmployee.status === 'checked_in'
-                        ? `🟢 Working (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`
+
+                  {/* Status Badge & Live Billable Ticking Timer */}
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className={`rounded-xl px-3.5 py-2 font-mono text-sm font-extrabold shadow border ${
+                      activeEmployee.status === 'checked_in'
+                        ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 animate-pulse'
+                        : activeEmployee.status === 'on_break'
+                        ? 'bg-amber-950/80 text-amber-300 border-amber-500/50'
                         : activeEmployee.status === 'completed'
-                        ? `🏁 Shift Completed (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`
-                        : `⏰ Expected Today`}
+                        ? 'bg-blue-950/80 text-blue-300 border-blue-500/50'
+                        : 'bg-black/40 text-slate-300 border-white/20'
+                    }`}>
+                      {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
+                      {activeEmployee.status === 'on_break' && `🟡 ON BREAK: ${activeEmployee.breakType || 'Pause'}`}
+                      {activeEmployee.status === 'completed' && `🏁 SHIFT COMPLETED (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`}
+                      {activeEmployee.status === 'expected' && `⏰ EXPECTED TODAY`}
                     </span>
+
+                    {/* Live Billable Ticking Time */}
+                    {(activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
+                      <div className="rounded-xl border border-amber-500/50 bg-black/60 px-4 py-2 text-center shadow-inner">
+                        <div className="text-[0.65rem] font-extrabold uppercase tracking-wider text-amber-400">
+                          ⏱️ BILLABLE WORKING TIME
+                        </div>
+                        <div className="font-mono text-xl font-black text-amber-300 tracking-wider">
+                          {kioskBillableTime}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Big Action Buttons */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => {
-                      const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cyprusTime || '11:00 AM' } : e);
-                      saveEmployees(updated);
-                      setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: cyprusTime || '11:00 AM' } : null);
-                    }}
-                    className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center gap-2"
-                  >
-                    <span>🟢</span> Clock In (Arrived)
-                  </button>
+                {/* Kiosk Action Buttons (Clock In, Pause / Break, Resume, Clock Out) */}
+                <div className="flex flex-col gap-3 sm:flex-row items-center">
+                  
+                  {/* State 1: Expected -> Clock In */}
+                  {activeEmployee.status === 'expected' && (
+                    <button
+                      onClick={() => {
+                        const nowTime = cyprusTime || '11:00 AM';
+                        const nowTs = Date.now();
+                        const updated = employees.map(e => e.id === activeEmployee.id ? { 
+                          ...e, 
+                          status: 'checked_in' as const, 
+                          checkInTime: nowTime,
+                          checkInTimestamp: nowTs,
+                          accumulatedSeconds: 0
+                        } : e);
+                        saveEmployees(updated);
+                        setActiveEmployee(prev => prev ? { 
+                          ...prev, 
+                          status: 'checked_in', 
+                          checkInTime: nowTime,
+                          checkInTimestamp: nowTs,
+                          accumulatedSeconds: 0
+                        } : null);
+                      }}
+                      className="w-full sm:w-auto rounded-2xl bg-emerald-600 px-8 py-5 text-base font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>🟢</span> Clock In (Start Work)
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => {
-                      const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'completed' as const, checkOutTime: cyprusTime || '7:00 PM' } : e);
-                      saveEmployees(updated);
-                      setActiveEmployee(prev => prev ? { ...prev, status: 'completed', checkOutTime: cyprusTime || '7:00 PM' } : null);
-                    }}
-                    className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
-                  >
-                    <span>🔴</span> Clock Out (Left Office)
-                  </button>
+                  {/* State 2: Working -> Pause / Break or Clock Out */}
+                  {activeEmployee.status === 'checked_in' && (
+                    <>
+                      {/* Pause / Break Dropdown Menu */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowBreakMenu(v => !v)}
+                          className="rounded-2xl bg-amber-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-amber-500 transition flex items-center gap-2"
+                        >
+                          <span>⏸️</span> Pause / Break...
+                        </button>
+
+                        {showBreakMenu && (
+                          <div className="absolute left-0 mt-2 z-50 w-56 rounded-2xl border-2 border-white/20 bg-slate-900 p-2 shadow-2xl text-xs font-bold text-white">
+                            <div className="px-3 py-1.5 text-[0.7rem] uppercase font-extrabold text-amber-400 border-b border-white/10">
+                              Select Break Type:
+                            </div>
+                            <button
+                              onClick={() => handleTakeBreak('🚬 Smoke Break')}
+                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                            >
+                              🚬 Smoke Break (5-10m)
+                            </button>
+                            <button
+                              onClick={() => handleTakeBreak('🥪 Lunch Break')}
+                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                            >
+                              🥪 Lunch Break (30-60m)
+                            </button>
+                            <button
+                              onClick={() => handleTakeBreak('☕ Coffee / Rest')}
+                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                            >
+                              ☕ Coffee / Rest Break
+                            </button>
+                            <button
+                              onClick={() => handleTakeBreak('❓ Short Break')}
+                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                            >
+                              ❓ Short Break / Other
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Clock Out (Simple: No Popup!) */}
+                      <button
+                        onClick={() => handleClockOutSimple()}
+                        className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
+                      >
+                        <span>🔴</span> Clock Out (Left Office)
+                      </button>
+                    </>
+                  )}
+
+                  {/* State 3: On Break -> Resume Work or Clock Out */}
+                  {activeEmployee.status === 'on_break' && (
+                    <>
+                      <button
+                        onClick={() => handleResumeWork()}
+                        className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center gap-2 animate-pulse"
+                      >
+                        <span>▶️</span> Resume Work
+                      </button>
+
+                      <button
+                        onClick={() => handleClockOutSimple()}
+                        className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
+                      >
+                        <span>🔴</span> Clock Out (Left Office)
+                      </button>
+                    </>
+                  )}
+
+                  {/* State 4: Shift Completed */}
+                  {activeEmployee.status === 'completed' && (
+                    <button
+                      onClick={() => {
+                        const nowTime = cyprusTime || '11:00 AM';
+                        const nowTs = Date.now();
+                        const updated = employees.map(e => e.id === activeEmployee.id ? { 
+                          ...e, 
+                          status: 'checked_in' as const, 
+                          checkInTime: nowTime,
+                          checkInTimestamp: nowTs,
+                          accumulatedSeconds: 0
+                        } : e);
+                        saveEmployees(updated);
+                        setActiveEmployee(prev => prev ? { 
+                          ...prev, 
+                          status: 'checked_in', 
+                          checkInTime: nowTime,
+                          checkInTimestamp: nowTs,
+                          accumulatedSeconds: 0
+                        } : null);
+                      }}
+                      className="rounded-2xl border border-slate-500 bg-slate-800 px-6 py-4 text-sm font-bold text-slate-200 hover:bg-slate-700 transition flex items-center gap-2"
+                    >
+                      <span>↩️</span> Re-open / Clock In Again
+                    </button>
+                  )}
+
                 </div>
               </div>
             </div>
@@ -3098,7 +3319,57 @@ export default function TeamTimeTrackerPage() {
             </div>
           </div>
         </div>
-      )}
+      {/* Footer & Premium Language Switcher */}
+      <footer className={`mt-16 border-t py-8 px-6 ${isDark ? 'border-white/10 bg-black/40 text-slate-300' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row text-xs font-bold">
+          
+          <div className="flex items-center gap-2">
+            <span>⏱️ Limassol Time Tracker</span>
+            <span>•</span>
+            <span>Asia/Nicosia (Cyprus Time)</span>
+          </div>
+
+          {/* Premium Language Switcher */}
+          <div className="flex items-center gap-2">
+            <span className="text-[0.7rem] uppercase font-extrabold tracking-wider opacity-75">
+              🌐 Language / Язык:
+            </span>
+            <div className={`flex items-center rounded-2xl border p-1 shadow-inner ${
+              isDark ? 'border-white/20 bg-black/60' : 'border-slate-300 bg-white'
+            }`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setLang('en');
+                  localStorage.setItem('team_tracker_lang', 'en');
+                }}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-extrabold text-xs transition ${
+                  lang === 'en'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
+                }`}
+              >
+                <span>🇬🇧</span> English
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLang('ru');
+                  localStorage.setItem('team_tracker_lang', 'ru');
+                }}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-extrabold text-xs transition ${
+                  lang === 'ru'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
+                }`}
+              >
+                <span>🇷🇺</span> Русский
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </footer>
 
     </div>
   );
