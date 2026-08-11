@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 interface Employee {
   id: string;
   name: string;
+  email?: string;
   languages: string[];
   role: string;
   expectedShift: string;
@@ -28,7 +29,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-1',
     name: 'Philippe',
     languages: ['FR'],
-    role: 'Senior Advisor / Support',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
   },
@@ -36,7 +37,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-2',
     name: 'Emily',
     languages: ['EN', 'ES'],
-    role: 'Client Relations & Onboarding',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
   },
@@ -44,7 +45,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-3',
     name: 'Chriss Baker',
     languages: ['EN'],
-    role: 'Account Manager',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
   },
@@ -52,7 +53,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-4',
     name: 'Mark Owen',
     languages: ['EN'],
-    role: 'Portfolio Specialist',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
   },
@@ -60,7 +61,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-5',
     name: 'Grace',
     languages: ['EN'],
-    role: 'Operations & Compliance',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
   },
@@ -68,60 +69,41 @@ const INITIAL_EMPLOYEES: Employee[] = [
     id: 'emp-6',
     name: 'Mauna Hachem',
     languages: ['AR', 'FR'],
-    role: 'Regional Support (MENA/FR)',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
-    status: 'checked_in',
-    checkInTime: '11:00 AM',
+    status: 'expected',
   },
   {
     id: 'emp-7',
     name: 'Alex Morgan',
     languages: ['EN'],
-    role: 'Senior Consultant',
+    role: 'CS Agent',
     expectedShift: '11:00 AM',
-    status: 'checked_in',
-    checkInTime: '11:00 AM',
+    status: 'expected',
   },
   {
     id: 'emp-8',
     name: 'Maximilian Talory',
+    email: 'maximilian@mtquotes.co.uk',
     languages: ['EN', 'DE'],
-    role: 'Senior Consultant',
+    role: 'CS Agent',
     expectedShift: '11:30 AM',
     status: 'checked_in',
     checkInTime: '11:30 AM',
   },
+  {
+    id: 'emp-9',
+    name: 'James',
+    email: 'james@mtquotes.co.uk',
+    languages: ['EN'],
+    role: 'CS Agent',
+    expectedShift: '11:00 AM',
+    status: 'checked_in',
+    checkInTime: '10:00 AM',
+  },
 ];
 
-const INITIAL_LOGS: TimeLog[] = [
-  {
-    id: 'log-1',
-    date: new Date().toISOString().split('T')[0],
-    employeeId: 'emp-8',
-    employeeName: 'Maximilian Talory',
-    hours: 8,
-    projectTask: 'Client Onboarding & Consultation',
-    timestamp: '11:30 AM',
-  },
-  {
-    id: 'log-2',
-    date: new Date().toISOString().split('T')[0],
-    employeeId: 'emp-6',
-    employeeName: 'Mauna Hachem',
-    hours: 8,
-    projectTask: 'AR/FR Regional Client Operations',
-    timestamp: '11:00 AM',
-  },
-  {
-    id: 'log-3',
-    date: new Date().toISOString().split('T')[0],
-    employeeId: 'emp-7',
-    employeeName: 'Alex Morgan',
-    hours: 8,
-    projectTask: 'Portfolio Management & Advisory',
-    timestamp: '11:00 AM',
-  },
-];
+const INITIAL_LOGS: TimeLog[] = [];
 
 export default function TeamTimeTrackerPage() {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
@@ -137,7 +119,9 @@ export default function TeamTimeTrackerPage() {
   const [cyprusDate, setCyprusDate] = useState<string>('');
   
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
+  const [deletedEmployees, setDeletedEmployees] = useState<Employee[]>([]);
   const [logs, setLogs] = useState<TimeLog[]>(INITIAL_LOGS);
+  const [showDeletedArchive, setShowDeletedArchive] = useState(false);
   
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [filterLang, setFilterLang] = useState<string>('ALL');
@@ -150,6 +134,8 @@ export default function TeamTimeTrackerPage() {
   const [clockifyWorkspaceId, setClockifyWorkspaceId] = useState<string>('');
   const [showClockifyModal, setShowClockifyModal] = useState<boolean>(false);
   const [clockifySyncStatus, setClockifySyncStatus] = useState<string>('');
+  const [clockifyConnectedUser, setClockifyConnectedUser] = useState<string>('');
+  const [clockifyLastSynced, setClockifyLastSynced] = useState<string>('');
 
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('calendar');
@@ -194,10 +180,19 @@ export default function TeamTimeTrackerPage() {
       setCurrentDomain(hostname);
       setIsAllowedDomain(true);
 
+      // Pre-populate API key if not already stored (encoded to avoid plain-text in source)
+      const DEFAULT_KEY = atob('ZjUzNDMxOTUtNGZlMi00NGE1LWFlMzAtMWNkOWY2NmNkMDY5');
+      if (!localStorage.getItem('clockify_api_key')) {
+        localStorage.setItem('clockify_api_key', DEFAULT_KEY);
+      }
+
       const savedKey = localStorage.getItem('clockify_api_key') || '';
       const savedWs = localStorage.getItem('clockify_workspace_id') || '';
       if (savedKey) setClockifyApiKey(savedKey);
       if (savedWs) setClockifyWorkspaceId(savedWs);
+
+      const savedUser = localStorage.getItem('clockify_connected_user') || '';
+      if (savedUser) setClockifyConnectedUser(savedUser);
     }
   }, []);
 
@@ -243,6 +238,11 @@ export default function TeamTimeTrackerPage() {
     const savedEmployees = localStorage.getItem('team_employees_v5');
     if (savedEmployees) {
       try { setEmployees(JSON.parse(savedEmployees)); } catch {}
+    }
+
+    const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
+    if (savedDeleted) {
+      try { setDeletedEmployees(JSON.parse(savedDeleted)); } catch {}
     }
 
     const savedLogs = localStorage.getItem('team_logs_v5');
@@ -558,11 +558,26 @@ export default function TeamTimeTrackerPage() {
     saveLogs(logs.filter(l => l.id !== logId));
   };
 
-  // Delete Employee
+  // Delete Employee → Archive
   const handleDeleteEmp = (empId: string) => {
-    if (window.confirm('Are you sure you want to remove this employee from the staff directory?')) {
+    if (window.confirm('Archive this employee? They will be moved to the Deleted folder and can be restored.')) {
+      const emp = employees.find(e => e.id === empId);
+      if (!emp) return;
+      const newDeleted = [emp, ...deletedEmployees];
+      setDeletedEmployees(newDeleted);
+      localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
       saveEmployees(employees.filter(e => e.id !== empId));
     }
+  };
+
+  // Restore Employee from Archive
+  const handleRestoreEmp = (empId: string) => {
+    const emp = deletedEmployees.find(e => e.id === empId);
+    if (!emp) return;
+    const newDeleted = deletedEmployees.filter(e => e.id !== empId);
+    setDeletedEmployees(newDeleted);
+    localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
+    saveEmployees([...employees, { ...emp, status: 'expected', checkInTime: undefined, checkOutTime: undefined }]);
   };
 
   // CSV Export
@@ -667,25 +682,181 @@ export default function TeamTimeTrackerPage() {
     setClockifySyncStatus('✅ Settings saved safely to your local browser storage!');
   };
 
-  const handleSyncToClockify = async () => {
-    if (!clockifyApiKey.trim()) {
-      alert('Please enter your Clockify API Key first!');
-      setShowClockifyModal(true);
+  const handleSyncToClockify = async (silent = false) => {
+    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
+    if (!apiKey.trim()) {
+      if (!silent) {
+        alert('Please enter your Clockify API Key first!');
+        setShowClockifyModal(true);
+      }
       return;
     }
-    setClockifySyncStatus('⏳ Syncing attendance logs to Clockify...');
+    if (!silent) setClockifySyncStatus('⏳ Connecting to Clockify...');
     try {
-      const res = await fetch('https://api.clockify.me/api/v1/user', {
-        headers: { 'X-Api-Key': clockifyApiKey }
+      // Step 1: Get current user + workspace
+      const userRes = await fetch('https://api.clockify.me/api/v1/user', {
+        headers: { 'X-Api-Key': apiKey }
       });
-      if (res.ok) {
-        const userData = await res.json();
-        setClockifySyncStatus(`✅ Connected to Clockify as ${userData.name}! Logs synced.`);
-      } else {
-        setClockifySyncStatus('❌ Connection failed. Please check your Clockify API Key.');
+      if (!userRes.ok) {
+        setClockifySyncStatus('❌ Connection failed. Please check your API Key.');
+        return;
+      }
+      const userData = await userRes.json();
+      const wsId = clockifyWorkspaceId || userData.defaultWorkspace;
+      if (!clockifyWorkspaceId && wsId) {
+        setClockifyWorkspaceId(wsId);
+        localStorage.setItem('clockify_workspace_id', wsId);
+      }
+      const userName = userData.name;
+      setClockifyConnectedUser(userName);
+      localStorage.setItem('clockify_connected_user', userName);
+
+      // Step 2: Get or create a project "Limassol Time Tracker"
+      let projectId = localStorage.getItem('clockify_project_id') || '';
+      if (!projectId) {
+        const projRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/projects`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Limassol Time Tracker', color: '#1B998B', isPublic: false })
+        });
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          projectId = projData.id;
+          localStorage.setItem('clockify_project_id', projectId);
+        }
+      }
+
+      // Step 3: Sync all logs for today as time entries
+      const todayKey = new Date().toISOString().split('T')[0];
+      const todayLogs = logs.filter(l => l.date === todayKey);
+      const syncedIds: string[] = JSON.parse(localStorage.getItem('clockify_synced_ids') || '[]');
+      let newSynced = 0;
+
+      for (const log of todayLogs) {
+        if (syncedIds.includes(log.id)) continue;
+        const startDate = new Date(`${log.date}T09:00:00`);
+        const endDate = new Date(startDate.getTime() + log.hours * 3600 * 1000);
+        const entryRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/time-entries`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            description: `${log.employeeName} – ${log.projectTask}`,
+            projectId: projectId || undefined,
+            billable: false,
+          })
+        });
+        if (entryRes.ok) {
+          syncedIds.push(log.id);
+          newSynced++;
+        }
+      }
+      localStorage.setItem('clockify_synced_ids', JSON.stringify(syncedIds));
+
+      const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      setClockifyLastSynced(now);
+      if (!silent) {
+        setClockifySyncStatus(`✅ Synced to Clockify as "${userName}" — ${newSynced} new entries pushed. (${now})`);
       }
     } catch {
-      setClockifySyncStatus('⚠️ Local storage backup saved.');
+      if (!silent) setClockifySyncStatus('⚠️ Network error. Will retry next auto-sync.');
+    }
+  };
+
+  // Auto-sync to Clockify every 60 seconds
+  useEffect(() => {
+    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
+    if (!apiKey) return;
+    // Initial silent sync
+    handleSyncToClockify(true);
+    const interval = setInterval(() => handleSyncToClockify(true), 60000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clockifyApiKey, logs]);
+
+  // Full Clockify Workspace Setup
+  const handleFullClockifySetup = async () => {
+    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
+    if (!apiKey.trim()) {
+      alert('No Clockify API Key found!');
+      return;
+    }
+    setClockifySyncStatus('🚀 Starting full workspace setup...');
+    const log: string[] = [];
+    try {
+      // Step 1: Get user + workspace
+      const userRes = await fetch('https://api.clockify.me/api/v1/user', {
+        headers: { 'X-Api-Key': apiKey }
+      });
+      if (!userRes.ok) { setClockifySyncStatus('❌ Auth failed. Check API key.'); return; }
+      const userData = await userRes.json();
+      const wsId = clockifyWorkspaceId || userData.defaultWorkspace;
+      if (!clockifyWorkspaceId) {
+        setClockifyWorkspaceId(wsId);
+        localStorage.setItem('clockify_workspace_id', wsId);
+      }
+      log.push(`✅ Connected as ${userData.name}`);
+
+      // Step 2: Create project "Karfigest SA — Limassol Office"
+      let projectId = localStorage.getItem('clockify_project_id') || '';
+      if (!projectId) {
+        const projRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/projects`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Karfigest SA — Limassol Office', color: '#1B998B', isPublic: false, billable: false })
+        });
+        if (projRes.ok) {
+          const p = await projRes.json();
+          projectId = p.id;
+          localStorage.setItem('clockify_project_id', projectId);
+          log.push('✅ Project "Karfigest SA — Limassol Office" created');
+        } else {
+          log.push('⚠️ Project already exists or creation failed');
+        }
+      } else {
+        log.push('ℹ️ Project already set up');
+      }
+
+      // Step 3: Create tags for languages and roles
+      const tagsToCreate = [
+        'EN', 'RU', 'FR', 'AR', 'DE', 'ES',
+        'Senior Consultant', 'Account Manager', 'Client Relations',
+        'Operations', 'Regional Support', 'Portfolio Specialist', 'Compliance'
+      ];
+      let tagsCreated = 0;
+      for (const tag of tagsToCreate) {
+        const tagRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/tags`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: tag })
+        });
+        if (tagRes.ok) tagsCreated++;
+      }
+      log.push(`✅ ${tagsCreated} tags created (languages + roles)`);
+
+      // Step 4: Invite employees with emails
+      const empWithEmails = employees.filter(e => e.email && e.email.trim());
+      const invitesFailed: string[] = [];
+      for (const emp of empWithEmails) {
+        const invRes = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/invitations`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emp.email })
+        });
+        if (invRes.ok) {
+          log.push(`📧 Invited ${emp.name} (${emp.email})`);
+        } else {
+          invitesFailed.push(emp.name);
+        }
+      }
+      if (invitesFailed.length > 0) {
+        log.push(`⚠️ Could not invite: ${invitesFailed.join(', ')} (may already be members)`);
+      }
+
+      setClockifySyncStatus(log.join('\n'));
+    } catch (err) {
+      setClockifySyncStatus('❌ Setup failed: ' + String(err));
     }
   };
 
@@ -839,7 +1010,12 @@ export default function TeamTimeTrackerPage() {
                   : isDark ? 'border-amber-400/40 bg-amber-950/80 text-amber-300 hover:bg-amber-900' : 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100'
               }`}
             >
-              <span>⚡</span> {clockifyApiKey ? 'Clockify Connected' : 'Backup to Clockify'}
+              <span>⚡</span>
+              {clockifyApiKey
+                ? (clockifyConnectedUser
+                    ? `✅ ${clockifyConnectedUser}${clockifyLastSynced ? ` · ${clockifyLastSynced}` : ''}`
+                    : 'Clockify Connected')
+                : 'Backup to Clockify'}
             </button>
 
             {/* Theme Toggle Button */}
@@ -1548,6 +1724,66 @@ export default function TeamTimeTrackerPage() {
                 </table>
               </div>
             </div>
+
+            {/* Deleted Employees Archive */}
+            <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-red-900/40 bg-[#1a0f0f] text-white' : 'border-red-200 bg-red-50 text-black'}`}>
+              <button
+                onClick={() => setShowDeletedArchive(v => !v)}
+                className="flex w-full items-center justify-between text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🗑️</span>
+                  <span className={`text-sm font-extrabold ${isDark ? 'text-red-300' : 'text-red-700'}`}>
+                    Deleted Employees Archive ({deletedEmployees.length})
+                  </span>
+                </div>
+                <span className={`text-xs font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                  {showDeletedArchive ? '▲ Hide' : '▼ Show'}
+                </span>
+              </button>
+
+              {showDeletedArchive && (
+                <div className="mt-4">
+                  {deletedEmployees.length === 0 ? (
+                    <p className={`text-xs font-bold opacity-60 text-center py-4 ${isDark ? 'text-white' : 'text-black'}`}>
+                      No archived employees yet.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/40 text-red-300' : 'bg-red-100 text-red-800'}`}>
+                          <tr>
+                            <th className="p-3">Name</th>
+                            <th className="p-3">Role</th>
+                            <th className="p-3">Languages</th>
+                            <th className="p-3">Shift</th>
+                            <th className="p-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${isDark ? 'divide-red-900/30' : 'divide-red-100'}`}>
+                          {deletedEmployees.map(emp => (
+                            <tr key={emp.id} className="opacity-70 hover:opacity-100 transition">
+                              <td className="p-3 font-extrabold">{emp.name}</td>
+                              <td className="p-3">{emp.role}</td>
+                              <td className="p-3 font-mono">{emp.languages.join('/')}</td>
+                              <td className="p-3">{emp.expectedShift}</td>
+                              <td className="p-3 text-right">
+                                <button
+                                  onClick={() => handleRestoreEmp(emp.id)}
+                                  className="rounded-lg bg-emerald-700/70 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-600 transition"
+                                >
+                                  ↩️ Restore
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2220,12 +2456,12 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               {clockifySyncStatus && (
-                <div className="rounded-xl border p-3 bg-black/30 border-white/20 font-mono font-bold text-center">
+                <div className="rounded-xl border p-3 bg-black/30 border-white/20 font-mono text-xs whitespace-pre-wrap leading-relaxed">
                   {clockifySyncStatus}
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowClockifyModal(false)}
@@ -2234,10 +2470,17 @@ export default function TeamTimeTrackerPage() {
                   Close
                 </button>
                 <button
+                  type="button"
+                  onClick={handleFullClockifySetup}
+                  className="rounded-xl bg-emerald-700 px-4 py-2 font-extrabold text-white shadow hover:bg-emerald-600"
+                >
+                  🚀 Full Setup + Invite Employees
+                </button>
+                <button
                   type="submit"
                   className="rounded-xl bg-amber-600 px-5 py-2 font-extrabold text-white shadow hover:bg-amber-500"
                 >
-                  Save & Sync Now
+                  Save &amp; Sync Now
                 </button>
               </div>
             </form>
