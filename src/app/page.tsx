@@ -1658,8 +1658,6 @@ export default function TeamTimeTrackerPage() {
                   <span>📊</span> Reports &amp; Payroll
                 </button>
               </div>
-
-              </div>
             </div>
           </div>
         )}
