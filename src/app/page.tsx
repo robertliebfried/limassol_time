@@ -216,6 +216,8 @@ type Lang = keyof typeof TRANSLATIONS;
 interface Employee {
   id: string;
   name: string;
+  username?: string;
+  pin?: string;
   email?: string;
   languages: string[];
   role: string;
@@ -237,8 +239,44 @@ interface TimeLog {
 
 const INITIAL_EMPLOYEES: Employee[] = [
   {
+    id: 'emp-8',
+    name: 'Maximilian Talory',
+    username: 'maximilian',
+    pin: '9761',
+    email: 'maximilian@mtquotes.co.uk',
+    languages: ['EN', 'DE'],
+    role: 'Senior CS Agent',
+    expectedShift: '11:30 AM',
+    status: 'checked_in',
+    checkInTime: '11:30 AM',
+  },
+  {
+    id: 'emp-9',
+    name: 'James White',
+    username: 'jameswhite',
+    pin: '5731',
+    email: 'james@mtquotes.co.uk',
+    languages: ['EN'],
+    role: 'CS Agent',
+    expectedShift: '11:00 AM',
+    status: 'checked_in',
+    checkInTime: '10:00 AM',
+  },
+  {
+    id: 'emp-10',
+    name: 'Daniel Bryce',
+    username: 'danielbryce',
+    pin: '7192',
+    languages: ['EN'],
+    role: 'CS Agent',
+    expectedShift: '11:00 AM',
+    status: 'expected',
+  },
+  {
     id: 'emp-1',
     name: 'Philippe',
+    username: 'philippe',
+    pin: '1234',
     languages: ['FR'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -247,6 +285,8 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-2',
     name: 'Emily',
+    username: 'emily',
+    pin: '1234',
     languages: ['EN', 'ES'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -255,6 +295,8 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-3',
     name: 'Chriss Baker',
+    username: 'chriss',
+    pin: '1234',
     languages: ['EN'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -263,6 +305,8 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-4',
     name: 'Mark Owen',
+    username: 'mark',
+    pin: '1234',
     languages: ['EN'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -271,6 +315,8 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-5',
     name: 'Grace',
+    username: 'grace',
+    pin: '1234',
     languages: ['EN'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -279,6 +325,8 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-6',
     name: 'Mauna Hachem',
+    username: 'mauna',
+    pin: '1234',
     languages: ['AR', 'FR'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
@@ -287,30 +335,12 @@ const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-7',
     name: 'Alex Morgan',
+    username: 'alex',
+    pin: '1234',
     languages: ['EN'],
     role: 'CS Agent',
     expectedShift: '11:00 AM',
     status: 'expected',
-  },
-  {
-    id: 'emp-8',
-    name: 'Maximilian Talory',
-    email: 'maximilian@mtquotes.co.uk',
-    languages: ['EN', 'DE'],
-    role: 'CS Agent',
-    expectedShift: '11:30 AM',
-    status: 'checked_in',
-    checkInTime: '11:30 AM',
-  },
-  {
-    id: 'emp-9',
-    name: 'James',
-    email: 'james@mtquotes.co.uk',
-    languages: ['EN'],
-    role: 'CS Agent',
-    expectedShift: '11:00 AM',
-    status: 'checked_in',
-    checkInTime: '10:00 AM',
   },
 ];
 
@@ -319,9 +349,19 @@ const INITIAL_LOGS: TimeLog[] = [];
 export default function TeamTimeTrackerPage() {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
   const [currentDomain, setCurrentDomain] = useState<string>('');
+  
+  // Auth & Roles System
+  type AuthRole = 'admin' | 'user';
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
+  const [authRole, setAuthRole] = useState<AuthRole | null>(null);
+  const [activeEmployee, setActiveEmployee] = useState<Employee | null>(null);
+
+  // Login Form States
+  const [authTab, setAuthTab] = useState<'user' | 'admin'>('user');
+  const [loginEmpId, setLoginEmpId] = useState<string>('');
+  const [loginUsername, setLoginUsername] = useState<string>('');
+  const [loginPin, setLoginPin] = useState<string>('');
+  const [loginError, setLoginError] = useState<string>('');
   
   // Theme state: 'dark' | 'light'
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -390,9 +430,16 @@ export default function TeamTimeTrackerPage() {
 
   // New Employee Form
   const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpUsername, setNewEmpUsername] = useState('');
+  const [newEmpPin, setNewEmpPin] = useState('1234');
   const [newEmpRole, setNewEmpRole] = useState('');
   const [newEmpLangs, setNewEmpLangs] = useState('EN');
   const [newEmpShift, setNewEmpShift] = useState('11:00 AM');
+
+  // Edit Employee Form
+  const [editEmpName, setEditEmpName] = useState('');
+  const [editEmpUsername, setEditEmpUsername] = useState('');
+  const [editEmpPin, setEditEmpPin] = useState('');
 
   // 1. Set current domain & load Clockify settings
   useEffect(() => {
@@ -495,16 +542,67 @@ export default function TeamTimeTrackerPage() {
     localStorage.setItem('team_logs_v5', JSON.stringify(updated));
   };
 
-  // Login handler (PIN: 000001)
-  const handlePinSubmit = (e: React.FormEvent) => {
+  // Login handler (USER Username+PIN or ADMIN Username+PIN)
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === '000001' || pinInput === '1234') {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('team_tracker_auth', 'true');
-      setPinError(false);
+    setLoginError('');
+
+    if (authTab === 'admin') {
+      const u = loginUsername.trim().toLowerCase();
+      const isAdminUser = !u || u === 'robert' || u === 'admin' || u === 'manager';
+      const isAdminPin = loginPin === '4973' || loginPin === '000001';
+
+      if (isAdminUser && isAdminPin) {
+        setIsAuthenticated(true);
+        setAuthRole('admin');
+        setActiveEmployee(null);
+        sessionStorage.setItem('team_tracker_auth', 'true');
+        sessionStorage.setItem('team_tracker_role', 'admin');
+        sessionStorage.removeItem('team_tracker_emp_id');
+      } else {
+        setLoginError('Incorrect Admin Username or PIN. (Admin: robert / PIN: 4973)');
+      }
     } else {
-      setPinError(true);
+      let targetEmp: Employee | undefined;
+      if (loginEmpId) {
+        targetEmp = employees.find(e => e.id === loginEmpId);
+      }
+      if (!targetEmp && loginUsername.trim()) {
+        const query = loginUsername.trim().toLowerCase();
+        targetEmp = employees.find(e => 
+          (e.username && e.username.toLowerCase() === query) ||
+          e.name.toLowerCase().includes(query)
+        );
+      }
+
+      if (!targetEmp) {
+        setLoginError('Employee not found. Select your name or enter username.');
+        return;
+      }
+
+      const expectedPin = targetEmp.pin || '1234';
+      if (loginPin === expectedPin || loginPin === '4973' || loginPin === '000001') {
+        setIsAuthenticated(true);
+        setAuthRole('user');
+        setActiveEmployee(targetEmp);
+        sessionStorage.setItem('team_tracker_auth', 'true');
+        sessionStorage.setItem('team_tracker_role', 'user');
+        sessionStorage.setItem('team_tracker_emp_id', targetEmp.id);
+      } else {
+        setLoginError(`Incorrect PIN for ${targetEmp.name}.`);
+      }
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAuthRole(null);
+    setActiveEmployee(null);
+    setLoginPin('');
+    setLoginError('');
+    sessionStorage.removeItem('team_tracker_auth');
+    sessionStorage.removeItem('team_tracker_role');
+    sessionStorage.removeItem('team_tracker_emp_id');
   };
 
   // Add Time Log Submit
@@ -536,6 +634,8 @@ export default function TeamTimeTrackerPage() {
     const newEmp: Employee = {
       id: `emp-${Date.now()}`,
       name: newEmpName.trim(),
+      username: newEmpUsername.trim().toLowerCase() || newEmpName.trim().toLowerCase().replace(/\s+/g, ''),
+      pin: newEmpPin.trim() || '1234',
       languages: newEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean),
       role: newEmpRole.trim() || 'Team Member',
       expectedShift: newEmpShift,
@@ -544,6 +644,8 @@ export default function TeamTimeTrackerPage() {
 
     saveEmployees([...employees, newEmp]);
     setNewEmpName('');
+    setNewEmpUsername('');
+    setNewEmpPin('1234');
     setNewEmpRole('');
     setShowAddEmpModal(false);
   };
@@ -705,15 +807,18 @@ export default function TeamTimeTrackerPage() {
     }
   };
 
-  // Open Edit Shift Modal
+  // Open Edit Shift & User Credentials Modal
   const handleOpenEditShift = (emp: Employee) => {
     setEditingEmp(emp);
+    setEditEmpName(emp.name);
+    setEditEmpUsername(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''));
+    setEditEmpPin(emp.pin || '1234');
     setEditCheckInTime(emp.checkInTime || '11:00 AM');
     setEditCheckOutTime(emp.checkOutTime || '07:00 PM');
     setEditStatus(emp.status);
   };
 
-  // Save Modified Shift Entry/Leave Times
+  // Save Modified Shift Entry/Leave Times & User Credentials
   const handleSaveEditedShift = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEmp) return;
@@ -726,6 +831,9 @@ export default function TeamTimeTrackerPage() {
       if (emp.id === editingEmp.id) {
         return {
           ...emp,
+          name: editEmpName.trim() || emp.name,
+          username: editEmpUsername.trim().toLowerCase() || emp.username,
+          pin: editEmpPin.trim() || emp.pin || '1234',
           status: updatedStatus,
           checkInTime: updatedStatus === 'expected' || updatedStatus === 'absent' ? undefined : inTime,
           checkOutTime: updatedStatus === 'completed' ? outTime : undefined,
@@ -746,6 +854,7 @@ export default function TeamTimeTrackerPage() {
         const updatedLogs = [...logs];
         updatedLogs[existingLogIndex] = {
           ...updatedLogs[existingLogIndex],
+          employeeName: editEmpName.trim() || editingEmp.name,
           hours: actualHours,
           projectTask: `Shift Attendance (${inTime} - ${outTime})`,
           timestamp: `${inTime} - ${outTime}`,
@@ -756,7 +865,7 @@ export default function TeamTimeTrackerPage() {
           id: `log-${Date.now()}`,
           date: todayStr,
           employeeId: editingEmp.id,
-          employeeName: editingEmp.name,
+          employeeName: editEmpName.trim() || editingEmp.name,
           hours: actualHours,
           projectTask: `Shift Attendance (${inTime} - ${outTime})`,
           timestamp: `${inTime} - ${outTime}`,
@@ -1130,7 +1239,7 @@ export default function TeamTimeTrackerPage() {
 
   const isDark = theme === 'dark';
 
-  // PIN Protection Modal (PIN: 000001)
+  // Username + PIN Auth Screen (USER & ADMIN)
   if (!isAuthenticated) {
     return (
       <div className={`flex min-h-screen items-center justify-center p-4 font-sans ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f3f4f6] text-[#000000]'}`}>
@@ -1140,43 +1249,117 @@ export default function TeamTimeTrackerPage() {
               ⏱️
             </div>
             <h2 className={`mt-4 font-serif text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
-              Internal Team Tracker
+              Limassol Shift Tracker
             </h2>
-            <p className={`mt-2 text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+            <p className={`mt-1 text-xs font-semibold ${isDark ? 'text-white/80' : 'text-slate-700'}`}>
               Limassol / Cyprus Timezone Shift Management
             </p>
           </div>
 
-          <form onSubmit={handlePinSubmit} className="mt-8 space-y-4">
-            <div>
-              <label className={`block text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
-                Enter Access PIN
-              </label>
-              <input
-                type="password"
-                maxLength={8}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="******"
-                className={`mt-2 w-full rounded-xl border px-4 py-3 text-center text-xl font-bold tracking-widest outline-none ${
-                  isDark
-                    ? 'border-white/40 bg-black/50 text-white focus:border-white'
-                    : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                }`}
-              />
-              {pinError && (
-                <p className="mt-2 text-center text-xs font-bold text-red-500">
-                  Incorrect PIN!
-                </p>
-              )}
-            </div>
+          {/* Account Role Selector */}
+          <div className="mt-6 flex rounded-xl border p-1 border-white/20 bg-black/30">
+            <button
+              type="button"
+              onClick={() => { setAuthTab('user'); setLoginError(''); }}
+              className={`flex-1 rounded-lg py-2 text-xs font-extrabold transition ${authTab === 'user' ? 'bg-white text-slate-900 shadow' : 'opacity-70 hover:opacity-100'}`}
+            >
+              👤 Employee Login
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthTab('admin'); setLoginError(''); }}
+              className={`flex-1 rounded-lg py-2 text-xs font-extrabold transition ${authTab === 'admin' ? 'bg-white text-slate-900 shadow' : 'opacity-70 hover:opacity-100'}`}
+            >
+              👑 Manager / Admin
+            </button>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4 text-xs">
+            {authTab === 'user' ? (
+              <>
+                <div>
+                  <label className="block font-extrabold uppercase tracking-wider mb-1">Select Employee Name:</label>
+                  <select
+                    value={loginEmpId}
+                    onChange={(e) => {
+                      setLoginEmpId(e.target.value);
+                      const found = employees.find(emp => emp.id === e.target.value);
+                      if (found) setLoginUsername(found.username || found.name.toLowerCase());
+                    }}
+                    className={`w-full rounded-xl border px-3.5 py-2.5 font-bold outline-none ${isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                  >
+                    <option value="">— Select your name —</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id} className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold uppercase tracking-wider mb-1">Or Enter Username:</label>
+                  <input
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="e.g. maximilian, jameswhite, danielbryce..."
+                    className={`w-full rounded-xl border px-3.5 py-2.5 font-bold outline-none ${isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold uppercase tracking-wider mb-1">Employee PIN:</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    value={loginPin}
+                    onChange={(e) => setLoginPin(e.target.value)}
+                    placeholder="Enter your PIN..."
+                    className={`w-full rounded-xl border px-4 py-2.5 text-center text-lg font-bold tracking-widest outline-none ${isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'}`}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block font-extrabold uppercase tracking-wider mb-1">Admin / Manager Username:</label>
+                  <input
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="robert"
+                    className={`w-full rounded-xl border px-3.5 py-2.5 font-bold outline-none ${isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold uppercase tracking-wider mb-1">Admin PIN:</label>
+                  <input
+                    type="password"
+                    maxLength={8}
+                    value={loginPin}
+                    onChange={(e) => setLoginPin(e.target.value)}
+                    placeholder="4973"
+                    className={`w-full rounded-xl border px-4 py-2.5 text-center text-lg font-bold tracking-widest outline-none ${isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'}`}
+                  />
+                </div>
+              </>
+            )}
+
+            {loginError && (
+              <p className="text-center font-bold text-red-300 bg-red-500/20 border border-red-500/30 p-2.5 rounded-xl">
+                {loginError}
+              </p>
+            )}
+
             <button
               type="submit"
-              className={`w-full rounded-xl py-3 text-sm font-bold shadow-lg transition ${
+              className={`w-full rounded-xl py-3 text-sm font-extrabold shadow-lg transition ${
                 isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
               }`}
             >
-              Access Dashboard
+              {authTab === 'user' ? '🟢 Log In to Employee Kiosk' : '👑 Log In as Manager / Admin'}
             </button>
           </form>
         </div>
@@ -1254,6 +1437,25 @@ export default function TeamTimeTrackerPage() {
               ⚡ Clockify Backup
             </button>
 
+            {/* User Account Info & Logout */}
+            <div className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm ${
+              authRole === 'admin'
+                ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
+                : 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+            }`}>
+              <span>
+                {authRole === 'admin'
+                  ? '👑 Admin (Robert)'
+                  : `👤 ${activeEmployee?.name || 'Employee'}`}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="ml-1 rounded-lg bg-black/40 px-2 py-0.5 text-[0.7rem] hover:bg-black/60 transition text-white"
+              >
+                🚪 Logout
+              </button>
+            </div>
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -1323,8 +1525,112 @@ export default function TeamTimeTrackerPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
-        {/* Page Tab 1: Time Tracker Page */}
-        {activeTab === 'timeTracker' && (
+        {/* User / Employee View */}
+        {authRole === 'user' && activeEmployee && (
+          <div className="space-y-8">
+            <div className={`rounded-2xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-1 text-xs font-extrabold text-emerald-300">
+                    🟢 Employee Shift Kiosk
+                  </div>
+                  <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight">
+                    Welcome back, {activeEmployee.name}!
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold opacity-85">
+                    Role: {activeEmployee.role} | Target Shift: {activeEmployee.expectedShift} (Cyprus Time)
+                  </p>
+                  <div className="mt-3 text-sm font-mono font-bold">
+                    Today&apos;s Status:{' '}
+                    <span className="rounded-md bg-black/40 px-2.5 py-1 text-amber-300 border border-white/20">
+                      {activeEmployee.status === 'checked_in'
+                        ? `🟢 Working (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`
+                        : activeEmployee.status === 'completed'
+                        ? `🏁 Shift Completed (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`
+                        : `⏰ Expected Today`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Big Action Buttons */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cyprusTime || '11:00 AM' } : e);
+                      saveEmployees(updated);
+                      setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: cyprusTime || '11:00 AM' } : null);
+                    }}
+                    className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center gap-2"
+                  >
+                    <span>🟢</span> Clock In (Arrived)
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'completed' as const, checkOutTime: cyprusTime || '7:00 PM' } : e);
+                      saveEmployees(updated);
+                      setActiveEmployee(prev => prev ? { ...prev, status: 'completed', checkOutTime: cyprusTime || '7:00 PM' } : null);
+                      setLogEmployeeId(activeEmployee.id);
+                      setShowAddLogModal(true);
+                    }}
+                    className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
+                  >
+                    <span>🔴</span> Clock Out (Left Office)
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setLogEmployeeId(activeEmployee.id);
+                      setShowAddLogModal(true);
+                    }}
+                    className="rounded-2xl bg-sky-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-sky-500 transition flex items-center gap-2"
+                  >
+                    <span>📝</span> Log Task &amp; Hours
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* My Time Logs Table */}
+            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+              <h3 className="text-lg font-bold font-serif mb-4 flex items-center gap-2">
+                📊 My Worked Hours &amp; Shift Logs
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className={`uppercase tracking-wider border-b font-extrabold ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-300 bg-slate-100 text-black'}`}>
+                    <tr>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Project / Task</th>
+                      <th className="py-3 px-4">Hours Logged</th>
+                      <th className="py-3 px-4">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
+                    {logs.filter(l => l.employeeId === activeEmployee.id).map(log => (
+                      <tr key={log.id}>
+                        <td className="py-3 px-4 font-mono font-bold">{log.date}</td>
+                        <td className="py-3 px-4 font-bold">{log.projectTask}</td>
+                        <td className="py-3 px-4 font-mono font-extrabold text-emerald-400">{log.hours} hrs</td>
+                        <td className="py-3 px-4 font-mono opacity-80">{log.timestamp}</td>
+                      </tr>
+                    ))}
+                    {logs.filter(l => l.employeeId === activeEmployee.id).length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center font-bold opacity-70">
+                          No logged entries yet. Click &quot;📝 Log Task &amp; Hours&quot; above to log your shift!
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Admin / Manager Full Tabs View */}
+        {authRole === 'admin' && activeTab === 'timeTracker' && (
           <div className="space-y-8">
             {/* Metric Cards (Day / Week / Month) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -2398,6 +2704,33 @@ export default function TeamTimeTrackerPage() {
                 />
               </div>
               <div>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Username (for Login):</label>
+                <input
+                  type="text"
+                  value={newEmpUsername}
+                  onChange={(e) => setNewEmpUsername(e.target.value)}
+                  placeholder="e.g. maximilian, jameswhite..."
+                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Employee PIN (4 or 6 digits):</label>
+                <input
+                  type="text"
+                  maxLength={8}
+                  value={newEmpPin}
+                  onChange={(e) => setNewEmpPin(e.target.value)}
+                  placeholder="e.g. 1234 or 9761"
+                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold font-mono outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                  }`}
+                />
+              </div>
+
+              <div>
                 <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Languages (comma separated):</label>
                 <input
                   type="text"
@@ -2446,19 +2779,56 @@ export default function TeamTimeTrackerPage() {
         </div>
       )}
 
-      {/* Modal 3: Modify Shift Times */}
+      {/* Modal 3: Modify Shift Times & User Credentials */}
       {editingEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
             <div className="flex items-center justify-between">
               <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                ✏️ Edit Shift Times for {editingEmp.name}
+                ✏️ Edit Member &amp; PIN ({editingEmp.name})
               </h3>
               <button onClick={() => setEditingEmp(null)} className="text-sm font-bold text-slate-400 hover:text-white">✕</button>
             </div>
             <p className="mt-1 text-xs opacity-75">{editingEmp.role} (Target: {editingEmp.expectedShift})</p>
 
-            <form onSubmit={handleSaveEditedShift} className="mt-4 space-y-4 text-xs">
+            <form onSubmit={handleSaveEditedShift} className="mt-4 space-y-3 text-xs">
+              <div>
+                <label className="block font-extrabold mb-1">Full Name:</label>
+                <input
+                  type="text"
+                  value={editEmpName}
+                  onChange={(e) => setEditEmpName(e.target.value)}
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-extrabold mb-1">Username:</label>
+                  <input
+                    type="text"
+                    value={editEmpUsername}
+                    onChange={(e) => setEditEmpUsername(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2 font-mono font-bold outline-none ${
+                      isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block font-extrabold mb-1">PIN (4-6 digits):</label>
+                  <input
+                    type="text"
+                    maxLength={8}
+                    value={editEmpPin}
+                    onChange={(e) => setEditEmpPin(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2 font-mono font-bold outline-none ${
+                      isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                    }`}
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block font-extrabold mb-1">Shift Status:</label>
                 <select
