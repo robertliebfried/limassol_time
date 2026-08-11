@@ -286,21 +286,44 @@ export default function TeamTimeTrackerPage() {
     setShowAddEmpModal(false);
   };
 
-  // Shift Status Handler
-  const handleStatusChange = (id: string, newStatus: Employee['status']) => {
-    const nowCyprus = cyprusTime || '11:00 AM';
+  // Shift Status Handler with Auto-Log Creation on Departure
+  const handleStatusChange = (id: string, newStatus: Employee['status'], customCheckIn?: string, customCheckOut?: string) => {
+    const nowCyprus = cyprusTime || new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Nicosia', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const targetEmp = employees.find(e => e.id === id);
+    if (!targetEmp) return;
+
+    const inTime = customCheckIn || targetEmp.checkInTime || nowCyprus;
+    const outTime = customCheckOut || (newStatus === 'completed' ? nowCyprus : targetEmp.checkOutTime);
+
     const updated = employees.map(emp => {
       if (emp.id === id) {
         return {
           ...emp,
           status: newStatus,
-          checkInTime: newStatus === 'checked_in' ? (emp.checkInTime || nowCyprus) : emp.checkInTime,
-          checkOutTime: newStatus === 'completed' ? nowCyprus : emp.checkOutTime,
+          checkInTime: newStatus === 'checked_in' || newStatus === 'completed' ? inTime : undefined,
+          checkOutTime: newStatus === 'completed' ? outTime : undefined,
         };
       }
       return emp;
     });
+
     saveEmployees(updated);
+
+    // Auto-create log entry when shift is completed
+    if (newStatus === 'completed') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const autoLog: TimeLog = {
+        id: `log-${Date.now()}`,
+        date: todayStr,
+        employeeId: targetEmp.id,
+        employeeName: targetEmp.name,
+        hours: 8, // Default standard 8-hour shift
+        projectTask: `Shift Attendance (${inTime} - ${outTime})`,
+        timestamp: `${inTime} - ${outTime}`,
+      };
+      saveLogs([autoLog, ...logs]);
+    }
   };
 
   // Delete Log
@@ -571,36 +594,112 @@ export default function TeamTimeTrackerPage() {
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {employees.map(emp => (
-              <div key={emp.id} className={`rounded-xl border-2 p-4 shadow-md ${isDark ? 'border-white/30 bg-black/40 text-white' : 'border-slate-300 bg-slate-50 text-black'}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-black'}`}>{emp.name}</span>
-                  <span className={`rounded px-2 py-0.5 text-xs font-extrabold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
-                    {emp.languages.join('/')}
-                  </span>
+              <div key={emp.id} className={`flex flex-col justify-between rounded-xl border-2 p-4 shadow-md transition ${isDark ? 'border-white/30 bg-black/40 text-white' : 'border-slate-300 bg-slate-50 text-black'}`}>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-black'}`}>{emp.name}</span>
+                    <span className={`rounded px-2 py-0.5 text-xs font-extrabold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
+                      {emp.languages.join('/')}
+                    </span>
+                  </div>
+                  <div className={`mt-1 text-xs font-bold truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{emp.role}</div>
+
+                  {/* Arrival / Departure Details */}
+                  <div className="mt-3 rounded-lg border p-2.5 text-xs font-bold space-y-1 bg-black/20 border-white/10">
+                    <div className="flex justify-between items-center text-[0.7rem] text-slate-400">
+                      <span>Shift Target:</span>
+                      <span className="font-extrabold text-amber-400">⏰ {emp.expectedShift}</span>
+                    </div>
+
+                    {emp.status === 'expected' && (
+                      <div className="text-amber-400 font-extrabold flex items-center gap-1 text-[0.75rem]">
+                        <span>🟡 Status: Not arrived yet</span>
+                      </div>
+                    )}
+
+                    {emp.status === 'checked_in' && (
+                      <div className="text-emerald-400 font-extrabold flex items-center justify-between text-[0.75rem]">
+                        <span>🟢 Arrived at:</span>
+                        <span className="font-mono bg-emerald-950 px-1.5 py-0.5 rounded text-white">{emp.checkInTime || cyprusTime || 'Now'}</span>
+                      </div>
+                    )}
+
+                    {emp.status === 'completed' && (
+                      <div className="space-y-1">
+                        <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
+                          <span>🟢 Arrived:</span>
+                          <span className="font-mono">{emp.checkInTime || '-'}</span>
+                        </div>
+                        <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
+                          <span>🔴 Left:</span>
+                          <span className="font-mono">{emp.checkOutTime || '-'}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {emp.status === 'absent' && (
+                      <div className="text-red-400 font-extrabold text-[0.75rem]">
+                        <span>❌ Status: Absent / Off</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className={`mt-1 text-xs font-bold truncate ${isDark ? 'text-white' : 'text-black'}`}>{emp.role}</div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className={`text-[0.75rem] font-extrabold ${isDark ? 'text-[#ffd580]' : 'text-amber-800'}`}>
-                    ⏰ {emp.expectedShift} Cyprus
-                  </span>
-                  <select
-                    value={emp.status}
-                    onChange={(e) => handleStatusChange(emp.id, e.target.value as Employee['status'])}
-                    className={`rounded-lg border-2 px-2 py-1 text-xs font-bold outline-none ${
-                      emp.status === 'checked_in'
-                        ? 'border-emerald-500 bg-emerald-950 text-white'
-                        : emp.status === 'completed'
-                        ? 'border-blue-500 bg-blue-950 text-white'
-                        : emp.status === 'absent'
-                        ? 'border-red-500 bg-red-950 text-white'
-                        : 'border-amber-500 bg-amber-950 text-white'
-                    }`}
-                  >
-                    <option value="expected" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>⏰ Expected</option>
-                    <option value="checked_in" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>✅ Checked In</option>
-                    <option value="completed" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🏁 Shift Completed</option>
-                    <option value="absent" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>❌ Absent / Off</option>
-                  </select>
+
+                {/* Quick Action Buttons */}
+                <div className="mt-4 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                  {emp.status === 'expected' && (
+                    <>
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
+                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center justify-center gap-1"
+                      >
+                        🟢 Arrived
+                      </button>
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'absent')} 
+                        className="rounded-lg bg-red-900/60 px-3 py-2 text-xs font-bold text-red-200 shadow transition hover:bg-red-800 active:scale-95"
+                        title="Mark Absent"
+                      >
+                        ❌ Off
+                      </button>
+                    </>
+                  )}
+
+                  {emp.status === 'checked_in' && (
+                    <>
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'completed')} 
+                        className="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-blue-500 active:scale-95 flex items-center justify-center gap-1"
+                      >
+                        🔴 Left Office
+                      </button>
+                      <button 
+                        onClick={() => handleStatusChange(emp.id, 'expected')} 
+                        className="rounded-lg bg-slate-700 px-2 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-600"
+                        title="Reset Status"
+                      >
+                        ↩️
+                      </button>
+                    </>
+                  )}
+
+                  {emp.status === 'completed' && (
+                    <button 
+                      onClick={() => handleStatusChange(emp.id, 'checked_in')} 
+                      className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
+                    >
+                      ↩️ Reset / Re-open
+                    </button>
+                  )}
+
+                  {emp.status === 'absent' && (
+                    <button 
+                      onClick={() => handleStatusChange(emp.id, 'expected')} 
+                      className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
+                    >
+                      ↩️ Reset to Expected
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
