@@ -150,6 +150,14 @@ export default function TeamTimeTrackerPage() {
   const [editStatus, setEditStatus] = useState<Employee['status']>('expected');
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
+  // Advanced Reporting State
+  const [reportStartDate, setReportStartDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [reportEndDate, setReportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
+
   // Search & Filter for 30+ Employees
   const [empSearchQuery, setEmpSearchQuery] = useState<string>('');
   const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
@@ -555,7 +563,73 @@ export default function TeamTimeTrackerPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `limassol_time_report_${selectedDate}.csv`);
+    link.setAttribute('download', `limassol_time_report_${selectedDate || 'all'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Detailed CSV for Selected Date Range
+  const exportFilteredLogsCSV = () => {
+    const filtered = logs.filter(l => {
+      if (reportStartDate && l.date < reportStartDate) return false;
+      if (reportEndDate && l.date > reportEndDate) return false;
+      return true;
+    });
+
+    const headers = ['Date', 'Employee Name', 'Role', 'Hours Worked', 'Shift / Task Description', 'Timestamps'];
+    const rows = filtered.map(l => {
+      const emp = employees.find(e => e.id === l.employeeId);
+      return [
+        l.date,
+        `"${l.employeeName}"`,
+        `"${emp?.role || '-'}"`,
+        l.hours,
+        `"${l.projectTask.replace(/"/g, '""')}"`,
+        `"${l.timestamp}"`,
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `limassol_logs_${reportStartDate}_to_${reportEndDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Payroll Summary CSV per Employee
+  const exportPayrollSummaryCSV = () => {
+    const filtered = logs.filter(l => {
+      if (reportStartDate && l.date < reportStartDate) return false;
+      if (reportEndDate && l.date > reportEndDate) return false;
+      return true;
+    });
+
+    const headers = ['Employee Name', 'Role', 'Languages', 'Shifts Worked', 'Total Hours Logged', 'Avg Hours / Shift'];
+    const rows = employees.map(emp => {
+      const empLogs = filtered.filter(l => l.employeeId === emp.id);
+      const totalHours = empLogs.reduce((sum, l) => sum + l.hours, 0);
+      const shiftsCount = empLogs.length;
+      const avgHours = shiftsCount > 0 ? (totalHours / shiftsCount).toFixed(1) : '0.0';
+
+      return [
+        `"${emp.name}"`,
+        `"${emp.role}"`,
+        `"${emp.languages.join('/')}"`,
+        shiftsCount,
+        totalHours.toFixed(1),
+        avgHours,
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `limassol_payroll_summary_${reportStartDate}_to_${reportEndDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1283,6 +1357,112 @@ export default function TeamTimeTrackerPage() {
           )}
         </div>
 
+        {/* Reports & Payroll Center */}
+        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-amber-400/30 bg-[#16363d] text-white' : 'border-slate-300 bg-white text-black'}`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-bold flex items-center gap-2">
+                <span>📊</span> Advanced Reports & Payroll Center
+              </h2>
+              <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Generate, filter and export attendance & payroll summaries for all 30+ employees
+              </p>
+            </div>
+
+            {/* Export Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={exportPayrollSummaryCSV}
+                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 flex items-center gap-1.5"
+              >
+                📥 Export Payroll Summary CSV
+              </button>
+              <button
+                onClick={exportFilteredLogsCSV}
+                className="rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-sky-500 flex items-center gap-1.5"
+              >
+                📥 Export Detailed Shift CSV
+              </button>
+              <button
+                onClick={() => setShowPrintReportModal(true)}
+                className="rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-amber-500 flex items-center gap-1.5"
+              >
+                🖨️ Print / PDF Report
+              </button>
+            </div>
+          </div>
+
+          {/* Date Range Selection */}
+          <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
+            <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
+              <div className="flex items-center gap-2">
+                <label>From:</label>
+                <input
+                  type="date"
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                  className={`rounded-lg border px-3 py-1.5 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
+                  }`}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label>To:</label>
+                <input
+                  type="date"
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                  className={`rounded-lg border px-3 py-1.5 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
+                  }`}
+                />
+              </div>
+
+              {/* Presets */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    const start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+                    const end = d.toISOString().split('T')[0];
+                    setReportStartDate(start);
+                    setReportEndDate(end);
+                  }}
+                  className={`rounded-lg border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                >
+                  This Month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    const end = d.toISOString().split('T')[0];
+                    d.setDate(d.getDate() - 30);
+                    const start = d.toISOString().split('T')[0];
+                    setReportStartDate(start);
+                    setReportEndDate(end);
+                  }}
+                  className={`rounded-lg border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                >
+                  Past 30 Days
+                </button>
+              </div>
+            </div>
+
+            {/* Summary Stat for Selected Period */}
+            <div className="text-right text-xs font-bold">
+              <span className="text-slate-400">Total Hours in Period: </span>
+              <span className="font-mono text-sm font-extrabold text-emerald-400">
+                {logs
+                  .filter(l => (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate))
+                  .reduce((sum, l) => sum + l.hours, 0)
+                  .toFixed(1)} hrs
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Section 2: Time Log Table & Actions */}
         <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1685,6 +1865,100 @@ export default function TeamTimeTrackerPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Print/PDF Report Preview */}
+      {showPrintReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md overflow-y-auto">
+          <div className={`w-full max-w-4xl rounded-2xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
+            <div className="flex items-center justify-between border-b pb-4 mb-6 border-white/20">
+              <div>
+                <h2 className="text-xl font-bold font-serif">🇨🇾 Limassol Time Tracker — Executive Attendance & Payroll Report</h2>
+                <p className="text-xs opacity-75">Period: {reportStartDate} to {reportEndDate} | Limassol, Cyprus</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500"
+                >
+                  🖨️ Print / Save as PDF
+                </button>
+                <button
+                  onClick={() => setShowPrintReportModal(false)}
+                  className="rounded-xl border px-3 py-2 text-xs font-bold opacity-75 hover:opacity-100"
+                >
+                  Close ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Summary Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border">
+                <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/60 text-white' : 'bg-slate-200 text-black'}`}>
+                  <tr>
+                    <th className="p-3 border-r">#</th>
+                    <th className="p-3 border-r">Employee Name</th>
+                    <th className="p-3 border-r">Role</th>
+                    <th className="p-3 border-r">Languages</th>
+                    <th className="p-3 border-r text-center">Shifts Worked</th>
+                    <th className="p-3 border-r text-center">Total Hours</th>
+                    <th className="p-3 text-center">Avg Hours / Shift</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
+                  {employees.map((emp, idx) => {
+                    const empLogs = logs.filter(l => l.employeeId === emp.id && (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate));
+                    const totalHours = empLogs.reduce((sum, l) => sum + l.hours, 0);
+                    const shiftsCount = empLogs.length;
+                    const avgHours = shiftsCount > 0 ? (totalHours / shiftsCount).toFixed(1) : '0.0';
+
+                    return (
+                      <tr key={emp.id} className={idx % 2 === 0 ? 'bg-black/10' : ''}>
+                        <td className="p-3 border-r font-mono">{idx + 1}</td>
+                        <td className="p-3 border-r font-extrabold">{emp.name}</td>
+                        <td className="p-3 border-r opacity-90">{emp.role}</td>
+                        <td className="p-3 border-r font-mono">{emp.languages.join('/')}</td>
+                        <td className="p-3 border-r text-center font-mono font-bold">{shiftsCount}</td>
+                        <td className="p-3 border-r text-center font-mono font-extrabold text-emerald-400">{totalHours.toFixed(1)} hrs</td>
+                        <td className="p-3 text-center font-mono">{avgHours} hrs</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Grand Summary */}
+            <div className="mt-6 flex justify-between items-center rounded-xl border p-4 bg-black/20 border-white/15">
+              <div>
+                <span className="text-xs font-bold opacity-75">Total Active Employees: </span>
+                <span className="text-sm font-extrabold">{employees.length}</span>
+              </div>
+              <div>
+                <span className="text-xs font-bold opacity-75">Grand Total Logged Hours: </span>
+                <span className="text-base font-extrabold text-emerald-400 font-mono">
+                  {logs
+                    .filter(l => (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate))
+                    .reduce((sum, l) => sum + l.hours, 0)
+                    .toFixed(1)} hrs
+                </span>
+              </div>
+            </div>
+
+            {/* Signatures */}
+            <div className="mt-12 pt-6 border-t border-white/20 flex justify-between text-xs opacity-75">
+              <div>
+                <p>Prepared By: Operations & HR</p>
+                <div className="mt-6 w-48 border-b border-white/40"></div>
+              </div>
+              <div>
+                <p>Approved By: Management / Karfigest SA</p>
+                <div className="mt-6 w-48 border-b border-white/40"></div>
+              </div>
+            </div>
           </div>
         </div>
       )}
