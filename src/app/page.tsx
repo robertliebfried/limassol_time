@@ -1621,22 +1621,10 @@ export default function TeamTimeTrackerPage() {
                       const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'completed' as const, checkOutTime: cyprusTime || '7:00 PM' } : e);
                       saveEmployees(updated);
                       setActiveEmployee(prev => prev ? { ...prev, status: 'completed', checkOutTime: cyprusTime || '7:00 PM' } : null);
-                      setLogEmployeeId(activeEmployee.id);
-                      setShowAddLogModal(true);
                     }}
                     className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
                   >
                     <span>🔴</span> Clock Out (Left Office)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setLogEmployeeId(activeEmployee.id);
-                      setShowAddLogModal(true);
-                    }}
-                    className="rounded-2xl bg-sky-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-sky-500 transition flex items-center gap-2"
-                  >
-                    <span>📝</span> Log Task &amp; Hours
                   </button>
                 </div>
               </div>
