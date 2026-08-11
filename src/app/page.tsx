@@ -69,7 +69,7 @@ const TRANSLATIONS = {
     past30: 'Past 30 Days',
     exportPayroll: '📥 Export Payroll Summary CSV',
     exportDetailed: '📥 Export Detailed Shift CSV',
-    printReport: '🖨️ Print / Save as PDF',
+    printReport: '{T.printReport}',
     timeLogsTable: 'Time Logs Table',
     dateCol: 'Date',
     employeeCol: 'Employee',
@@ -90,14 +90,14 @@ const TRANSLATIONS = {
     checkOutLabel: 'Check-Out Time:',
     statusLabel: 'Status:',
     saveChanges: 'Save Changes',
-    logWorkTitle: 'Log Work Hours & Task',
-    selectEmpLabel: 'Select Employee:',
+    logWorkTitle: '{T.logWorkTitle}',
+    selectEmpLabel: '{T.selectEmpLabel}',
     selectEmpPlaceholder: '— Select employee —',
     dateLabel: 'Date:',
     hoursWorkedLabel: 'Hours Worked:',
     taskLabel: 'Task / Project Description:',
     submitLog: '✅ Submit Log',
-    clockifyTitle: '⚡ Clockify.me API Backup & Sync',
+    clockifyTitle: '{T.clockifyTitle}',
     clockifyDesc: 'Connect your Clockify.me workspace to automatically back up attendance logs and provide your employees with Clockify\'s mobile/web app for self-tracking.',
     clockifyKeyLabel: 'Clockify API Key:',
     clockifyWsLabel: 'Workspace ID (Optional):',
@@ -188,16 +188,16 @@ const TRANSLATIONS = {
     noLogsFilter: 'No logs yet for the selected filters.',
     totalHoursLabel: 'hrs total',
     // Kiosk
-    kioskBadge: '🟢 Employee Shift Kiosk',
+    kioskBadge: '{T.kioskBadge}',
     welcomeLabel: 'Welcome,',
     roleLabel: 'Role:',
     targetShiftLabel: 'Target Shift:',
-    billableTimerLabel: '⏱️ BILLABLE WORKING TIME',
-    selectBreakType: 'Select Break Type:',
-    smokBreak: '🚬 Smoke Break (5-10m)',
-    lunchBreak: '🥪 Lunch Break (30-60m)',
-    coffeeBreak: '☕ Coffee / Rest Break',
-    shortBreak: '❓ Short Break / Other',
+    billableTimerLabel: '{T.billableTimerLabel}',
+    selectBreakType: '{T.selectBreakType}',
+    smokBreak: '{T.smokBreak}',
+    lunchBreak: '{T.lunchBreak}',
+    coffeeBreak: '{T.coffeeBreak}',
+    shortBreak: '{T.shortBreak}',
     clockInBtn: '🟢 Clock In (Start Work)',
     pauseBreakBtn: '⏸️ Pause / Break...',
     clockOutBtn: '🔴 Clock Out (Left Office)',
@@ -1709,7 +1709,7 @@ export default function TeamTimeTrackerPage() {
                 {T.appTitle}
               </h1>
               <p className={`text-[0.7rem] font-semibold opacity-80 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Limassol, Cyprus ({currentDomain || 'limassoltime.web.app'})
+                {T.appSubtitle} ({currentDomain || 'limassoltime.web.app'})
               </p>
             </div>
           </div>
@@ -1721,7 +1721,7 @@ export default function TeamTimeTrackerPage() {
             <div className={`flex items-center gap-3 rounded-xl border px-3.5 py-1.5 shadow-inner ${isDark ? 'border-white/30 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}>
               <div className="text-right">
                 <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                  🇨🇾 CYPRUS TIME NOW
+                  🇨🇾 {T.appSubtitle}
                 </div>
                 <div className="font-mono text-base font-black text-amber-400">
                   {cyprusTime || '00:00:00 AM'}
@@ -1744,7 +1744,7 @@ export default function TeamTimeTrackerPage() {
                   <div className={`text-[0.6rem] font-extrabold uppercase tracking-widest ${
                     activeEmployee.status === 'checked_in' ? 'text-emerald-400' : 'text-amber-400'
                   }`}>
-                    {activeEmployee.status === 'checked_in' ? '🟢 LIVE — WORKED TODAY' : `🟡 ON BREAK`}
+                    {activeEmployee.status === 'checked_in' ? T.liveLabel : T.onBreakLabel}
                   </div>
                   <div className={`font-mono text-sm font-black tracking-wider ${
                     activeEmployee.status === 'checked_in' ? 'text-emerald-300' : 'text-amber-300'
@@ -1898,10 +1898,10 @@ export default function TeamTimeTrackerPage() {
                     🟢 Employee Shift Kiosk
                   </div>
                   <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight">
-                    Welcome, {activeEmployee.name}!
+                    {T.welcomeLabel} {activeEmployee.name}!
                   </h2>
                   <p className="mt-1 text-xs font-semibold opacity-85">
-                    Role: {activeEmployee.role} | Target Shift: {activeEmployee.expectedShift} (Cyprus Time)
+                    {T.roleLabel} {activeEmployee.role} | {T.targetShiftLabel} {activeEmployee.expectedShift}
                   </p>
 
                   {/* Status Badge & Live Billable Ticking Timer */}
@@ -1916,7 +1916,7 @@ export default function TeamTimeTrackerPage() {
                         : 'bg-black/40 text-slate-300 border-white/20'
                     }`}>
                       {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
-                      {activeEmployee.status === 'on_break' && `🟡 ON BREAK: ${activeEmployee.breakType || 'Pause'}`}
+                      {activeEmployee.status === 'on_break' && `${T.onBreakLabel}: ${activeEmployee.breakType || 'Pause'}`}
                       {activeEmployee.status === 'completed' && `🏁 SHIFT COMPLETED (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`}
                       {activeEmployee.status === 'expected' && `⏰ EXPECTED TODAY`}
                     </span>
@@ -1963,7 +1963,7 @@ export default function TeamTimeTrackerPage() {
                       }}
                       className="w-full sm:w-auto rounded-2xl bg-emerald-600 px-8 py-5 text-base font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center justify-center gap-2 active:scale-95"
                     >
-                      <span>🟢</span> Clock In (Start Work)
+                      <span>🟢</span> {T.clockInBtn.replace('🟢 ', '')}
                     </button>
                   )}
 
@@ -1976,7 +1976,7 @@ export default function TeamTimeTrackerPage() {
                           onClick={() => setShowBreakMenu(v => !v)}
                           className="rounded-2xl bg-amber-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-amber-500 transition flex items-center gap-2"
                         >
-                          <span>⏸️</span> Pause / Break...
+                          <span>⏸️</span> {T.pauseBreakBtn.replace('⏸️ ', '')}
                         </button>
 
                         {showBreakMenu && (
@@ -2017,7 +2017,7 @@ export default function TeamTimeTrackerPage() {
                         onClick={() => handleClockOutSimple()}
                         className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
                       >
-                        <span>🔴</span> Clock Out (Left Office)
+                        <span>🔴</span> {T.clockOutBtn.replace('🔴 ', '')}
                       </button>
                     </>
                   )}
@@ -2029,7 +2029,7 @@ export default function TeamTimeTrackerPage() {
                         onClick={() => handleResumeWork()}
                         className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center gap-2 animate-pulse"
                       >
-                        <span>▶️</span> Resume Work
+                        <span>▶️</span> {T.resumeWorkBtn.replace('▶️ ', '')}
                       </button>
 
                       <button
@@ -2066,7 +2066,7 @@ export default function TeamTimeTrackerPage() {
                       }}
                       className="rounded-2xl border border-slate-500 bg-slate-800 px-6 py-4 text-sm font-bold text-slate-200 hover:bg-slate-700 transition flex items-center gap-2"
                     >
-                      <span>↩️</span> Re-open / Clock In Again
+                      <span>↩️</span> {T.reopenBtn.replace('↩️ ', '')}
                     </button>
                   )}
 
@@ -2958,7 +2958,7 @@ export default function TeamTimeTrackerPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                Time Logs & Project Tasks
+                {T.timeLogsTableTitle}
               </h2>
               <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>Detailed work hours and task descriptions</p>
             </div>
@@ -3045,7 +3045,7 @@ export default function TeamTimeTrackerPage() {
                   {filteredLogs.length === 0 ? (
                     <tr>
                       <td colSpan={6} className={`px-5 py-8 text-center text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                        No time entries found for selected filter. Click &quot;📝 Log Hours / Task&quot; to add one.
+                        {T.noLogsFilter}
                       </td>
                     </tr>
                   ) : (
@@ -3121,7 +3121,7 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Hours Logged:</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.hoursWorkedLabel}</label>
                 <input
                   type="number"
                   min="0.5"
@@ -3137,7 +3137,7 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Project / Task Description:</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.taskLabel}</label>
                 <input
                   type="text"
                   required
@@ -3178,10 +3178,10 @@ export default function TeamTimeTrackerPage() {
       {showAddEmpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
-            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>Add Team Member</h3>
+            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.addEmpTitle}</h3>
             <form onSubmit={handleCreateEmployee} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Full Name:</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empNameLabel}</label>
                 <input
                   type="text"
                   required
@@ -3194,7 +3194,7 @@ export default function TeamTimeTrackerPage() {
                 />
               </div>
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Role / Position:</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empRoleLabel}</label>
                 <input
                   type="text"
                   value={newEmpRole}
@@ -3233,7 +3233,7 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Languages (comma separated):</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empLangLabel}</label>
                 <input
                   type="text"
                   value={newEmpLangs}
@@ -3245,7 +3245,7 @@ export default function TeamTimeTrackerPage() {
                 />
               </div>
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Expected Shift Time (Cyprus):</label>
+                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empShiftLabel}</label>
                 <input
                   type="text"
                   value={newEmpShift}
@@ -3287,7 +3287,7 @@ export default function TeamTimeTrackerPage() {
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
             <div className="flex items-center justify-between">
               <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                ✏️ Edit Member &amp; PIN ({editingEmp.name})
+                ✏️ {T.editShiftTitle} ({editingEmp.name})
               </h3>
               <button onClick={() => setEditingEmp(null)} className="text-sm font-bold text-slate-400 hover:text-white">✕</button>
             </div>
@@ -3332,7 +3332,7 @@ export default function TeamTimeTrackerPage() {
                 </div>
               </div>
               <div>
-                <label className="block font-extrabold mb-1">Shift Status:</label>
+                <label className="block font-extrabold mb-1">{T.statusLabel}</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as Employee['status'])}
@@ -3348,7 +3348,7 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               <div>
-                <label className="block font-extrabold mb-1">Arrival Time (In):</label>
+                <label className="block font-extrabold mb-1">{T.checkInLabel}</label>
                 <input
                   type="text"
                   value={editCheckInTime}
@@ -3361,7 +3361,7 @@ export default function TeamTimeTrackerPage() {
               </div>
 
               <div>
-                <label className="block font-extrabold mb-1">Departure Time (Out):</label>
+                <label className="block font-extrabold mb-1">{T.checkOutLabel}</label>
                 <input
                   type="text"
                   value={editCheckOutTime}
@@ -3536,7 +3536,7 @@ export default function TeamTimeTrackerPage() {
             </div>
             
             <p className="mt-3 text-xs opacity-90 leading-relaxed">
-              Connect your Clockify.me workspace to automatically back up attendance logs and invite your employees for self-tracking.
+              {T.clockifyDesc}
             </p>
 
             {clockifyConnectedUser && (
@@ -3548,7 +3548,7 @@ export default function TeamTimeTrackerPage() {
 
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1">Clockify API Key:</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1">{T.clockifyKeyLabel}</label>
                 <input
                   type="password"
                   value={clockifyApiKey}
@@ -3558,7 +3558,7 @@ export default function TeamTimeTrackerPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1">Workspace ID (Optional):</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1">{T.clockifyWsLabel}</label>
                 <input
                   type="text"
                   value={clockifyWorkspaceId}
