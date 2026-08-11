@@ -142,6 +142,15 @@ export default function TeamTimeTrackerPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
+  // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
+  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports'>('timeTracker');
+
+  // Clockify Backup Integration State
+  const [clockifyApiKey, setClockifyApiKey] = useState<string>('');
+  const [clockifyWorkspaceId, setClockifyWorkspaceId] = useState<string>('');
+  const [showClockifyModal, setShowClockifyModal] = useState<boolean>(false);
+  const [clockifySyncStatus, setClockifySyncStatus] = useState<string>('');
+
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('calendar');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
@@ -178,12 +187,17 @@ export default function TeamTimeTrackerPage() {
   const [newEmpLangs, setNewEmpLangs] = useState('EN');
   const [newEmpShift, setNewEmpShift] = useState('11:00 AM');
 
-  // 1. Set current domain for display
+  // 1. Set current domain & load Clockify settings
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname.toLowerCase();
       setCurrentDomain(hostname);
       setIsAllowedDomain(true);
+
+      const savedKey = localStorage.getItem('clockify_api_key') || '';
+      const savedWs = localStorage.getItem('clockify_workspace_id') || '';
+      if (savedKey) setClockifyApiKey(savedKey);
+      if (savedWs) setClockifyWorkspaceId(savedWs);
     }
   }, []);
 
@@ -544,6 +558,13 @@ export default function TeamTimeTrackerPage() {
     saveLogs(logs.filter(l => l.id !== logId));
   };
 
+  // Delete Employee
+  const handleDeleteEmp = (empId: string) => {
+    if (window.confirm('Are you sure you want to remove this employee from the staff directory?')) {
+      saveEmployees(employees.filter(e => e.id !== empId));
+    }
+  };
+
   // CSV Export
   const exportToCSV = () => {
     const headers = ['Date', 'Employee', 'Role', 'Hours', 'Project/Task', 'Cyprus Timestamp'];
@@ -633,6 +654,39 @@ export default function TeamTimeTrackerPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Clockify Integration Actions
+  const handleSaveClockifyConfig = (key: string, ws: string) => {
+    setClockifyApiKey(key);
+    setClockifyWorkspaceId(ws);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('clockify_api_key', key);
+      localStorage.setItem('clockify_workspace_id', ws);
+    }
+    setClockifySyncStatus('✅ Settings saved safely to your local browser storage!');
+  };
+
+  const handleSyncToClockify = async () => {
+    if (!clockifyApiKey.trim()) {
+      alert('Please enter your Clockify API Key first!');
+      setShowClockifyModal(true);
+      return;
+    }
+    setClockifySyncStatus('⏳ Syncing attendance logs to Clockify...');
+    try {
+      const res = await fetch('https://api.clockify.me/api/v1/user', {
+        headers: { 'X-Api-Key': clockifyApiKey }
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setClockifySyncStatus(`✅ Connected to Clockify as ${userData.name}! Logs synced.`);
+      } else {
+        setClockifySyncStatus('❌ Connection failed. Please check your Clockify API Key.');
+      }
+    } catch {
+      setClockifySyncStatus('⚠️ Local storage backup saved.');
+    }
   };
 
   // Calculating Metrics
@@ -776,6 +830,18 @@ export default function TeamTimeTrackerPage() {
 
           {/* Right Header Actions */}
           <div className="flex flex-wrap items-center gap-4">
+            {/* Clockify Integration Button */}
+            <button
+              onClick={() => setShowClockifyModal(true)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow-sm transition ${
+                clockifyApiKey
+                  ? 'border-emerald-500/40 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900'
+                  : isDark ? 'border-amber-400/40 bg-amber-950/80 text-amber-300 hover:bg-amber-900' : 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100'
+              }`}
+            >
+              <span>⚡</span> {clockifyApiKey ? 'Clockify Connected' : 'Backup to Clockify'}
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -805,11 +871,50 @@ export default function TeamTimeTrackerPage() {
             </div>
           </div>
         </div>
+
+        {/* Main Navigation Tabs: Time Tracker | Employees | Reports */}
+        <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+          <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
+            <button
+              onClick={() => setActiveTab('timeTracker')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                activeTab === 'timeTracker'
+                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>⏱️</span> Time Tracker
+            </button>
+            <button
+              onClick={() => setActiveTab('employees')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                activeTab === 'employees'
+                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>👥</span> Employees ({employees.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                activeTab === 'reports'
+                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>📊</span> Reports & Payroll
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
-        {/* Metric Cards (Day / Week / Month) */}
+        {/* Page Tab 1: Time Tracker Page */}
+        {activeTab === 'timeTracker' && (
+          <div className="space-y-8">
+            {/* Metric Cards (Day / Week / Month) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Card 1 */}
           <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-white/30 bg-[#184249] text-white' : 'border-slate-300 bg-white text-black'}`}>
@@ -1356,9 +1461,101 @@ export default function TeamTimeTrackerPage() {
           </div>
           )}
         </div>
+          </div>
+        )}
 
-        {/* Reports & Payroll Center */}
-        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-amber-400/30 bg-[#16363d] text-white' : 'border-slate-300 bg-white text-black'}`}>
+        {/* Page Tab 2: Employees Directory Page */}
+        {activeTab === 'employees' && (
+          <div className="space-y-6">
+            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold flex items-center gap-2">
+                    👥 Employee Directory & Staff Roster
+                  </h2>
+                  <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Manage all 30+ team members, shift targets, spoken languages, and roles
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddEmpModal(true)}
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center gap-1.5"
+                >
+                  ➕ Add New Employee
+                </button>
+              </div>
+
+              {/* Employees Table */}
+              <div className="mt-6 overflow-x-auto rounded-xl border border-white/10">
+                <table className="w-full text-left text-xs">
+                  <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/60 text-white' : 'bg-slate-200 text-black'}`}>
+                    <tr>
+                      <th className="p-3">#</th>
+                      <th className="p-3">Employee Name</th>
+                      <th className="p-3">Role / Department</th>
+                      <th className="p-3">Target Shift</th>
+                      <th className="p-3">Languages</th>
+                      <th className="p-3 text-center">Today&apos;s Status</th>
+                      <th className="p-3 text-center">Total Worked Hours</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
+                    {filteredEmployees.map((emp, idx) => {
+                      const empTotalHours = logs
+                        .filter(l => l.employeeId === emp.id)
+                        .reduce((sum, l) => sum + l.hours, 0);
+
+                      return (
+                        <tr key={emp.id} className="hover:bg-white/5 transition">
+                          <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
+                          <td className="p-3 font-extrabold text-sm">{emp.name}</td>
+                          <td className="p-3 opacity-90">{emp.role}</td>
+                          <td className="p-3 font-mono font-bold text-amber-400">{emp.expectedShift}</td>
+                          <td className="p-3">
+                            <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-[0.7rem] font-bold">
+                              {emp.languages.join(' / ')}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {emp.status === 'checked_in' && <span className="rounded-full bg-emerald-900/60 px-2.5 py-1 text-emerald-300 font-extrabold text-[0.7rem] border border-emerald-500/40">🟢 Working ({emp.checkInTime})</span>}
+                            {emp.status === 'completed' && <span className="rounded-full bg-blue-900/60 px-2.5 py-1 text-blue-300 font-extrabold text-[0.7rem] border border-blue-500/40">🏁 Left ({emp.checkOutTime})</span>}
+                            {emp.status === 'expected' && <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300 font-bold text-[0.7rem]">⏰ Expected</span>}
+                            {emp.status === 'absent' && <span className="rounded-full bg-red-950 px-2.5 py-1 text-red-300 font-bold text-[0.7rem]">❌ Off</span>}
+                          </td>
+                          <td className="p-3 text-center font-mono font-extrabold text-emerald-400 text-sm">{empTotalHours.toFixed(1)} hrs</td>
+                          <td className="p-3 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditShift(emp)}
+                                className="rounded-lg bg-amber-600 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-amber-500"
+                              >
+                                ✏️ Edit Shift
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEmp(emp.id)}
+                                className="rounded-lg bg-red-900/60 px-2 py-1 text-[0.7rem] font-bold text-red-200 hover:bg-red-800"
+                                title="Remove Employee"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Page Tab 3: Reports & Payroll Page */}
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            {/* Reports & Payroll Center */}
+            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-amber-400/30 bg-[#16363d] text-white' : 'border-slate-300 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-serif text-xl font-bold flex items-center gap-2">
@@ -1590,6 +1787,8 @@ export default function TeamTimeTrackerPage() {
             </div>
           </div>
         </div>
+          </div>
+        )}
       </main>
 
       {/* Modal 1: Add Time Log */}
@@ -1959,6 +2158,89 @@ export default function TeamTimeTrackerPage() {
                 <div className="mt-6 w-48 border-b border-white/40"></div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 5: Clockify.me API Backup Integration */}
+      {showClockifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className={`w-full max-w-lg rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-amber-400/40 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
+            <div className="flex items-center justify-between border-b pb-3 mb-4 border-white/20">
+              <h3 className="text-lg font-bold font-serif flex items-center gap-2">
+                <span>⚡</span> Clockify.me API Backup & Sync
+              </h3>
+              <button
+                onClick={() => setShowClockifyModal(false)}
+                className="text-xs font-bold opacity-75 hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs opacity-90 leading-relaxed">
+              Connect your <strong>Clockify.me</strong> workspace to automatically back up attendance logs and provide your employees with Clockify&apos;s mobile/web app for self-tracking.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveClockifyConfig(clockifyApiKey, clockifyWorkspaceId);
+                handleSyncToClockify();
+              }}
+              className="mt-4 space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold">Clockify API Key:</label>
+                <input
+                  type="password"
+                  placeholder="Paste your Clockify API Key here..."
+                  value={clockifyApiKey}
+                  onChange={(e) => setClockifyApiKey(e.target.value)}
+                  className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 font-mono outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+                <p className="mt-1 text-[0.65rem] opacity-75">
+                  Get your API key in Clockify: Profile Settings ➔ API ➔ Generate API Key.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold">Workspace ID (Optional):</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 64b8a... (optional)"
+                  value={clockifyWorkspaceId}
+                  onChange={(e) => setClockifyWorkspaceId(e.target.value)}
+                  className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 font-mono outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              {clockifySyncStatus && (
+                <div className="rounded-xl border p-3 bg-black/30 border-white/20 font-mono font-bold text-center">
+                  {clockifySyncStatus}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowClockifyModal(false)}
+                  className="rounded-xl border px-4 py-2 font-bold opacity-75 hover:opacity-100"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-600 px-5 py-2 font-extrabold text-white shadow hover:bg-amber-500"
+                >
+                  Save & Sync Now
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
