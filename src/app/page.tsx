@@ -180,16 +180,23 @@ export default function TeamTimeTrackerPage() {
       setCurrentDomain(hostname);
       setIsAllowedDomain(true);
 
-      // Pre-populate API key if not already stored (encoded to avoid plain-text in source)
+      // Always ensure API key and workspace ID are set
       const DEFAULT_KEY = atob('ZjUzNDMxOTUtNGZlMi00NGE1LWFlMzAtMWNkOWY2NmNkMDY5');
-      if (!localStorage.getItem('clockify_api_key')) {
+      const DEFAULT_WS  = '6a7af4d0c9b4fd88dbd1eaa9';
+      // Only set if missing (don't overwrite manual user changes)
+      if (!localStorage.getItem('clockify_api_key') || !localStorage.getItem('clockify_api_key')?.trim()) {
         localStorage.setItem('clockify_api_key', DEFAULT_KEY);
       }
+      if (!localStorage.getItem('clockify_workspace_id') || !localStorage.getItem('clockify_workspace_id')?.trim()) {
+        localStorage.setItem('clockify_workspace_id', DEFAULT_WS);
+      }
 
-      const savedKey = localStorage.getItem('clockify_api_key') || '';
-      const savedWs = localStorage.getItem('clockify_workspace_id') || '';
-      if (savedKey) setClockifyApiKey(savedKey);
-      if (savedWs) setClockifyWorkspaceId(savedWs);
+      const savedKey = localStorage.getItem('clockify_api_key') || DEFAULT_KEY;
+      const savedWs  = localStorage.getItem('clockify_workspace_id') || DEFAULT_WS;
+      setClockifyApiKey(savedKey);
+      setClockifyWorkspaceId(savedWs);
+      localStorage.setItem('clockify_api_key', savedKey);
+      localStorage.setItem('clockify_workspace_id', savedWs);
 
       const savedUser = localStorage.getItem('clockify_connected_user') || '';
       if (savedUser) setClockifyConnectedUser(savedUser);
