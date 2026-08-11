@@ -142,6 +142,13 @@ export default function TeamTimeTrackerPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
+  // View mode & Shift Editing State
+  const [viewMode, setViewMode] = useState<'grid' | 'cards'>('grid');
+  const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
+  const [editCheckInTime, setEditCheckInTime] = useState<string>('');
+  const [editCheckOutTime, setEditCheckOutTime] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<Employee['status']>('expected');
+
   // Search & Filter for 30+ Employees
   const [empSearchQuery, setEmpSearchQuery] = useState<string>('');
   const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
@@ -407,6 +414,82 @@ export default function TeamTimeTrackerPage() {
     }
   };
 
+  // Open Edit Shift Modal
+  const handleOpenEditShift = (emp: Employee) => {
+    setEditingEmp(emp);
+    setEditCheckInTime(emp.checkInTime || '11:00 AM');
+    setEditCheckOutTime(emp.checkOutTime || '07:00 PM');
+    setEditStatus(emp.status);
+  };
+
+  // Save Modified Shift Entry/Leave Times
+  const handleSaveEditedShift = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmp) return;
+
+    const inTime = editCheckInTime.trim();
+    const outTime = editCheckOutTime.trim();
+    const updatedStatus = editStatus;
+
+    const updated = employees.map(emp => {
+      if (emp.id === editingEmp.id) {
+        return {
+          ...emp,
+          status: updatedStatus,
+          checkInTime: updatedStatus === 'expected' || updatedStatus === 'absent' ? undefined : inTime,
+          checkOutTime: updatedStatus === 'completed' ? outTime : undefined,
+        };
+      }
+      return emp;
+    });
+
+    saveEmployees(updated);
+
+    // If status is completed or updated, sync/recalculate log for today
+    if (updatedStatus === 'completed') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const actualHours = calculateExactHours(inTime, outTime);
+      const existingLogIndex = logs.findIndex(l => l.employeeId === editingEmp.id && l.date === todayStr);
+
+      if (existingLogIndex >= 0) {
+        const updatedLogs = [...logs];
+        updatedLogs[existingLogIndex] = {
+          ...updatedLogs[existingLogIndex],
+          hours: actualHours,
+          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
+          timestamp: `${inTime} - ${outTime}`,
+        };
+        saveLogs(updatedLogs);
+      } else {
+        const autoLog: TimeLog = {
+          id: `log-${Date.now()}`,
+          date: todayStr,
+          employeeId: editingEmp.id,
+          employeeName: editingEmp.name,
+          hours: actualHours,
+          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
+          timestamp: `${inTime} - ${outTime}`,
+        };
+        saveLogs([autoLog, ...logs]);
+      }
+    }
+
+    setEditingEmp(null);
+  };
+
+  // Clean Reset for New Day
+  const handleResetAllForNewDay = () => {
+    if (window.confirm('Start a new clean day? This will reset all shift statuses to Expected for today.')) {
+      const resetList = employees.map(emp => ({
+        ...emp,
+        status: 'expected' as const,
+        checkInTime: undefined,
+        checkOutTime: undefined,
+      }));
+      saveEmployees(resetList);
+    }
+  };
+
   // Delete Log
   const handleDeleteLog = (logId: string) => {
     saveLogs(logs.filter(l => l.id !== logId));
@@ -666,7 +749,7 @@ export default function TeamTimeTrackerPage() {
           </div>
         </div>
 
-        {/* Section 1: Team Shift Status (Quick Check-In) */}
+        {/* Section 1: Team Shift Status (Quick Check-In & Timesheet Matrix) */}
         <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -678,23 +761,54 @@ export default function TeamTimeTrackerPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* View Switcher */}
+              <div className={`flex items-center rounded-xl border p-1 ${isDark ? 'border-white/30 bg-black/40' : 'border-slate-300 bg-slate-200'}`}>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    viewMode === 'grid'
+                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  📊 Daily Timesheet Table
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    viewMode === 'cards'
+                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🎴 Cards View
+                </button>
+              </div>
+
               <button
                 onClick={() => handleBulkCheckIn('11:00')}
-                className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-emerald-500 transition active:scale-95"
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-emerald-500 transition active:scale-95"
                 title="Mark all 11 AM expected staff as arrived"
               >
                 ⚡ Bulk Arrive 11 AM
               </button>
               <button
                 onClick={handleBulkCheckOut}
-                className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-blue-500 transition active:scale-95"
+                className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-blue-500 transition active:scale-95"
                 title="Mark all active staff as left for the day"
               >
                 ⚡ Bulk Left (End Shifts)
               </button>
               <button
+                onClick={handleResetAllForNewDay}
+                className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500 transition active:scale-95"
+                title="Start clean new day for all employees"
+              >
+                🧹 New Day Reset
+              </button>
+              <button
                 onClick={() => setShowAddEmpModal(true)}
-                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-extrabold shadow transition ${
+                className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
                   isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
                 }`}
               >
@@ -780,6 +894,109 @@ export default function TeamTimeTrackerPage() {
               </button>
             </div>
           </div>
+
+          {/* VIEW MODE 1: Clean Timesheet Table View */}
+          {viewMode === 'grid' && (
+            <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className={`font-extrabold uppercase tracking-wider border-b ${
+                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-300'
+                  }`}>
+                    <tr>
+                      <th className="px-4 py-3.5">Employee Name & Role</th>
+                      <th className="px-4 py-3.5">Shift Target</th>
+                      <th className="px-4 py-3.5">Arrival (In)</th>
+                      <th className="px-4 py-3.5">Departure (Out)</th>
+                      <th className="px-4 py-3.5 text-center">Worked Hours</th>
+                      <th className="px-4 py-3.5">Shift Status</th>
+                      <th className="px-4 py-3.5 text-right">Actions / Modify</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
+                    {filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-5 py-8 text-center font-bold opacity-75">
+                          No employees found matching filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((emp) => {
+                        const calculatedHrs = calculateExactHours(emp.checkInTime, emp.checkOutTime);
+                        return (
+                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                            <td className="px-4 py-3 font-extrabold">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{emp.name}</span>
+                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
+                                  {emp.languages.join('/')}
+                                </span>
+                              </div>
+                              <div className="text-[0.7rem] font-medium opacity-75">{emp.role}</div>
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-amber-400">
+                              ⏰ {emp.expectedShift}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              {emp.checkInTime ? (
+                                <span className="rounded bg-emerald-950/80 text-emerald-300 px-2 py-1 border border-emerald-500/40">
+                                  🟢 {emp.checkInTime}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-normal">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              {emp.checkOutTime ? (
+                                <span className="rounded bg-blue-950/80 text-blue-300 px-2 py-1 border border-blue-500/40">
+                                  🔴 {emp.checkOutTime}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-normal">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-400">
+                              {emp.status === 'completed' || emp.status === 'checked_in' ? `${calculatedHrs} hrs` : '-'}
+                            </td>
+                            <td className="px-4 py-3 font-bold">
+                              {emp.status === 'expected' && <span className="rounded-md bg-amber-950/80 text-amber-300 px-2.5 py-1 border border-amber-500/40">⏰ Expected</span>}
+                              {emp.status === 'checked_in' && <span className="rounded-md bg-emerald-950/80 text-emerald-300 px-2.5 py-1 border border-emerald-500/40">🟢 Working</span>}
+                              {emp.status === 'completed' && <span className="rounded-md bg-blue-950/80 text-blue-300 px-2.5 py-1 border border-blue-500/40">🏁 Shift Done</span>}
+                              {emp.status === 'absent' && <span className="rounded-md bg-red-950/80 text-red-300 px-2.5 py-1 border border-red-500/40">❌ Absent</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {emp.status === 'expected' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
+                                    Arrived
+                                  </button>
+                                )}
+                                {emp.status === 'checked_in' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
+                                    Left
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleOpenEditShift(emp)}
+                                  className="rounded border border-slate-500 bg-slate-800 px-2.5 py-1 font-bold text-slate-200 hover:bg-slate-700 transition"
+                                  title="Modify entry/leave hours"
+                                >
+                                  ✏️ Edit Times
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW MODE 2: Cards Grid View */}
+          {viewMode === 'cards' && (
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {filteredEmployees.length === 0 ? (
@@ -899,6 +1116,7 @@ export default function TeamTimeTrackerPage() {
             ))
           )}
           </div>
+          )}
         </div>
 
         {/* Section 2: Time Log Table & Actions */}
@@ -1193,6 +1411,113 @@ export default function TeamTimeTrackerPage() {
                   }`}
                 >
                   Save Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Modify Shift Times */}
+      {editingEmp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
+            <div className="flex items-center justify-between">
+              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                ✏️ Edit Shift Times for {editingEmp.name}
+              </h3>
+              <button onClick={() => setEditingEmp(null)} className="text-sm font-bold text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p className="mt-1 text-xs opacity-75">{editingEmp.role} (Target: {editingEmp.expectedShift})</p>
+
+            <form onSubmit={handleSaveEditedShift} className="mt-4 space-y-4 text-xs">
+              <div>
+                <label className="block font-extrabold mb-1">Shift Status:</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as Employee['status'])}
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                >
+                  <option value="expected" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>⏰ Expected (Not arrived)</option>
+                  <option value="checked_in" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🟢 Working (Arrived)</option>
+                  <option value="completed" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🏁 Shift Completed (Left)</option>
+                  <option value="absent" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>❌ Absent / Off</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Arrival Time (In):</label>
+                <input
+                  type="text"
+                  value={editCheckInTime}
+                  onChange={(e) => setEditCheckInTime(e.target.value)}
+                  placeholder="e.g. 11:00 AM or 10:45 AM"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold font-mono outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Departure Time (Out):</label>
+                <input
+                  type="text"
+                  value={editCheckOutTime}
+                  onChange={(e) => setEditCheckOutTime(e.target.value)}
+                  placeholder="e.g. 07:00 PM or 08:00 PM"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold font-mono outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                  }`}
+                />
+              </div>
+
+              {/* Presets for quick filling */}
+              <div>
+                <label className="block text-[0.7rem] font-bold text-slate-400 mb-1.5">Quick Presets:</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setEditCheckInTime('11:00 AM'); setEditCheckOutTime('07:00 PM'); setEditStatus('completed'); }}
+                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
+                  >
+                    11:00 AM - 07:00 PM (8h)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditCheckInTime('11:30 AM'); setEditCheckOutTime('07:30 PM'); setEditStatus('completed'); }}
+                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
+                  >
+                    11:30 AM - 07:30 PM (8h)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditCheckInTime('11:00 AM'); setEditCheckOutTime('08:00 PM'); setEditStatus('completed'); }}
+                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
+                  >
+                    11:00 AM - 08:00 PM (9h)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingEmp(null)}
+                  className={`rounded-xl border px-4 py-2 font-bold transition ${
+                    isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`rounded-xl px-4 py-2 font-extrabold transition ${
+                    isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
+                  }`}
+                >
+                  Save Shift Times
                 </button>
               </div>
             </form>
