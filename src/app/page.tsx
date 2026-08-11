@@ -142,6 +142,10 @@ export default function TeamTimeTrackerPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
+  // Search & Filter for 30+ Employees
+  const [empSearchQuery, setEmpSearchQuery] = useState<string>('');
+  const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
+
   // Modals
   const [showAddLogModal, setShowAddLogModal] = useState(false);
   const [showAddEmpModal, setShowAddEmpModal] = useState(false);
@@ -286,6 +290,29 @@ export default function TeamTimeTrackerPage() {
     setShowAddEmpModal(false);
   };
 
+  // Helper to parse time strings like "11:04 AM" or "19:15" into total minutes
+  const parseTimeToMinutes = (timeStr?: string): number => {
+    if (!timeStr) return 0;
+    const match = timeStr.match(/(\d+):(\d+)(?:\s*(AM|PM))?/i);
+    if (!match) return 0;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3] ? match[3].toUpperCase() : null;
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // Helper to calculate exact hours between arrival and departure
+  const calculateExactHours = (checkIn?: string, checkOut?: string): number => {
+    if (!checkIn || !checkOut) return 8;
+    const inMins = parseTimeToMinutes(checkIn);
+    const outMins = parseTimeToMinutes(checkOut);
+    if (outMins <= inMins) return 8;
+    const diff = (outMins - inMins) / 60;
+    return Math.round(diff * 10) / 10;
+  };
+
   // Shift Status Handler with Auto-Log Creation on Departure
   const handleStatusChange = (id: string, newStatus: Employee['status'], customCheckIn?: string, customCheckOut?: string) => {
     const nowCyprus = cyprusTime || new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Nicosia', hour: '2-digit', minute: '2-digit', hour12: true });
@@ -310,19 +337,73 @@ export default function TeamTimeTrackerPage() {
 
     saveEmployees(updated);
 
-    // Auto-create log entry when shift is completed
+    // Auto-create log entry when shift is completed with exact calculated hours
     if (newStatus === 'completed') {
       const todayStr = new Date().toISOString().split('T')[0];
+      const actualHours = calculateExactHours(inTime, outTime);
       const autoLog: TimeLog = {
         id: `log-${Date.now()}`,
         date: todayStr,
         employeeId: targetEmp.id,
         employeeName: targetEmp.name,
-        hours: 8, // Default standard 8-hour shift
+        hours: actualHours,
         projectTask: `Shift Attendance (${inTime} - ${outTime})`,
         timestamp: `${inTime} - ${outTime}`,
       };
       saveLogs([autoLog, ...logs]);
+    }
+  };
+
+  // Bulk Action: Check-in all expected employees (or for specific shift)
+  const handleBulkCheckIn = (targetShift?: string) => {
+    const nowCyprus = cyprusTime || '11:00 AM';
+    const updated = employees.map(emp => {
+      if (emp.status === 'expected' && (!targetShift || emp.expectedShift.includes(targetShift))) {
+        return {
+          ...emp,
+          status: 'checked_in' as const,
+          checkInTime: nowCyprus,
+        };
+      }
+      return emp;
+    });
+    saveEmployees(updated);
+  };
+
+  // Bulk Action: Complete shifts for all currently checked-in employees
+  const handleBulkCheckOut = () => {
+    const nowCyprus = cyprusTime || '07:00 PM';
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newLogs: TimeLog[] = [];
+
+    const updated = employees.map(emp => {
+      if (emp.status === 'checked_in') {
+        const inTime = emp.checkInTime || '11:00 AM';
+        const outTime = nowCyprus;
+        const actualHours = calculateExactHours(inTime, outTime);
+
+        newLogs.push({
+          id: `log-${Date.now()}-${emp.id}`,
+          date: todayStr,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          hours: actualHours,
+          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
+          timestamp: `${inTime} - ${outTime}`,
+        });
+
+        return {
+          ...emp,
+          status: 'completed' as const,
+          checkOutTime: outTime,
+        };
+      }
+      return emp;
+    });
+
+    saveEmployees(updated);
+    if (newLogs.length > 0) {
+      saveLogs([...newLogs, ...logs]);
     }
   };
 
@@ -462,6 +543,20 @@ export default function TeamTimeTrackerPage() {
     return true;
   });
 
+  // Filtered employees for 30+ staff management
+  const filteredEmployees = employees.filter(emp => {
+    if (empStatusFilter !== 'ALL' && emp.status !== empStatusFilter) return false;
+    if (empSearchQuery.trim()) {
+      const q = empSearchQuery.toLowerCase();
+      return (
+        emp.name.toLowerCase().includes(q) ||
+        emp.role.toLowerCase().includes(q) ||
+        emp.expectedShift.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
   return (
     <div className={`min-h-screen font-sans antialiased transition-colors duration-200 ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f4f5f7] text-black'}`}>
       {/* Header */}
@@ -576,24 +671,123 @@ export default function TeamTimeTrackerPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                Shift Arrival Status (Cyprus Time)
+                Shift Arrival & Departure Tracker ({employees.length} Staff)
               </h2>
-              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                Shifts: 11:00 AM & 11:30 AM Cyprus Time
+              <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Flexible shifts (Most staff: 11:00 AM – 7:00/8:00 PM Cyprus)
               </p>
             </div>
-            <button
-              onClick={() => setShowAddEmpModal(true)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-extrabold shadow transition ${
-                isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
-              }`}
-            >
-              ➕ Add Team Member
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => handleBulkCheckIn('11:00')}
+                className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-emerald-500 transition active:scale-95"
+                title="Mark all 11 AM expected staff as arrived"
+              >
+                ⚡ Bulk Arrive 11 AM
+              </button>
+              <button
+                onClick={handleBulkCheckOut}
+                className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-blue-500 transition active:scale-95"
+                title="Mark all active staff as left for the day"
+              >
+                ⚡ Bulk Left (End Shifts)
+              </button>
+              <button
+                onClick={() => setShowAddEmpModal(true)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-extrabold shadow transition ${
+                  isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
+                }`}
+              >
+                ➕ Add Employee
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Status Filters Bar */}
+          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px]">
+              <input
+                type="text"
+                placeholder="🔍 Search employee by name, role or shift..."
+                value={empSearchQuery}
+                onChange={(e) => setEmpSearchQuery(e.target.value)}
+                className={`w-full rounded-lg border px-3.5 py-2 text-xs font-bold outline-none ${
+                  isDark ? 'border-white/30 bg-black/60 text-white placeholder-slate-400 focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
+                }`}
+              />
+              {empSearchQuery && (
+                <button 
+                  onClick={() => setEmpSearchQuery('')}
+                  className="absolute right-3 top-2 text-xs font-extrabold text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold">
+              <button
+                onClick={() => setEmpStatusFilter('ALL')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'ALL'
+                    ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
+                    : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                All ({employees.length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('checked_in')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'checked_in'
+                    ? 'bg-emerald-600 text-white'
+                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                }`}
+              >
+                🟢 Working ({employees.filter(e => e.status === 'checked_in').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('expected')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'expected'
+                    ? 'bg-amber-600 text-white'
+                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-amber-900' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+              >
+                ⏰ Expected ({employees.filter(e => e.status === 'expected').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('completed')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'completed'
+                    ? 'bg-blue-600 text-white'
+                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-blue-900' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                }`}
+              >
+                🏁 Done ({employees.filter(e => e.status === 'completed').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('absent')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'absent'
+                    ? 'bg-red-600 text-white'
+                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-red-900' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                }`}
+              >
+                ❌ Off ({employees.filter(e => e.status === 'absent').length})
+              </button>
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {employees.map(emp => (
+            {filteredEmployees.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-xs font-bold opacity-75">
+                No employees match your search or filter criteria.
+              </div>
+            ) : (
+              filteredEmployees.map(emp => (
               <div key={emp.id} className={`flex flex-col justify-between rounded-xl border-2 p-4 shadow-md transition ${isDark ? 'border-white/30 bg-black/40 text-white' : 'border-slate-300 bg-slate-50 text-black'}`}>
                 <div>
                   <div className="flex items-center justify-between">
@@ -702,7 +896,8 @@ export default function TeamTimeTrackerPage() {
                   )}
                 </div>
               </div>
-            ))}
+            ))
+          )}
           </div>
         </div>
 
