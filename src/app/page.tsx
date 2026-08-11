@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 const TRANSLATIONS = {
   en: {
@@ -399,7 +400,7 @@ export default function TeamTimeTrackerPage() {
   const [clockifyLastSynced, setClockifyLastSynced] = useState<string>('');
 
   // View mode & Shift Editing State
-  const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editCheckInTime, setEditCheckInTime] = useState<string>('');
   const [editCheckOutTime, setEditCheckOutTime] = useState<string>('');
@@ -1544,16 +1545,12 @@ export default function TeamTimeTrackerPage() {
                 >
                   <span>⏱️</span> Time Tracker
                 </button>
-                <button
-                  onClick={() => setActiveTab('employees')}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                    activeTab === 'employees'
-                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                <Link
+                  href="/employees"
+                  className="flex items-center gap-2 rounded-xl px-4 py-2 text-slate-400 hover:text-white transition"
                 >
                   <span>👥</span> Employees Directory ({employees.length})
-                </button>
+                </Link>
                 <button
                   onClick={() => setActiveTab('reports')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
@@ -1642,42 +1639,6 @@ export default function TeamTimeTrackerPage() {
                     <span>📝</span> Log Task &amp; Hours
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* My Time Logs Table */}
-            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
-              <h3 className="text-lg font-bold font-serif mb-4 flex items-center gap-2">
-                📊 My Worked Hours &amp; Shift Logs
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className={`uppercase tracking-wider border-b font-extrabold ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-300 bg-slate-100 text-black'}`}>
-                    <tr>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4">Project / Task</th>
-                      <th className="py-3 px-4">Hours Logged</th>
-                      <th className="py-3 px-4">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
-                    {logs.filter(l => l.employeeId === activeEmployee.id).map(log => (
-                      <tr key={log.id}>
-                        <td className="py-3 px-4 font-mono font-bold">{log.date}</td>
-                        <td className="py-3 px-4 font-bold">{log.projectTask}</td>
-                        <td className="py-3 px-4 font-mono font-extrabold text-emerald-400">{log.hours} hrs</td>
-                        <td className="py-3 px-4 font-mono opacity-80">{log.timestamp}</td>
-                      </tr>
-                    ))}
-                    {logs.filter(l => l.employeeId === activeEmployee.id).length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center font-bold opacity-70">
-                          No logged entries yet. Click &quot;📝 Log Task &amp; Hours&quot; above to log your shift!
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
