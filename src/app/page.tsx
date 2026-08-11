@@ -1576,15 +1576,6 @@ export default function TeamTimeTrackerPage() {
           </div>
         )}
       </header>
-                  ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>📊</span> Reports & Payroll
-            </button>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
