@@ -143,11 +143,12 @@ export default function TeamTimeTrackerPage() {
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // View mode & Shift Editing State
-  const [viewMode, setViewMode] = useState<'grid' | 'cards'>('grid');
+  const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('calendar');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editCheckInTime, setEditCheckInTime] = useState<string>('');
   const [editCheckOutTime, setEditCheckOutTime] = useState<string>('');
   const [editStatus, setEditStatus] = useState<Employee['status']>('expected');
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
   // Search & Filter for 30+ Employees
   const [empSearchQuery, setEmpSearchQuery] = useState<string>('');
@@ -318,6 +319,46 @@ export default function TeamTimeTrackerPage() {
     if (outMins <= inMins) return 8;
     const diff = (outMins - inMins) / 60;
     return Math.round(diff * 10) / 10;
+  };
+
+  // Calendar Helpers
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    
+    let startingDay = firstDay.getDay() - 1;
+    if (startingDay < 0) startingDay = 6;
+
+    const days: { dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = [];
+    
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startingDay - 1; i >= 0; i--) {
+      const pDate = new Date(year, month - 1, prevMonthLastDay - i);
+      const yyyy = pDate.getFullYear();
+      const mm = String(pDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(prevMonthLastDay - i).padStart(2, '0');
+      days.push({
+        dateStr: `${yyyy}-${mm}-${dd}`,
+        dayNum: prevMonthLastDay - i,
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const yyyy = year;
+      const mm = String(month + 1).padStart(2, '0');
+      const dd = String(i).padStart(2, '0');
+      days.push({
+        dateStr: `${yyyy}-${mm}-${dd}`,
+        dayNum: i,
+        isCurrentMonth: true,
+      });
+    }
+
+    return days;
   };
 
   // Shift Status Handler with Auto-Log Creation on Departure
@@ -764,6 +805,16 @@ export default function TeamTimeTrackerPage() {
               {/* View Switcher */}
               <div className={`flex items-center rounded-xl border p-1 ${isDark ? 'border-white/30 bg-black/40' : 'border-slate-300 bg-slate-200'}`}>
                 <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    viewMode === 'calendar'
+                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  📅 Monthly Calendar
+                </button>
+                <button
                   onClick={() => setViewMode('grid')}
                   className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
                     viewMode === 'grid'
@@ -816,6 +867,119 @@ export default function TeamTimeTrackerPage() {
               </button>
             </div>
           </div>
+
+          {/* VIEW MODE 0: Interactive Monthly Calendar */}
+          {viewMode === 'calendar' && (
+            <div className={`mt-5 rounded-xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+              {/* Calendar Header Navigation */}
+              <div className="flex items-center justify-between border-b pb-4 mb-4 border-white/10">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-serif text-lg font-bold">
+                    📅 {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                    Click any day to view/edit daily timesheet
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const prev = new Date(calendarMonth);
+                      prev.setMonth(prev.getMonth() - 1);
+                      setCalendarMonth(prev);
+                    }}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                  >
+                    ◀ Prev Month
+                  </button>
+                  <button
+                    onClick={() => setCalendarMonth(new Date())}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = new Date(calendarMonth);
+                      next.setMonth(next.getMonth() + 1);
+                      setCalendarMonth(next);
+                    }}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                  >
+                    Next Month ▶
+                  </button>
+                </div>
+              </div>
+
+              {/* Days of Week */}
+              <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-xs uppercase text-slate-400 mb-2">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+              </div>
+
+              {/* Month Grid Cells */}
+              <div className="grid grid-cols-7 gap-2">
+                {getDaysInMonth(calendarMonth).map((dayObj, idx) => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const isToday = dayObj.dateStr === todayStr;
+                  const isSelected = selectedDate === dayObj.dateStr;
+
+                  // Logs for this specific day
+                  const dayLogs = logs.filter(l => l.date === dayObj.dateStr);
+                  const dayTotalHours = dayLogs.reduce((sum, l) => sum + l.hours, 0);
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setSelectedDate(dayObj.dateStr);
+                        setLogDate(dayObj.dateStr);
+                        setViewMode('grid');
+                      }}
+                      className={`min-h-[85px] rounded-xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
+                        !dayObj.isCurrentMonth
+                          ? 'opacity-40 border-transparent bg-transparent'
+                          : isToday
+                          ? 'border-emerald-500 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
+                          : isSelected
+                          ? 'border-amber-500 bg-amber-950/40 text-white'
+                          : isDark
+                          ? 'border-white/15 bg-black/50 hover:border-white/40 hover:bg-black/70'
+                          : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-extrabold text-sm ${isToday ? 'text-emerald-400 font-black' : ''}`}>
+                          {dayObj.dayNum}
+                        </span>
+                        {isToday && (
+                          <span className="text-[0.6rem] font-bold bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">
+                            Today
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 space-y-1 text-[0.65rem] font-bold">
+                        {dayTotalHours > 0 ? (
+                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-emerald-500/30 flex justify-between">
+                            <span>Worked:</span>
+                            <span className="font-mono">{dayTotalHours}h</span>
+                          </div>
+                        ) : (
+                          <div className="text-slate-500 font-normal italic">No logs</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Search & Status Filters Bar */}
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
