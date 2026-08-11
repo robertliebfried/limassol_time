@@ -128,21 +128,20 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [deletedEmployees, setDeletedEmployees] = useState<Employee[]>([]);
   const [isDark, setIsDark] = useState<boolean>(true);
-  const [lang, setLang] = useState<'en' | 'ru'>('en');
   const [cyprusTime, setCyprusTime] = useState<string>('');
   const [cyprusDate, setCyprusDate] = useState<string>('');
-
-  // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loginUsername, setLoginUsername] = useState<string>('');
-  const [loginPin, setLoginPin] = useState<string>('');
-  const [loginError, setLoginError] = useState<string>('');
 
   // Search & Modals
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showAddEmpModal, setShowAddEmpModal] = useState<boolean>(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [showDeletedArchive, setShowDeletedArchive] = useState<boolean>(false);
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loginUsername, setLoginUsername] = useState<string>('');
+  const [loginPin, setLoginPin] = useState<string>('');
+  const [loginError, setLoginError] = useState<string>('');
 
   // New Employee State
   const [newEmpName, setNewEmpName] = useState<string>('');
@@ -167,10 +166,6 @@ export default function EmployeesPage() {
     // Check Theme
     const savedTheme = localStorage.getItem('team_tracker_theme');
     if (savedTheme) setIsDark(savedTheme === 'dark');
-
-    // Check Language
-    const savedLang = localStorage.getItem('team_tracker_lang');
-    if (savedLang) setLang(savedLang === 'ru' ? 'ru' : 'en');
 
     // Check Auth Role
     const savedAuth = sessionStorage.getItem('team_tracker_auth');
