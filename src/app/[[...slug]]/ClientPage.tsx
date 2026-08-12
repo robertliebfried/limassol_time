@@ -638,9 +638,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
-  const [editCheckInTime, setEditCheckInTime] = useState<string>('');
-  const [editCheckOutTime, setEditCheckOutTime] = useState<string>('');
-  const [editStatus, setEditStatus] = useState<Employee['status']>('expected');
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
   // Advanced Reporting State
@@ -1299,15 +1296,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
   };
 
-  // Open Edit Shift & User Credentials Modal
+  // Open Edit Credentials Modal
   const handleOpenEditShift = (emp: Employee) => {
     setEditingEmp(emp);
     setEditEmpName(emp.name);
     setEditEmpUsername(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''));
     setEditEmpPin(emp.pin || '1234');
-    setEditCheckInTime(emp.checkInTime || '11:00 AM');
-    setEditCheckOutTime(emp.checkOutTime || '07:00 PM');
-    setEditStatus(emp.status);
   };
 
   // Save Modified User Credentials

@@ -19,7 +19,7 @@ export default function Page({ params }: { params: { slug?: string[] } }) {
   if (params.slug && params.slug.length > 0) {
     const slug = params.slug[0];
     if (slug === 'reports') initialTab = 'reports';
-    if (slug === 'employees' || slug === 'directory') initialTab = 'employees';
+    if (slug === 'employees' || slug === 'directory' || slug === 'team') initialTab = 'employees';
     if (slug === 'setup') initialTab = 'setup';
   }
   return <ClientPage initialTab={initialTab} />;
