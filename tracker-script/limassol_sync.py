@@ -212,7 +212,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup")
+    win.title("Limassol Tracker Setup v1.0.5")
     win.geometry("380x280")
     win.resizable(False, False)
     win.configure(bg="#1a1a2e")
@@ -284,7 +284,7 @@ def show_setup_window():
 # -------------------------------------------------------------------
 def show_tray_notification(username):
     win = tk.Tk()
-    win.title(f"Limassol Tracker — {username.capitalize()}")
+    win.title(f"Limassol Tracker v1.0.5 — {username.capitalize()}")
     win.geometry("340x95")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
@@ -353,9 +353,9 @@ def sync_loop(username, pin):
 def main():
     user_data = load_user()
 
-    if not user_data:
+    if not user_data or "username" not in user_data:
         user_data = show_setup_window()
-        if not user_data:
+        if not user_data or "username" not in user_data:
             print("Setup cancelled.")
             return
 

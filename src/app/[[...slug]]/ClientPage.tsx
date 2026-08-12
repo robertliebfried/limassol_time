@@ -225,229 +225,7 @@ const TRANSLATIONS = {
     autostartTipTitle: '💡 Tip: To run the tracker automatically when your PC turns on:',
     autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
   },
-  ru: {
-    appTitle: 'Учёт рабочего времени',
-    appSubtitle: 'Управление сменами — Лимасол / Кипр',
-    tabTimeTracker: '⏱️ Трекер смен',
-    tabEmployees: '👥 Сотрудники',
-    tabReports: '📊 Отчёты и зарплата',
-    pinTitle: 'Внутренний трекер команды',
-    pinSubtitle: 'Управление сменами — Лимасол / Кипр',
-    pinPlaceholder: 'Введите PIN...',
-    pinButton: 'Войти',
-    pinError: 'Неверный PIN. Попробуйте снова.',
-    lightMode: '☀️ Светлый',
-    darkMode: '🌙 Тёмный',
-    totalEmployees: 'ВСЕГО СОТРУДНИКОВ',
-    active: 'активных',
-    hoursToday: 'ЧАСОВ СЕГОДНЯ',
-    totalLoggedToday: 'Итого за сегодня',
-    hoursThisWeek: 'ЧАСОВ ЗА НЕДЕЛЮ (7 ДНЕЙ)',
-    summaryPast7: 'Сводка за последние 7 дней',
-    hoursThisMonth: 'ЧАСОВ В ЭТОМ МЕСЯЦЕ',
-    currentMonthTotal: 'Итого за текущий месяц',
-    shiftTracker: 'Трекер приходов и уходов',
-    flexibleShifts: 'Гибкие смены (большинство: 11:00 – 19:00/20:00 Кипр)',
-    monthlyCalendar: '📅 Календарь месяца',
-    dailyTimesheetTable: '📊 Табель за день',
-    cardsView: '🎴 Карточки',
-    bulkArrive: '⚡ Все пришли в 11:00',
-    bulkLeft: '⚡ Все ушли (конец смены)',
-    newDayReset: '🔄 Новый день',
-    addEmployee: '➕ Добавить сотрудника',
-    logHours: '📝 Записать часы',
-    searchEmployee: '🔍 Поиск по имени, роли или смене...',
-    statusAll: 'Все',
-    statusWorking: '🟢 Работает',
-    statusExpected: '🕐 Ожидается',
-    statusDone: '✅ Завершил',
-    statusOff: '❌ Отсутствует',
-    arrived: '🟢 Пришёл',
-    leftOffice: '🔴 Ушёл',
-    resetReopen: '↩️ Сбросить / Переоткрыть',
-    resetToExpected: '↩️ Вернуть в ожидание',
-    noLogsDay: 'Нет данных',
-    workedLabel: 'Отработано:',
-    employeeDirectory: 'Справочник сотрудников',
-    staffRoster: 'Полный список — 30+ CS Агентов',
-    nameCol: 'Имя',
-    roleCol: 'Должность',
-    targetShiftCol: 'Целевая смена',
-    languagesCol: 'Языки',
-    todayStatusCol: 'Статус сегодня',
-    totalHoursCol: 'Всего часов',
-    actionsCol: 'Действия',
-    editBtn: 'Изменить',
-    deleteBtn: 'Удалить',
-    deletedArchive: 'Архив удалённых сотрудников',
-    restoreBtn: '↩️ Восстановить',
-    noArchived: 'Архив пуст.',
-    reportsTitle: 'Отчёты и расчёт зарплаты',
-    dateRange: 'Период:',
-    fromLabel: 'С:',
-    toLabel: 'По:',
-    thisMonth: 'Этот месяц',
-    past30: 'Последние 30 дней',
-    exportPayroll: '📥 Экспорт сводки по зарплате (CSV)',
-    exportDetailed: '📥 Экспорт подробных смен (CSV)',
-    printReport: '🖨️ Печать / Сохранить PDF',
-    timeLogsTable: 'Таблица записей времени',
-    dateCol: 'Дата',
-    employeeCol: 'Сотрудник',
-    taskCol: 'Задача / Проект',
-    hoursCol: 'Часы',
-    timestampCol: 'Время записи',
-    deleteLog: 'Удалить',
-    noLogs: 'Нет записей для выбранных фильтров.',
-    addEmpTitle: 'Добавить нового сотрудника',
-    empNameLabel: 'Полное имя:',
-    empRoleLabel: 'Должность / Роль:',
-    empLangLabel: 'Языки (через запятую):',
-    empShiftLabel: 'Время начала смены:',
-    cancelBtn: 'Отмена',
-    saveBtn: 'Сохранить',
-    editShiftTitle: 'Редактировать смену',
-    checkInLabel: 'Время прихода:',
-    checkOutLabel: 'Время ухода:',
-    statusLabel: 'Статус:',
-    saveChanges: 'Сохранить',
-    logWorkTitle: 'Записать рабочие часы',
-    selectEmpLabel: 'Выберите сотрудника:',
-    selectEmpPlaceholder: '— Выберите сотрудника —',
-    dateLabel: 'Дата:',
-    hoursWorkedLabel: 'Отработано часов:',
-    taskLabel: 'Описание задачи / проекта:',
-    submitLog: '✅ Сохранить запись',
-    clockifyTitle: '⚡ Clockify.me API — резервное копирование',
-    clockifyDesc: 'Подключите Clockify.me для автоматического резервного копирования данных посещаемости и предоставления сотрудникам мобильного/веб-приложения.',
-    clockifyKeyLabel: 'Clockify API ключ:',
-    clockifyWsLabel: 'ID рабочего пространства (необязательно):',
-    fullSetupBtn: '🚀 Полная настройка + Приглашения',
-    saveSyncBtn: 'Сохранить и синхронизировать',
-    closeBtn: 'Закрыть',
-    hideLabel: '▲ Скрыть',
-    showLabel: '▼ Показать',
-    // Admin dashboard
-    shiftArrivalTracker: 'Трекер приходов и уходов',
-    flexibleShiftsNote: 'Гибкие смены (большинство: 11:00 – 19:00/20:00 Кипр)',
-    monthlyCalendarBtn: '📅 Месячный календарь',
-    dailyTimesheetBtn: '📊 Табель за день',
-    cardsViewBtn: '🎴 Карточки',
-    bulkArriveBtn: '⚡ Все пришли в 11:00',
-    bulkLeftBtn: '⚡ Все ушли (конец смены)',
-    newDayResetBtn: '🧹 Новый день',
-    addEmployeeBtn: '➕ Добавить сотрудника',
-    clickDayHint: 'Нажмите на день чтобы посмотреть/изменить табель',
-    prevMonth: '◀ Пред. месяц',
-    todayBtn: 'Сегодня',
-    nextMonth: 'След. месяц ▶',
-    workedLabel2: 'Отработано:',
-    noLogsLabel: 'Нет данных',
-    searchPlaceholder: '🔍 Поиск по имени, должности или смене...',
-    filterAll: 'Все',
-    filterWorking: '🟢 Работает',
-    filterExpected: '⏰ Ожидается',
-    filterDone: '🏁 Завершил',
-    filterOff: '❌ Отсутствует',
-    colNameRole: 'Сотрудник и должность',
-    colShiftTarget: 'Целевая смена',
-    colArrival: 'Приход (вход)',
-    colDeparture: 'Уход (выход)',
-    colWorkedHrs: 'Отработано часов',
-    colShiftStatus: 'Статус смены',
-    colActions: 'Действия',
-    noEmployeesFilter: 'Нет сотрудников, соответствующих критериям.',
-    statusExpectedBadge: '⏰ Ожидается',
-    statusWorkingBadge: '🟢 Работает',
-    statusDoneBadge: '🏁 Смена завершена',
-    statusAbsentBadge: '❌ Отсутствует',
-    arrivedBtn: 'Пришёл',
-    leftBtn: 'Ушёл',
-    editTimesBtn: '✏️ Изменить время',
-    shiftTargetLabel: 'Целевая смена:',
-    notArrivedYet: '🟡 Статус: Ещё не пришёл',
-    arrivedAtLabel: '🟢 Пришёл в:',
-    leftOfficeBadge: '🔴 Ушёл из офиса',
-    resetReopenBtn: '↩️ Сбросить / Переоткрыть',
-    resetToExpectedBtn: '↩️ Вернуть в ожидание',
-    noEmpMatchFilter: 'Нет сотрудников, соответствующих поиску или фильтру.',
-    empDirectoryTitle: '👥 Справочник сотрудников',
-    empDirectoryDesc: 'Управление всеми 30+ сотрудниками, сменами, языками и ролями',
-    addNewEmpBtn: '➕ Добавить сотрудника',
-    colNum: '#',
-    colEmpName: 'Имя сотрудника',
-    colRoleDept: 'Должность / Отдел',
-    colTargetShift: 'Целевая смена',
-    colLanguages: 'Языки',
-    colTodayStatus: 'Статус сегодня',
-    colTotalHrs: 'Всего часов',
-    colActionsLbl: 'Действия',
-    editShiftBtn: '✏️ Изменить смену',
-    deletedArchiveTitle: 'Архив удалённых сотрудников',
-    noArchivedYet: 'Архив пуст.',
-    colName: 'Имя',
-    colRole: 'Должность',
-    colShift: 'Смена',
-    colAction: 'Действие',
-    restoreBtn2: '↩️ Восстановить',
-    reportsAdvTitle: '📊 Отчёты и расчёт зарплаты',
-    reportsAdvDesc: 'Создание, фильтрация и экспорт данных посещаемости и зарплат для 30+ сотрудников',
-    exportPayrollBtn: '📥 Экспорт сводки зарплат (CSV)',
-    exportDetailedBtn: '📥 Экспорт подробных смен (CSV)',
-    printPdfBtn: '🖨️ Печать / PDF',
-    automatedReports: 'Получатель автоматических отчётов:',
-    fromLabel2: 'С:',
-    toLabel2: 'По:',
-    thisMonthBtn: 'Этот месяц',
-    past30Btn: 'Последние 30 дней',
-    timeLogsTableTitle: '📋 Таблица записей',
-    colDate: 'Дата',
-    colEmployee: 'Сотрудник',
-    colTask: 'Задача / Проект',
-    colHours: 'Часы',
-    colTimestamp: 'Записано в',
-    noLogsFilter: 'Нет записей для выбранных фильтров.',
-    totalHoursLabel: 'ч всего',
-    // Kiosk
-    kioskBadge: '🟢 Киоск смены',
-    welcomeLabel: 'Добро пожаловать,',
-    roleLabel: 'Должность:',
-    targetShiftLabel: 'Целевая смена:',
-    billableTimerLabel: '⏱️ ОПЛАЧИВАЕМОЕ РАБОЧЕЕ ВРЕМЯ',
-    selectBreakType: 'Выберите тип перерыва:',
-    smokBreak: '🚬 Перекур (5-10 мин)',
-    lunchBreak: '🥪 Обед (30-60 мин)',
-    coffeeBreak: '☕ Кофе / Отдых',
-    shortBreak: '❓ Короткий перерыв / Другое',
-    clockInBtn: '🟢 Начать работу (Пришёл)',
-    pauseBreakBtn: '⏸️ Перерыв...',
-    clockOutBtn: '🔴 Уйти из офиса',
-    resumeWorkBtn: '▶️ Продолжить работу',
-    reopenBtn: '↩️ Переоткрыть / Снова зайти',
-    shiftHistoryTitle: '📋 История смены сегодня',
-    liveLabel: '🟢 В СЕТИ — ОТРАБОТАНО СЕГОДНЯ',
-    onBreakLabel: '🟡 НА ПЕРЕРЫВЕ',
-    setupTabTitle: '💻 Настройка ПК',
-    setupHeader: '💻 Установка на рабочий ПК',
-    setupSubheader: 'Всего 3 шага — и трекинг времени заработает автоматически',
-    step1Header: 'Установите ActivityWatch',
-    step1Text: 'Эта программа отслеживает, когда вы за компьютером. Скачайте и установите (просто нажимайте «Далее»).',
-    step1DownloadBtn: '⬇️ Скачать ActivityWatch',
-    step1TrayNote: 'После установки должна появиться иконка ⏱ возле часов (в трее)',
-    step2Header: 'Скачайте Limassol Tracker',
-    step2Text: 'Небольшая программа, которая связывает ActivityWatch с системой учёта часов.',
-    step2DownloadBtn: '⬇️ Скачать LimassolTracker.exe',
-    step2FolderNote: 'Положите файл в любую удобную папку на рабочем столе',
-    step3Header: 'Запустите и выберите своё имя',
-    step3Text: 'Запустите LimassolTracker.exe — появится окошко с выпадающим списком. Выберите своё имя и нажмите «Сохранить и Запустить».',
-    step3DoneBadge: '✅ Готово! Таймер будет запускаться сам, когда вы работаете',
-    step3AutostartNote: '💡 Добавьте LimassolTracker.exe в автозагрузку: Win+R → «shell:startup» → скопируйте файл туда',
-    autostartTipTitle: '💡 Совет: Чтобы программа запускалась автоматически при включении компьютера:',
-    autostartTipText: 'Нажмите Win + R, введите shell:startup и нажмите Enter. Скопируйте файл LimassolTracker.exe в открывшуюся папку.',
-  },
 } as const;
-
-type Lang = keyof typeof TRANSLATIONS;
 
 interface Employee {
   id: string;
@@ -618,7 +396,7 @@ const INITIAL_LOGS: TimeLog[] = [];
 
 export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { initialTab?: 'timeTracker' | 'employees' | 'reports' | 'setup' }) {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
-  const [currentDomain, setCurrentDomain] = useState<string>('');
+  // const [currentDomain, setCurrentDomain] = useState<string>('');
   
   // Auth & Roles System
   type AuthRole = 'admin' | 'user';
@@ -635,16 +413,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Theme state: 'dark' | 'light'
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Language state: 'en' | 'ru'
-  const [lang, setLang] = useState<Lang>('en');
-  const T = TRANSLATIONS[lang];
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const toggleLang = () => {
-    const next: Lang = lang === 'en' ? 'ru' : 'en';
-    setLang(next);
-    if (typeof window !== 'undefined') localStorage.setItem('team_lang', next);
-  };
+  const T = TRANSLATIONS.en;
 
   const [cyprusTime, setCyprusTime] = useState<string>('');
   const [cyprusDate, setCyprusDate] = useState<string>('');
@@ -654,12 +423,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [logs, setLogs] = useState<TimeLog[]>(INITIAL_LOGS);
   const [showDeletedArchive, setShowDeletedArchive] = useState(false);
   
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    if (initialTab === 'reports') {
-      return new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    }
-    return new Date().toISOString().split('T')[0];
-  });
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
@@ -669,7 +432,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setActiveTab(tab);
     if (tab === 'reports') {
       const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      setSelectedDate(yesterday);
+      setReportStartDate(yesterday);
       setLogDate(yesterday);
     }
     if (typeof window !== 'undefined') {
@@ -686,12 +449,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [clockifyLastSynced, setClockifyLastSynced] = useState<string>('');
 
   // Real-Time Dashboard State
-  type LiveStatus = { employeeId: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
+  type LiveStatus = { employeeId: string; employeeName?: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
   const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatus>>({});
 
 
   // View mode & Shift Editing State
-  const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
+  const [viewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
   const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
@@ -834,8 +597,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // 1. Set current domain & load Clockify settings
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname.toLowerCase();
-      setCurrentDomain(hostname);
       setIsAllowedDomain(true);
 
       // Always ensure API key and workspace ID are set
@@ -1700,28 +1461,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     saveEmployees([...employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key), restored]);
   };
 
-  // CSV Export
-  const exportToCSV = () => {
-    const headers = ['Date', 'Employee', 'Hours', 'Project/Task', 'Cyprus Timestamp'];
-    const rows = logs.map(l => {
-      return [
-        l.date,
-        `"${l.employeeName}"`,
-        l.hours,
-        `"${l.projectTask.replace(/"/g, '""')}"`,
-        `"${l.timestamp}"`,
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `limassol_time_report_${selectedDate || 'all'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Export Detailed CSV for Selected Date Range
   const exportFilteredLogsCSV = () => {
@@ -1753,6 +1492,54 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   };
 
   // Export Payroll Summary CSV per Employee
+  const syncToClockify = async () => {
+    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
+    const wsId = clockifyWorkspaceId || localStorage.getItem('clockify_workspace_id') || '';
+    
+    if (!apiKey || !wsId) {
+      alert('Please configure Clockify API Key and Workspace ID in Setup first.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to sync ' + filteredLogs.length + ' logs to Clockify?')) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const log of filteredLogs) {
+      const emp = employees.find(e => e.id === log.employeeId);
+      if (!emp) continue;
+
+      const [y, m, d] = log.date.split('-');
+      const [h, min] = log.timestamp.split(':');
+      const dateObj = new Date(Number(y), Number(m)-1, Number(d), Number(h), Number(min));
+      const endObj = new Date(dateObj.getTime() + log.hours * 3600000);
+
+      const payload = {
+        start: dateObj.toISOString(),
+        end: endObj.toISOString(),
+        description: `${emp.name}: ${log.projectTask}`,
+      };
+
+      try {
+        const res = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/time-entries`, {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) successCount++;
+        else failCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    
+    alert(`Sync complete! Successfully synced: ${successCount}, Failed: ${failCount}`);
+  };
+
   const exportPayrollSummaryCSV = () => {
     const filtered = logs.filter(l => {
       if (reportStartDate && l.date < reportStartDate) return false;
@@ -1932,6 +1719,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             
             newStatuses[empId] = {
               employeeId: empId,
+              employeeName: user.name,
               status: 'online',
               task: activeTimer.description || 'Working on task...',
               duration: `${hrs > 0 ? hrs + 'h ' : ''}${mins}m`,
@@ -2089,7 +1877,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         <div>
           <h1 className="text-6xl font-bold text-[#133137]">404</h1>
           <p className="mt-4 text-xl text-stone-600">Page not found</p>
-          <a href="/" className="mt-6 inline-block rounded-lg bg-[#133137] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1a444c]">
+          <a href="/" className="mt-6 inline-block rounded-2xl bg-[#133137] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1a444c]">
             Return Home
           </a>
         </div>
@@ -2107,7 +1895,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   if (!isAuthenticated) {
     return (
       <div className={`flex min-h-screen items-center justify-center p-4 font-sans ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f3f4f6] text-[#000000]'}`}>
-        <div className={`w-full max-w-md rounded-2xl border p-8 shadow-2xl backdrop-blur-lg ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+        <div className={`w-full max-w-md rounded-2xl border p-8 shadow-2xl backdrop-blur-lg ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
           <div className="text-center">
             <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold ${isDark ? 'bg-white/20 text-white' : 'bg-[#133137] text-white'}`}>
               ⏱️
@@ -2127,7 +1915,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 type="text"
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
-                className={`w-full rounded-xl border px-3.5 py-2.5 font-bold outline-none ${isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                className={`w-full rounded-2xl border px-3.5 py-2.5 font-bold outline-none ${isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
               />
             </div>
 
@@ -2138,19 +1926,19 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 maxLength={8}
                 value={loginPin}
                 onChange={(e) => setLoginPin(e.target.value)}
-                className={`w-full rounded-xl border px-4 py-2.5 text-center text-lg font-bold tracking-widest outline-none ${isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'}`}
+                className={`w-full rounded-2xl border px-4 py-2.5 text-center text-lg font-bold tracking-widest outline-none ${isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'}`}
               />
             </div>
 
             {loginError && (
-              <p className="text-center font-bold text-red-300 bg-red-500/20 border border-red-500/30 p-2.5 rounded-xl">
+              <p className="text-center font-bold text-red-300 bg-slate-800/20 border border-red-500/30 p-2.5 rounded-2xl">
                 {loginError}
               </p>
             )}
 
             <button
               type="submit"
-              className={`w-full rounded-xl py-3 text-sm font-extrabold shadow-lg transition ${
+              className={`w-full rounded-2xl py-3 text-sm font-extrabold shadow-lg transition ${
                 isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
               }`}
             >
@@ -2164,7 +1952,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
   // Filtered logs & employees
   const filteredLogs = logs.filter(log => {
-    if (selectedDate && log.date !== selectedDate) return false;
+    if (reportStartDate && log.date < reportStartDate) return false;
+    if (reportEndDate && log.date > reportEndDate) return false;
     if (filterLang !== 'ALL') {
       const emp = employees.find(e => e.id === log.employeeId);
       if (!emp || !emp.languages.includes(filterLang)) return false;
@@ -2206,60 +1995,124 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   return (
     <div className={`min-h-screen font-sans antialiased transition-colors duration-200 ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f4f5f7] text-black'}`}>
       {/* Header & Sticky Navigation Menu */}
-      <header className={`border-b sticky top-0 z-50 shadow-md ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl font-bold shadow ${isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'}`}>
-              ⏱️
-            </span>
-            <div>
-              <h1 className={`font-serif text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
-                {T.appTitle}
-              </h1>
-              <p className={`text-[0.7rem] font-semibold opacity-80 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {T.appSubtitle} ({currentDomain || 'limassoltime.web.app'})
-              </p>
+      <header className={`border-b sticky top-0 z-50 shadow-md backdrop-blur-md transition-colors duration-200 ${isDark ? 'border-white/10 bg-[#091a1d]/80 text-white' : 'border-slate-200/60 bg-white/80 text-black'}`}>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-2">
+          
+          {/* Left: Logo & Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 mr-2">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-2xl text-lg font-bold shadow-sm ${isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'}`}>
+                ⏱️
+              </span>
+              <span className="font-serif font-bold tracking-tight hidden sm:block">
+                Limassol Time
+              </span>
             </div>
+
+            {/* Navigation (Admin) */}
+            {authRole === 'admin' && (
+              <div className="flex flex-wrap items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
+                <button
+                  onClick={() => handleTabChange('timeTracker', '/dashboard')}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'timeTracker'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <span>⏱️</span> Dashboard
+                </button>
+                <button
+                  onClick={() => handleTabChange('employees', '/team')}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'employees'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <span>👥</span> Team
+                </button>
+                <button
+                  onClick={() => window.location.href = '/reports'}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'reports'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <span>📊</span> Reports
+                </button>
+                <button
+                  onClick={() => window.location.href = '/setup'}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'setup'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  ⚙️ Setup
+                </button>
+              </div>
+            )}
+
+            {/* Navigation (User) */}
+            {authRole === 'user' && (
+              <div className="flex flex-wrap items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
+                <button
+                  onClick={() => window.location.href = '/dashboard'}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'timeTracker'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <span>🏠</span> My Shift
+                </button>
+                <button
+                  onClick={() => window.location.href = '/setup'}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'setup'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  ⚙️ Setup
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Right Header Navigation Actions */}
-          <div className="flex flex-wrap items-center gap-3">
-
-            {/* 1. Actual Live Cyprus Clock */}
-            <div className={`flex items-center gap-3 rounded-xl border px-3.5 py-1.5 shadow-inner ${isDark ? 'border-white/30 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}>
-              <div className="text-right">
-                <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                  🇨🇾 {T.appSubtitle}
+          {/* Right: Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            
+            {/* Live Clock Block */}
+            <div className={`flex items-center gap-2 rounded-2xl border px-3 py-1.5 shadow-inner ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-black/5 text-black'}`}>
+              <div className="text-right flex items-center gap-2">
+                <div className="font-mono text-[0.8rem] font-black text-slate-500">
+                  {cyprusTime || '00:00 AM'}
                 </div>
-                <div className="font-mono text-base font-black text-amber-400">
-                  {cyprusTime || '00:00:00 AM'}
+                <div className={`h-4 w-px ${isDark ? 'bg-white/20' : 'bg-slate-300'}`} />
+                <div className="text-[0.65rem] font-bold opacity-75">
+                  {cyprusDate}
                 </div>
-              </div>
-              <div className={`h-6 w-px ${isDark ? 'bg-white/30' : 'bg-slate-400'}`} />
-              <div className="text-[0.7rem] font-bold opacity-90">
-                {cyprusDate}
               </div>
             </div>
 
-            {/* 2. Live Total Time in Navbar (only when LIVE / checked_in) */}
+            {/* Live Timer (User Only) */}
             {authRole === 'user' && activeEmployee && (activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
-              <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 shadow-inner ${
+              <div className={`flex items-center rounded-2xl border px-3 py-1.5 shadow-inner ${
                 activeEmployee.status === 'checked_in'
-                  ? isDark ? 'border-emerald-500/50 bg-emerald-950/60' : 'border-emerald-400 bg-emerald-100'
-                  : isDark ? 'border-amber-500/50 bg-amber-950/60' : 'border-amber-400 bg-amber-100'
+                  ? isDark ? 'border-slate-300/30 bg-emerald-950/40' : 'border-emerald-300 bg-slate-50'
+                  : isDark ? 'border-amber-500/30 bg-amber-950/40' : 'border-amber-300 bg-slate-50'
               }`}>
-                <div className="text-right">
-                  <div className={`text-[0.6rem] font-extrabold uppercase tracking-widest ${
-                    activeEmployee.status === 'checked_in' 
-                      ? isDark ? 'text-emerald-400' : 'text-emerald-800' 
-                      : isDark ? 'text-amber-400' : 'text-amber-800'
+                <div className="text-right flex items-center gap-2">
+                  <div className={`text-[0.6rem] font-extrabold uppercase ${
+                    activeEmployee.status === 'checked_in' ? 'text-slate-500' : 'text-slate-500'
                   }`}>
-                    {activeEmployee.status === 'checked_in' ? T.liveLabel : T.onBreakLabel}
+                    {activeEmployee.status === 'checked_in' ? 'LIVE' : 'BREAK'}
                   </div>
-                  <div className={`font-mono text-sm font-black tracking-wider ${
-                    activeEmployee.status === 'checked_in' 
-                      ? isDark ? 'text-emerald-300' : 'text-emerald-700' 
-                      : isDark ? 'text-amber-300' : 'text-amber-700'
+                  <div className={`font-mono text-[0.8rem] font-black ${
+                    activeEmployee.status === 'checked_in' ? 'text-slate-500' : 'text-slate-500'
                   }`}>
                     {kioskBillableTime}
                   </div>
@@ -2267,19 +2120,19 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </div>
             )}
 
-            {/* 3. Quick Clock In / Clock Out Action Button */}
+            {/* Quick Action (User Only) */}
             {authRole === 'user' && activeEmployee && (
               activeEmployee.status === 'checked_in' ? (
                 <button
                   onClick={() => handleClockOutSimple()}
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-rose-500 transition flex items-center gap-1.5"
+                  className="rounded-2xl bg-slate-900 px-3 py-1.5 text-[0.75rem] font-extrabold text-white hover:bg-slate-800 transition shadow-sm"
                 >
-                  🔴 Clock Out
+                  🔴 Out
                 </button>
               ) : activeEmployee.status === 'on_break' ? (
                 <button
                   onClick={() => handleResumeWork()}
-                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-amber-500 transition flex items-center gap-1.5 animate-pulse"
+                  className="rounded-2xl bg-slate-900 px-3 py-1.5 text-[0.75rem] font-extrabold text-white hover:bg-slate-800 transition shadow-sm animate-pulse"
                 >
                   ▶️ Resume
                 </button>
@@ -2293,125 +2146,47 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
                     addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });
                   }}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg hover:bg-emerald-500 transition flex items-center gap-1.5"
+                  className="rounded-2xl bg-slate-900 px-3 py-1.5 text-[0.75rem] font-extrabold text-white hover:bg-slate-800 transition shadow-sm"
                 >
-                  🟢 Clock In
+                  🟢 In
                 </button>
               )
             )}
 
-
-            {/* 3. Login / Logout Button */}
+            {/* Auth Button */}
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/20 px-3.5 py-1.5 text-xs font-extrabold text-red-300 hover:bg-red-500/30 transition shadow-sm"
+                title={`Log Out (${authRole === 'admin' ? 'Admin' : activeEmployee?.name})`}
+                className="flex items-center justify-center h-8 w-8 rounded-2xl border border-red-500/30 bg-slate-800/10 text-[0.95rem] text-red-400 hover:bg-slate-800/20 transition shadow-sm"
               >
-                <span>🚪</span> Log Out ({authRole === 'admin' ? 'Robert' : activeEmployee?.name || 'User'})
+                🚪
               </button>
             ) : (
               <button
                 onClick={() => setIsAuthenticated(false)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-extrabold text-white hover:bg-emerald-500 transition shadow-sm"
+                title="Log In"
+                className="flex items-center justify-center h-8 w-8 rounded-2xl bg-slate-900 text-[0.95rem] text-white hover:bg-slate-800 transition shadow-sm"
               >
-                <span>🔑</span> Log In
+                🔑
               </button>
             )}
 
-
-
-            {/* Theme Toggle Button */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm transition ${
+              title="Toggle Theme"
+              className={`flex items-center justify-center h-8 w-8 rounded-2xl border transition shadow-sm ${
                 isDark
-                  ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
-                  : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
+                  ? 'border-white/20 bg-white/10 text-[0.95rem] hover:bg-white/20'
+                  : 'border-slate-200/60 bg-slate-100 text-[0.95rem] hover:bg-slate-200'
               }`}
             >
-              {isDark ? T.lightMode : T.darkMode}
+              {isDark ? '☀️' : '🌙'}
             </button>
-
+            
           </div>
         </div>
-
-        {/* Navigation Tabs (For Manager / Admin) */}
-        {authRole === 'admin' && (
-          <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 text-xs font-extrabold">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleTabChange('timeTracker', '/dashboard')}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                    activeTab === 'timeTracker'
-                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                  }`}
-                >
-                  <span>⏱️</span> Dashboard
-                </button>
-                <button
-                  onClick={() => handleTabChange('employees', '/team')}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                    activeTab === 'employees'
-                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                  }`}
-                >
-                  <span>👥</span> Team ({employees.length})
-                </button>
-                <button
-                  onClick={() => window.location.href = '/reports'}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                    activeTab === 'reports'
-                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                  }`}
-                >
-                  <span>📊</span> Reports & Payroll
-                </button>
-                <button
-                  onClick={() => window.location.href = '/setup'}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                    activeTab === 'setup'
-                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                  }`}
-                >
-                  {T.setupTabTitle}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation for Employee: only PC Setup button */}
-        {authRole === 'user' && (
-          <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
-            <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
-              <button
-                onClick={() => window.location.href = '/dashboard'}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                  activeTab === 'timeTracker'
-                    ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                }`}
-              >
-                <span>🏠</span> My Shift
-              </button>
-              <button
-                onClick={() => window.location.href = '/setup'}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                  activeTab === 'setup'
-                    ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
-                }`}
-              >
-                {T.setupTabTitle}
-              </button>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
@@ -2419,10 +2194,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         {/* User / Employee View */}
         {authRole === 'user' && activeEmployee && activeTab !== 'setup' && (
           <div className="space-y-8">
-            <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-extrabold ${isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-800'}`}>
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-extrabold ${isDark ? 'bg-slate-800/20 border-slate-300/30 text-emerald-300' : 'bg-slate-100 border-emerald-300 text-emerald-800'}`}>
                     🟢 Employee Shift Kiosk
                   </div>
                   <div className="flex flex-wrap items-center gap-3 mt-3">
@@ -2431,7 +2206,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     </h2>
                     <button
                       onClick={() => handleOpenEditShift(activeEmployee)}
-                      className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow transition active:scale-95 flex items-center gap-1 ${
+                      className={`rounded-2xl border px-3 py-1.5 text-xs font-extrabold shadow transition active:scale-95 flex items-center gap-1 ${
                         isDark ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : 'border-slate-400 bg-slate-100 text-slate-900 hover:bg-slate-200'
                       }`}
                       title="Edit your optional profile info"
@@ -2445,14 +2220,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
                   {/* Status Badge & Live Billable Ticking Timer */}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <span className={`rounded-xl px-3.5 py-2 font-mono text-sm font-extrabold shadow border ${
+                    <span className={`rounded-2xl px-3.5 py-2 font-mono text-sm font-extrabold shadow border ${
                       activeEmployee.status === 'checked_in'
-                        ? isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 animate-pulse' : 'bg-emerald-100 text-emerald-800 border-emerald-400 animate-pulse'
+                        ? isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/50 animate-pulse' : 'bg-slate-100 text-emerald-800 border-emerald-400 animate-pulse'
                         : activeEmployee.status === 'on_break'
-                        ? isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-amber-100 text-amber-800 border-amber-400'
+                        ? isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-slate-100 text-amber-800 border-slate-300'
                         : activeEmployee.status === 'completed'
-                        ? isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/50' : 'bg-blue-100 text-blue-800 border-blue-400'
-                        : isDark ? 'bg-black/40 text-slate-300 border-white/20' : 'bg-slate-100 text-slate-600 border-slate-300'
+                        ? isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/50' : 'bg-slate-100 text-blue-800 border-blue-400'
+                        : isDark ? 'bg-black/40 text-slate-300 border-white/20' : 'bg-slate-100 text-slate-600 border-slate-200/60'
                     }`}>
                       {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
                       {activeEmployee.status === 'on_break' && (
@@ -2469,8 +2244,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
                     {/* Live Billable Ticking Time */}
                     {(activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
-                      <div className={`rounded-xl border px-4 py-2 text-center shadow-inner ${isDark ? 'border-amber-500/50 bg-black/60' : 'border-amber-400 bg-amber-50'}`}>
-                        <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                      <div className={`rounded-2xl border px-4 py-2 text-center shadow-inner ${isDark ? 'border-amber-500/50 bg-black/60' : 'border-slate-300 bg-slate-50'}`}>
+                        <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-slate-700'}`}>
                           ⏱️ BILLABLE WORKING TIME
                         </div>
                         <div className={`font-mono text-xl font-black tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
@@ -2480,15 +2255,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     )}
 
                     {/* AW Live Tracker Status */}
-                    <div className={`rounded-xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
+                    <div className={`rounded-2xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
                       liveStatuses[activeEmployee.id]?.status === 'online' 
-                        ? isDark ? 'border-sky-500/50 bg-sky-950/60' : 'border-sky-400 bg-sky-100'
-                        : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-rose-100'
+                        ? isDark ? 'border-slate-300/50 bg-sky-950/60' : 'border-sky-400 bg-slate-100'
+                        : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-slate-100'
                     }`}>
                       <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${
                         liveStatuses[activeEmployee.id]?.status === 'online'
-                          ? isDark ? 'text-sky-400' : 'text-sky-700'
-                          : isDark ? 'text-rose-400' : 'text-rose-700'
+                          ? isDark ? 'text-sky-400' : 'text-slate-700'
+                          : isDark ? 'text-rose-400' : 'text-slate-700'
                       }`}>
                         {liveStatuses[activeEmployee.id]?.status === 'online' ? '⚡ AW TRACKER: CONNECTED' : '🔴 AW TRACKER: OFFLINE'}
                       </div>
@@ -2527,7 +2302,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           accumulatedSeconds: 0
                         } : null);
                       }}
-                      className="w-full sm:w-auto rounded-2xl bg-emerald-600 px-8 py-5 text-base font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center justify-center gap-2 active:scale-95"
+                      className="w-full sm:w-auto rounded-2xl bg-slate-900 px-8 py-5 text-base font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center justify-center gap-2 active:scale-95"
                     >
                       <span>🟢</span> {T.clockInBtn.replace('🟢 ', '')}
                     </button>
@@ -2540,7 +2315,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       <div className="relative">
                         <button
                           onClick={() => setShowBreakMenu(v => !v)}
-                          className="rounded-2xl bg-amber-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-amber-500 transition flex items-center gap-2"
+                          className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
                         >
                           <span>⏸️</span> {T.pauseBreakBtn.replace('⏸️ ', '')}
                         </button>
@@ -2552,25 +2327,25 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             </div>
                             <button
                               onClick={() => handleTakeBreak('🚬 Smoke Break')}
-                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
                             >
                               🚬 Smoke Break (5-10m)
                             </button>
                             <button
                               onClick={() => handleTakeBreak('🥪 Lunch Break')}
-                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
                             >
                               🥪 Lunch Break (30-60m)
                             </button>
                             <button
                               onClick={() => handleTakeBreak('☕ Coffee / Rest')}
-                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
                             >
                               ☕ Coffee / Rest Break
                             </button>
                             <button
                               onClick={() => handleTakeBreak('❓ Short Break')}
-                              className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
+                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
                             >
                               ❓ Short Break / Other
                             </button>
@@ -2581,7 +2356,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {/* Clock Out (Simple: No Popup!) */}
                       <button
                         onClick={() => handleClockOutSimple()}
-                        className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
+                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
                       >
                         <span>🔴</span> {T.clockOutBtn.replace('🔴 ', '')}
                       </button>
@@ -2593,14 +2368,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <>
                       <button
                         onClick={() => handleResumeWork()}
-                        className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-emerald-500 transition flex items-center gap-2 animate-pulse"
+                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2 animate-pulse"
                       >
                         <span>▶️</span> {T.resumeWorkBtn.replace('▶️ ', '')}
                       </button>
 
                       <button
                         onClick={() => handleClockOutSimple()}
-                        className="rounded-2xl bg-rose-600 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-rose-500 transition flex items-center gap-2"
+                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
                       >
                         <span>🔴</span> Clock Out (Left Office)
                       </button>
@@ -2657,15 +2432,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <div className="space-y-3">
                       {shiftEvents.map((ev, idx) => {
                         const dot =
-                          ev.type === 'clock_in'   ? 'bg-emerald-500' :
-                          ev.type === 'clock_out'  ? 'bg-rose-500' :
-                          ev.type === 'break_start'? 'bg-amber-400' :
-                                                    'bg-sky-400';
+                          ev.type === 'clock_in'   ? 'bg-slate-800' :
+                          ev.type === 'clock_out'  ? 'bg-slate-800' :
+                          ev.type === 'break_start'? 'bg-slate-400' :
+                                                    'bg-slate-400';
                         const textColor =
-                          ev.type === 'clock_in'   ? (isDark ? 'text-emerald-300' : 'text-emerald-700') :
-                          ev.type === 'clock_out'  ? (isDark ? 'text-rose-300'    : 'text-rose-700') :
-                          ev.type === 'break_start'? (isDark ? 'text-amber-300'   : 'text-amber-700') :
-                                                    (isDark ? 'text-sky-300'     : 'text-sky-700');
+                          ev.type === 'clock_in'   ? (isDark ? 'text-emerald-300' : 'text-slate-700') :
+                          ev.type === 'clock_out'  ? (isDark ? 'text-rose-300'    : 'text-slate-700') :
+                          ev.type === 'break_start'? (isDark ? 'text-amber-300'   : 'text-slate-700') :
+                                                    (isDark ? 'text-sky-300'     : 'text-slate-700');
                         return (
                           <div key={ev.id} className="flex items-start gap-3">
                             <div className={`relative z-10 mt-1 h-3.5 w-3.5 rounded-full border-2 border-[#133137] flex-shrink-0 ${dot}`} />
@@ -2705,31 +2480,31 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <div className={`rounded-2xl border-2 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
               <div className="flex items-center gap-3">
                 <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-800"></span>
                 </span>
                 <div>
                   <h2 className="font-serif text-lg font-bold flex items-center gap-2">
                     Live Team Status
-                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-slate-300/30 px-2.5 py-0.5 rounded-full">
                       ⚡ Live Sync (LimassolTracker & Firestore)
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-400">ActivityWatch tracking active across {employees.length} agents</p>
+                  <p className="text-xs text-slate-400">ActivityWatch tracking active across {Object.keys(liveStatuses).length} agents</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleResetAllForNewDay}
-                  className="rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500 transition active:scale-95 flex items-center gap-1"
+                  className="rounded-2xl bg-slate-900 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-slate-800 transition active:scale-95 flex items-center gap-1"
                   title="Start clean new day for all employees"
                 >
                   <span>☀️</span> {T.newDayResetBtn}
                 </button>
                 <button
                   onClick={() => setShowAddEmpModal(true)}
-                  className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
+                  className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
                     isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
                   }`}
                 >
@@ -2754,8 +2529,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       <select
                         value={empSortOrder}
                         onChange={(e) => setEmpSortOrder(e.target.value as 'name_asc' | 'name_desc' | 'last_online' | 'last_registered')}
-                        className={`rounded-lg border px-2.5 py-1 text-xs font-extrabold outline-none cursor-pointer transition ${
-                          isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                        className={`rounded-2xl border px-2.5 py-1 text-xs font-extrabold outline-none cursor-pointer transition ${
+                          isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
                         }`}
                       >
                         <option value="name_asc">🔤 Name (A - Z)</option>
@@ -2765,7 +2540,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       </select>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">
+                      <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-slate-300/20 px-2 py-0.5 rounded">
                         🟢 {employees.filter(e => e.status === 'checked_in').length} Working
                       </span>
                       <span className="text-slate-400 font-bold bg-slate-800/40 border border-slate-700/20 px-2 py-0.5 rounded">
@@ -2785,21 +2560,28 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       const { status, checkIn, activeHrsDisplay } = getMergedEmployeeState(emp);
                       const isOnline = status === 'checked_in';
                       return (
-                        <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                        <div key={emp.id} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
                           isOnline 
-                            ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
+                            ? (isDark ? 'border-slate-300/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-slate-50')
                             : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
                         }`}>
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs flex-shrink-0 ${
-                              isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
+                              isOnline ? 'bg-slate-800 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
                             }`}>
                               {emp.name.charAt(0).toUpperCase()}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-sm flex items-center gap-1.5 truncate">
-                                <span className="truncate">{emp.name}</span>
-                                <span className="text-[0.65rem] font-bold opacity-60 flex-shrink-0">({emp.role})</span>
+                            <div className="min-w-0 flex-1 py-1">
+                              <div className="font-extrabold text-sm mb-1">
+                                <div className="leading-tight break-words whitespace-normal">{emp.name}</div>
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
+                                  {emp.team?.trim() && (
+                                    <span className={`rounded px-1.5 py-0 text-[9px] font-extrabold leading-4 flex-shrink-0 ${
+                                      ({'Swiss':'bg-slate-800/20 text-red-300','Japan':'bg-slate-800/20 text-rose-300','Spain':'bg-slate-800/20 text-amber-300','France':'bg-slate-800/20 text-sky-300','Germany':'bg-slate-800/20 text-yellow-300','UK':'bg-violet-500/20 text-violet-300','AU':'bg-slate-800/20 text-emerald-300'} as Record<string,string>)[emp.team.trim()] || 'bg-slate-500/20 text-slate-400'
+                                    }`}>{emp.team.trim()}</span>
+                                  )}
+                                </div>
                               </div>
                               <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
                                 {isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}
@@ -2812,7 +2594,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             {isOnline ? (
                               <button
                                 onClick={() => handleStatusChange(emp.id, 'completed')}
-                                className="rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                className="rounded-2xl bg-slate-900/80 hover:bg-slate-900 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
                                 title="Manual override: Stop billing time (e.g. empty chair / YouTube open)"
                               >
                                 <span>🔴</span> Out
@@ -2820,7 +2602,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             ) : (
                               <button
                                 onClick={() => handleStatusChange(emp.id, 'checked_in')}
-                                className="rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                className="rounded-2xl bg-slate-900/80 hover:bg-slate-900 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
                                 title="Manual override: Start billing time"
                               >
                                 <span>🟢</span> In
@@ -2836,7 +2618,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
               {/* Top Metrics & Activity Feed */}
               <div className="space-y-6">
-                <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
+                <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-slate-300/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-slate-50 text-slate-800'}`}>
                   <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
                   <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
                   <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
@@ -2850,10 +2632,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     ) : (
                       Object.values(liveStatuses).map((status, i) => (
                         <div key={i} className="flex gap-3 items-start">
-                          <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                          <div className="mt-1 w-2 h-2 rounded-full bg-slate-800 flex-shrink-0"></div>
                           <div>
                             <div className="text-xs font-bold">
-                              {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                              {employees.find(e => e.id === status.employeeId)?.name || status.employeeName || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
                             </div>
                             <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
                             <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
@@ -2873,7 +2655,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         {/* Page Tab 2: Employees Directory Page */}
         {activeTab === 'employees' && (
           <div className="space-y-6">
-            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-serif text-2xl font-bold flex items-center gap-2">
@@ -2885,7 +2667,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </div>
                 <button
                   onClick={() => setShowAddEmpModal(true)}
-                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center gap-1.5"
+                  className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 active:scale-95 flex items-center gap-1.5"
                 >
                   {T.addNewEmpBtn}
                 </button>
@@ -2901,8 +2683,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <select
                     value={empSortOrder}
                     onChange={(e) => setEmpSortOrder(e.target.value as 'name_asc' | 'name_desc' | 'last_online' | 'last_registered')}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold outline-none cursor-pointer transition ${
-                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                    className={`rounded-2xl border px-3 py-1.5 text-xs font-extrabold outline-none cursor-pointer transition ${
+                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
                     }`}
                   >
                     <option value="name_asc">🔤 Name (A - Z)</option>
@@ -2913,92 +2695,76 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </div>
               </div>
 
-              {/* Employees Grouped by Team */}
+              {/* Flat Employees Table */}
               {(() => {
-                // Build team → employees map, preserving sort order
-                const teamMap = new Map<string, typeof filteredEmployees>();
-                filteredEmployees.forEach(emp => {
-                  const key = emp.team?.trim() || '—';
-                  if (!teamMap.has(key)) teamMap.set(key, []);
-                  teamMap.get(key)!.push(emp);
-                });
-
-                // Sort groups: named teams alphabetically first, "—" last
-                const sortedKeys = Array.from(teamMap.keys()).sort((a, b) => {
-                  if (a === '—') return 1;
-                  if (b === '—') return -1;
-                  return a.localeCompare(b);
-                });
-
-                const teamColors = [
-                  { border: 'border-sky-500/30',   bg: 'bg-sky-500/8',   badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30' },
-                  { border: 'border-violet-500/30', bg: 'bg-violet-500/8', badge: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
-                  { border: 'border-emerald-500/30',bg: 'bg-emerald-500/8',badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
-                  { border: 'border-amber-500/30',  bg: 'bg-amber-500/8',  badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
-                  { border: 'border-rose-500/30',   bg: 'bg-rose-500/8',   badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30' },
-                  { border: 'border-cyan-500/30',   bg: 'bg-cyan-500/8',   badge: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
-                  { border: 'border-fuchsia-500/30',bg: 'bg-fuchsia-500/8',badge: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30' },
-                  { border: 'border-orange-500/30', bg: 'bg-orange-500/8', badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' },
-                ];
+                const teamColors: Record<string, string> = {
+                  'Swiss':   'bg-slate-800/20 text-red-300 border border-red-500/30',
+                  'Japan':   'bg-slate-800/20 text-rose-300 border border-rose-500/30',
+                  'Spain':   'bg-slate-800/20 text-amber-300 border border-amber-500/30',
+                  'France':  'bg-slate-800/20 text-sky-300 border border-slate-300/30',
+                  'Germany': 'bg-slate-800/20 text-yellow-300 border border-yellow-500/30',
+                  'UK':      'bg-violet-500/20 text-violet-300 border border-violet-500/30',
+                  'AU':      'bg-slate-800/20 text-emerald-300 border border-slate-300/30',
+                };
+                const defaultBadge = 'bg-slate-500/20 text-slate-400 border border-slate-500/30';
 
                 return (
-                  <div className="mt-4 space-y-4">
-                    {sortedKeys.map((teamName, colorIdx) => {
-                      const members = teamMap.get(teamName)!;
-                      const color = teamColors[colorIdx % teamColors.length];
-                      const isNoTeam = teamName === '—';
-                      return (
-                        <div key={teamName} className={`rounded-xl border-2 overflow-hidden ${isDark ? color.border + ' ' + color.bg : 'border-slate-200 bg-slate-50'}`}>
-                          {/* Team Header */}
-                          <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDark ? color.border : 'border-slate-200'}`}>
-                            <div className="flex items-center gap-2">
-                              <span className="text-base">{isNoTeam ? '🔹' : '👥'}</span>
-                              <span className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                                {isNoTeam ? 'No Team Assigned' : teamName}
-                              </span>
-                              <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${isDark ? color.badge : 'bg-slate-200 text-slate-600'}`}>
-                                {members.length} agent{members.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Team Members Table */}
-                          <table className="w-full text-left text-xs">
-                            <thead className={`font-extrabold uppercase text-[10px] tracking-wider border-b ${isDark ? 'text-slate-400 bg-black/30' : 'text-slate-500 bg-slate-100'}`}>
-                              <tr>
-                                <th className="px-4 py-2">#</th>
-                                <th className="px-4 py-2">{T.colEmpName}</th>
-                                <th className="px-4 py-2">Username</th>
-                                <th className="px-4 py-2">PIN</th>
-                                <th className="px-4 py-2">{T.colRoleDept}</th>
-                                <th className="px-4 py-2">{T.colLanguages}</th>
-                                <th className="px-4 py-2 text-right">{T.colActionsLbl}</th>
-                              </tr>
-                            </thead>
-                            <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-200'}`}>
-                              {members.map((emp, idx) => (
-                                <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-100'}`}>
+                  <div className="mt-4">
+                    {filteredEmployees.length === 0 ? (
+                      <div className={`rounded-2xl border-2 p-8 text-center text-sm font-bold opacity-60 ${isDark ? 'border-white/10 text-white' : 'border-slate-200 text-slate-500'}`}>
+                        {T.noEmpMatchFilter}
+                      </div>
+                    ) : (
+                      <div className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                        <table className="w-full text-left text-xs">
+                          <thead className={`font-extrabold uppercase text-[10px] tracking-wider border-b ${isDark ? 'text-slate-400 bg-black/30 border-white/10' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                            <tr>
+                              <th className="px-4 py-2">#</th>
+                              <th className="px-4 py-2">{T.colEmpName}</th>
+                              <th className="px-4 py-2">Username</th>
+                              <th className="px-4 py-2">PIN</th>
+                              <th className="px-4 py-2">{T.colRoleDept}</th>
+                              <th className="px-4 py-2">{T.colLanguages}</th>
+                              <th className="px-4 py-2">Team</th>
+                              <th className="px-4 py-2 text-right">{T.colActionsLbl}</th>
+                            </tr>
+                          </thead>
+                          <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-200'}`}>
+                            {filteredEmployees.map((emp, idx) => {
+                              const teamKey = emp.team?.trim() || '';
+                              const badgeClass = teamKey ? (teamColors[teamKey] || defaultBadge) : '';
+                              return (
+                                <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
                                   <td className="px-4 py-2.5 font-mono font-bold text-slate-500">{idx + 1}</td>
                                   <td className="px-4 py-2.5 font-extrabold">{emp.name}</td>
                                   <td className="px-4 py-2.5 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
                                   <td className="px-4 py-2.5 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
                                   <td className="px-4 py-2.5 opacity-80">{emp.role}</td>
                                   <td className="px-4 py-2.5">
-                                    <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-[0.7rem] font-bold">
+                                    <span className={`rounded px-2 py-0.5 font-mono text-[0.7rem] font-bold ${isDark ? 'bg-white/10' : 'bg-slate-100 text-slate-700'}`}>
                                       {emp.languages.join(' / ')}
                                     </span>
+                                  </td>
+                                  <td className="px-4 py-2.5">
+                                    {teamKey ? (
+                                      <span className={`rounded px-1.5 py-0 text-[9px] font-extrabold leading-4 ${badgeClass}`}>
+                                        {teamKey}
+                                      </span>
+                                    ) : (
+                                      <span className="opacity-30 text-[0.65rem]">—</span>
+                                    )}
                                   </td>
                                   <td className="px-4 py-2.5 text-right">
                                     <div className="flex justify-end gap-1.5">
                                       <button
                                         onClick={() => handleOpenEditShift(emp)}
-                                        className="rounded-lg bg-amber-600 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-amber-500 transition"
+                                        className="rounded-2xl bg-slate-900 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-slate-800 transition"
                                       >
                                         Edit Info
                                       </button>
                                       <button
                                         onClick={() => handleDeleteEmp(emp.id)}
-                                        className="rounded-lg bg-red-900/60 px-2 py-1 text-[0.7rem] font-bold text-red-200 hover:bg-red-800 transition"
+                                        className="rounded-2xl bg-black/60 px-2 py-1 text-[0.7rem] font-bold text-red-200 hover:bg-black transition"
                                         title="Remove Employee"
                                       >
                                         ✕
@@ -3006,15 +2772,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                     </div>
                                   </td>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })}
-                    {filteredEmployees.length === 0 && (
-                      <div className={`rounded-xl border-2 p-8 text-center text-sm font-bold opacity-60 ${isDark ? 'border-white/10 text-white' : 'border-slate-200 text-slate-500'}`}>
-                        {T.noEmpMatchFilter}
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
@@ -3023,18 +2784,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
 
             {/* Deleted Employees Archive */}
-            <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-red-900/40 bg-[#1a0f0f] text-white' : 'border-red-200 bg-red-50 text-black'}`}>
+            <div className={`rounded-2xl border-2 p-5 shadow-xl ${isDark ? 'border-red-900/40 bg-[#1a0f0f] text-white' : 'border-red-200 bg-slate-50 text-black'}`}>
               <button
                 onClick={() => setShowDeletedArchive(v => !v)}
                 className="flex w-full items-center justify-between text-left"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-base">🗑️</span>
-                  <span className={`text-sm font-extrabold ${isDark ? 'text-red-300' : 'text-red-700'}`}>
+                  <span className={`text-sm font-extrabold ${isDark ? 'text-red-300' : 'text-slate-700'}`}>
                     {T.deletedArchiveTitle} ({deletedEmployees.length})
                   </span>
                 </div>
-                <span className={`text-xs font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                <span className={`text-xs font-bold ${isDark ? 'text-red-400' : 'text-slate-600'}`}>
                   {showDeletedArchive ? '▲ ' + T.hideLabel : '▼ ' + T.showLabel}
                 </span>
               </button>
@@ -3048,7 +2809,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
-                        <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/40 text-red-300' : 'bg-red-100 text-red-800'}`}>
+                        <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/40 text-red-300' : 'bg-slate-100 text-red-800'}`}>
                           <tr>
                             <th className="p-3">{T.colName}</th>
                             <th className="p-3">{T.colRole}</th>
@@ -3065,7 +2826,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                 <td className="p-3 font-extrabold">{emp.name}</td>
                                 <td className="p-3">{emp.role}</td>
                                 <td className="p-3">
-                                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/30">
+                                  <span className="inline-flex items-center gap-1 rounded bg-slate-800/10 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/30">
                                     ⏳ Auto-deletes in {daysLeft}d
                                   </span>
                                 </td>
@@ -3073,13 +2834,13 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                   <div className="flex items-center justify-end gap-2">
                                     <button
                                       onClick={() => handleRestoreEmp(emp.id)}
-                                      className="rounded-lg bg-emerald-700/80 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-emerald-600 transition flex items-center gap-1"
+                                      className="rounded-2xl bg-black/80 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-slate-900 transition flex items-center gap-1"
                                     >
                                       <span>↩️</span> {T.restoreBtn2}
                                     </button>
                                     <button
                                       onClick={() => handleDeleteForeverEmp(emp.id)}
-                                      className="rounded-lg bg-red-700/80 px-3 py-1.5 text-xs font-bold text-red-100 hover:bg-red-600 transition flex items-center gap-1"
+                                      className="rounded-2xl bg-black/80 px-3 py-1.5 text-xs font-bold text-red-100 hover:bg-slate-900 transition flex items-center gap-1"
                                       title="Permanently delete from database"
                                     >
                                       <span>🔥</span> Delete Forever
@@ -3120,7 +2881,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     </p>
                     <a
                       href="https://github.com/ActivityWatch/activitywatch/releases/download/v0.12.2/activitywatch-v0.12.2-windows-x86_64-setup.exe"
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >
                       {T.step1DownloadBtn}
                     </a>
@@ -3141,9 +2902,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {T.step2Text}
                     </p>
                     <a
-                      href="/downloads/LimassolTracker.exe"
+                      href="/downloads/LimassolTracker_v1.0.5.exe"
                       download
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >
                       {T.step2DownloadBtn}
                     </a>
@@ -3163,7 +2924,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <p className={`text-sm mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                       {T.step3Text}
                     </p>
-                    <div className={`rounded-xl p-3 text-sm font-mono mt-3 ${ isDark ? 'bg-black/40 text-green-400' : 'bg-slate-100 text-green-700'}`}>
+                    <div className={`rounded-2xl p-3 text-sm font-mono mt-3 ${ isDark ? 'bg-black/40 text-green-400' : 'bg-slate-100 text-slate-700'}`}>
                       {T.step3DoneBadge}
                     </div>
                     <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -3174,11 +2935,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </div>
 
               {/* Autostart tip */}
-              <div className={`rounded-2xl p-4 mt-4 border ${ isDark ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'}`}>
-                <p className={`text-sm font-semibold ${ isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+              <div className={`rounded-2xl p-4 mt-4 border ${ isDark ? 'bg-slate-800/10 border-yellow-500/30' : 'bg-slate-50 border-yellow-200'}`}>
+                <p className={`text-sm font-semibold ${ isDark ? 'text-yellow-300' : 'text-slate-700'}`}>
                   {T.autostartTipTitle}
                 </p>
-                <p className={`text-xs mt-1 ${ isDark ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
+                <p className={`text-xs mt-1 ${ isDark ? 'text-yellow-400/70' : 'text-slate-600'}`}>
                   {T.autostartTipText}
                 </p>
               </div>
@@ -3189,7 +2950,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         {activeTab === 'reports' && (
           <div className="space-y-6">
             {/* Reports & Payroll Center */}
-            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-amber-400/30 bg-[#16363d] text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-slate-300/30 bg-[#16363d] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-serif text-xl font-bold flex items-center gap-2">
@@ -3204,19 +2965,25 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={exportPayrollSummaryCSV}
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 flex items-center gap-1.5"
+                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
               >
                 {T.exportPayrollBtn}
               </button>
               <button
                 onClick={exportFilteredLogsCSV}
-                className="rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-sky-500 flex items-center gap-1.5"
+                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
               >
                 {T.exportDetailedBtn}
               </button>
               <button
+                onClick={syncToClockify}
+                className="rounded-2xl bg-black dark:bg-white px-4 py-2.5 text-xs font-extrabold text-white dark:text-black shadow transition hover:opacity-80 flex items-center gap-1.5"
+              >
+                ⏱️ Sync to Clockify
+              </button>
+              <button
                 onClick={() => setShowPrintReportModal(true)}
-                className="rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-amber-500 flex items-center gap-1.5"
+                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
               >
                 {T.printPdfBtn}
               </button>
@@ -3231,11 +2998,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             const yesterStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
             // Parse selected date to build month dropdown
-            const selDate = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+            const selDate = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
             const viewYear = selDate.getFullYear();
-            const viewMonth = selDate.getMonth(); // 0-indexed
-
-            // All days in the selected month
+            const viewMonth = selDate.getMonth();
             const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
             const monthDays: { label: string; date: string }[] = [];
             for (let d = 1; d <= daysInMonth; d++) {
@@ -3244,45 +3009,33 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               const dayName = dt.toLocaleDateString('en-GB', { weekday: 'short' });
               monthDays.push({ label: `${String(d).padStart(2,'0')} ${dayName}`, date: iso });
             }
-
             const monthLabel = selDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
-            const goToDate = (iso: string) => {
-              setSelectedDate(iso);
-              setLogDate(iso);
-              setViewMode('grid');
-            };
-
+            const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); };
             const shiftDay = (delta: number) => {
-              const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+              const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
               base.setDate(base.getDate() + delta);
               goToDate(base.toISOString().split('T')[0]);
             };
-
             const shiftMonth = (delta: number) => {
-              const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+              const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
               base.setMonth(base.getMonth() + delta);
-              // clamp to end of new month
               const maxDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
               if (base.getDate() > maxDay) base.setDate(maxDay);
               goToDate(base.toISOString().split('T')[0]);
             };
-
-            const isTodaySelected = selectedDate === todayStr;
+            const isTodaySelected = reportStartDate === todayStr && reportEndDate === todayStr;
+            // const isThisMonth = viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth();
 
             return (
-              <div className={`mt-5 rounded-xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
-                {/* Row 1: quick chips + view mode toggle */}
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span className={`text-[10px] font-extrabold uppercase tracking-wider opacity-50 mr-1`}>📅 Date</span>
-
-                  {/* Today chip */}
+              <div className={`mt-5 rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => goToDate(todayStr)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
+                    className={`rounded-2xl px-3 py-1.5 text-xs font-extrabold shadow transition ${
                       isTodaySelected
-                        ? 'bg-emerald-600 text-white'
-                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
+                        ? 'bg-slate-900 text-white'
+                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-200/60 bg-slate-100 hover:bg-slate-200 text-black'
                     }`}
                   >
                     Today
@@ -3291,49 +3044,25 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   {/* Yesterday chip */}
                   <button
                     onClick={() => goToDate(yesterStr)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
-                      selectedDate === yesterStr
-                        ? 'bg-amber-600 text-white'
-                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
+                    className={`rounded-2xl px-3 py-1.5 text-xs font-extrabold shadow transition ${
+                      reportStartDate === yesterStr && reportEndDate === yesterStr
+                        ? 'bg-slate-900 text-white'
+                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-200/60 bg-slate-100 hover:bg-slate-200 text-black'
                     }`}
                   >
                     Yesterday
                   </button>
 
                   <div className="flex-1" />
-
-                  {/* View mode toggle */}
-                  <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'border-white/20' : 'border-slate-200'}`}>
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`px-3 py-1.5 text-xs font-extrabold transition ${
-                        viewMode === 'grid'
-                          ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
-                          : isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
-                      }`}
-                    >
-                      {T.dailyTimesheetBtn}
-                    </button>
-                    <button
-                      onClick={() => setViewMode('calendar')}
-                      className={`px-3 py-1.5 text-xs font-extrabold transition ${
-                        viewMode === 'calendar'
-                          ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
-                          : isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
-                      }`}
-                    >
-                      {T.monthlyCalendarBtn}
-                    </button>
-                  </div>
                 </div>
 
                 {/* Row 2: Day navigator */}
-                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
+                <div className={`flex items-center gap-2 rounded-2xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
                   {/* Prev month */}
                   <button
                     onClick={() => shiftMonth(-1)}
                     title="Previous month"
-                    className={`rounded-lg px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
+                    className={`rounded-2xl px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
                   >
                     «
                   </button>
@@ -3342,7 +3071,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <button
                     onClick={() => shiftDay(-1)}
                     title="Previous day"
-                    className={`rounded-lg px-2.5 py-1 text-sm font-black transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
+                    className={`rounded-2xl px-2.5 py-1 text-sm font-black transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
                   >
                     ‹
                   </button>
@@ -3351,10 +3080,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <div className="flex items-center gap-2 flex-1 justify-center">
                     <span className={`text-xs font-extrabold opacity-60`}>{monthLabel}</span>
                     <select
-                      value={selectedDate || todayStr}
+                      value={reportStartDate || todayStr}
                       onChange={e => goToDate(e.target.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-extrabold outline-none cursor-pointer transition ${
-                        isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                      className={`rounded-2xl border px-3 py-1.5 text-sm font-extrabold outline-none cursor-pointer transition ${
+                        isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
                       }`}
                     >
                       {monthDays.map(d => (
@@ -3369,9 +3098,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <button
                     onClick={() => shiftDay(1)}
                     title="Next day"
-                    disabled={selectedDate === todayStr || !selectedDate}
-                    className={`rounded-lg px-2.5 py-1 text-sm font-black transition ${
-                      (selectedDate === todayStr || !selectedDate)
+                    disabled={reportStartDate === todayStr || !reportStartDate}
+                    className={`rounded-2xl px-2.5 py-1 text-sm font-black transition ${
+                      (reportStartDate === todayStr || !reportStartDate)
                         ? 'opacity-20 cursor-not-allowed'
                         : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
                     }`}
@@ -3384,7 +3113,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     onClick={() => shiftMonth(1)}
                     title="Next month"
                     disabled={viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth()}
-                    className={`rounded-lg px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${
+                    className={`rounded-2xl px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${
                       (viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth())
                         ? 'opacity-20 cursor-not-allowed'
                         : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
@@ -3397,28 +3126,29 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <input
                     type="date"
                     max={todayStr}
-                    value={selectedDate || todayStr}
+                    value={reportStartDate || todayStr}
                     onChange={e => goToDate(e.target.value)}
                     title="Pick any date"
-                    className={`rounded-lg border px-2 py-1 text-xs font-bold outline-none cursor-pointer transition ${
-                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                    className={`rounded-2xl border px-2 py-1 text-xs font-bold outline-none cursor-pointer transition ${
+                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
                     }`}
                   />
                 </div>
+              </div>
               </div>
             );
           })()}
 
 {/* VIEW MODE 0: Interactive Monthly Calendar */}
           {viewMode === 'calendar' && (
-            <div className={`mt-5 rounded-xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`mt-5 rounded-2xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               {/* Calendar Header Navigation */}
               <div className="flex items-center justify-between border-b pb-4 mb-4 border-white/10">
                 <div className="flex items-center gap-3">
                   <h3 className="font-serif text-lg font-bold">
                     📅 {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
                   </h3>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-slate-300/40">
                     {T.clickDayHint}
                   </span>
                 </div>
@@ -3429,13 +3159,13 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       prev.setMonth(prev.getMonth() - 1);
                       setCalendarMonth(prev);
                     }}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
                   >
                     {T.prevMonth}
                   </button>
                   <button
                     onClick={() => setCalendarMonth(new Date())}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
+                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
                   >
                     {T.todayBtn}
                   </button>
@@ -3445,7 +3175,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       next.setMonth(next.getMonth() + 1);
                       setCalendarMonth(next);
                     }}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
                   >
                     {T.nextMonth}
                   </button>
@@ -3468,7 +3198,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 {getDaysInMonth(calendarMonth).map((dayObj, idx) => {
                   const todayStr = new Date().toISOString().split('T')[0];
                   const isToday = dayObj.dateStr === todayStr;
-                  const isSelected = selectedDate === dayObj.dateStr;
+                  const isSelected = reportStartDate === dayObj.dateStr;
 
                   // Logs for this specific day
                   const dayLogs = logs.filter(l => l.date === dayObj.dateStr);
@@ -3478,20 +3208,20 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <div
                       key={idx}
                       onClick={() => {
-                        setSelectedDate(dayObj.dateStr);
+                        setReportStartDate(dayObj.dateStr);
+                        setReportEndDate(dayObj.dateStr);
                         setLogDate(dayObj.dateStr);
-                        setViewMode('grid');
                       }}
-                      className={`min-h-[85px] rounded-xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
+                      className={`min-h-[85px] rounded-2xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
                         !dayObj.isCurrentMonth
                           ? 'opacity-40 border-transparent bg-transparent'
                           : isToday
-                          ? 'border-emerald-500 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
+                          ? 'border-slate-300 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
                           : isSelected
                           ? 'border-amber-500 bg-amber-950/40 text-white'
                           : isDark
                           ? 'border-white/15 bg-black/50 hover:border-white/40 hover:bg-black/70'
-                          : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
+                          : 'border-slate-200/60 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -3499,15 +3229,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           {dayObj.dayNum}
                         </span>
                         {isToday && (
-                          <span className="text-[0.6rem] font-bold bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">
-                            {lang === 'ru' ? 'Сегодня' : 'Today'}
+                          <span className="text-[0.6rem] font-bold bg-slate-800 text-slate-950 px-1.5 py-0.2 rounded uppercase">
+                            {'Today'}
                           </span>
                         )}
                       </div>
 
                       <div className="mt-2 space-y-1 text-[0.65rem] font-bold">
                         {dayTotalHours > 0 ? (
-                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-emerald-500/30 flex justify-between">
+                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-slate-300/30 flex justify-between">
                             <span>{T.workedLabel2}</span>
                             <span className="font-mono">{dayTotalHours}h</span>
                           </div>
@@ -3523,7 +3253,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           )}
 
           {/* Search & Status Filters Bar */}
-          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
+          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
             {/* Search Input */}
             <div className="relative flex-1 min-w-[240px]">
               <input
@@ -3531,7 +3261,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 placeholder={T.searchPlaceholder}
                 value={empSearchQuery}
                 onChange={(e) => setEmpSearchQuery(e.target.value)}
-                className={`w-full rounded-lg border px-3.5 py-2 text-xs font-bold outline-none ${
+                className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
                   isDark ? 'border-white/30 bg-black/60 text-white placeholder-slate-400 focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
                 }`}
               />
@@ -3549,7 +3279,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold">
               <button
                 onClick={() => setEmpStatusFilter('ALL')}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-2xl px-3 py-1.5 transition ${
                   empStatusFilter === 'ALL'
                     ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
                     : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-white text-slate-700 hover:bg-slate-200'
@@ -3559,40 +3289,40 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </button>
               <button
                 onClick={() => setEmpStatusFilter('checked_in')}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-2xl px-3 py-1.5 transition ${
                   empStatusFilter === 'checked_in'
-                    ? 'bg-emerald-600 text-white'
-                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                    ? 'bg-slate-900 text-white'
+                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-black' : 'bg-slate-100 text-emerald-800 hover:bg-slate-200'
                 }`}
               >
                 {T.filterWorking} ({employees.filter(e => e.status === 'checked_in').length})
               </button>
               <button
                 onClick={() => setEmpStatusFilter('expected')}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-2xl px-3 py-1.5 transition ${
                   empStatusFilter === 'expected'
-                    ? 'bg-amber-600 text-white'
-                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-amber-900' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                    ? 'bg-slate-900 text-white'
+                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-black' : 'bg-slate-100 text-amber-800 hover:bg-slate-200'
                 }`}
               >
                 {T.filterExpected} ({employees.filter(e => e.status === 'expected').length})
               </button>
               <button
                 onClick={() => setEmpStatusFilter('completed')}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-2xl px-3 py-1.5 transition ${
                   empStatusFilter === 'completed'
-                    ? 'bg-blue-600 text-white'
-                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-blue-900' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                    ? 'bg-slate-900 text-white'
+                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-black' : 'bg-slate-100 text-blue-800 hover:bg-slate-200'
                 }`}
               >
                 {T.filterDone} ({employees.filter(e => e.status === 'completed').length})
               </button>
               <button
                 onClick={() => setEmpStatusFilter('absent')}
-                className={`rounded-lg px-3 py-1.5 transition ${
+                className={`rounded-2xl px-3 py-1.5 transition ${
                   empStatusFilter === 'absent'
-                    ? 'bg-red-600 text-white'
-                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-red-900' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                    ? 'bg-slate-900 text-white'
+                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-black' : 'bg-slate-100 text-red-800 hover:bg-slate-200'
                 }`}
               >
                 {T.filterOff} ({employees.filter(e => e.status === 'absent').length})
@@ -3603,11 +3333,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           
 {/* VIEW MODE 1: Clean Timesheet Table View */}
           {viewMode === 'grid' && (
-            <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className={`font-extrabold uppercase tracking-wider border-b ${
-                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-300'
+                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-200/60'
                   }`}>
                     <tr>
                       <th className="px-4 py-3.5">{T.colNameRole}</th>
@@ -3636,7 +3366,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm">{emp.name}</span>
                                 {isLiveFromClockify && (
-                                  <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
+                                  <span className="animate-pulse rounded bg-slate-800/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
                                     ⏱️ CLOCKIFY
                                   </span>
                                 )}
@@ -3648,7 +3378,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             </td>
                             <td className="px-4 py-3 font-mono font-bold">
                               {checkIn ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/40' : 'bg-slate-100 text-emerald-800 border-emerald-400'}`}>
                                   🟢 {formatNiceDisplayTime(checkIn)}
                                 </span>
                               ) : (
@@ -3657,7 +3387,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             </td>
                             <td className="px-4 py-3 font-mono font-bold">
                               {checkOut ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/40' : 'bg-slate-100 text-blue-800 border-blue-400'}`}>
                                   🔴 {formatNiceDisplayTime(checkOut)}
                                 </span>
                               ) : (
@@ -3668,20 +3398,20 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '-'}
                             </td>
                             <td className="px-4 py-3 font-bold">
-                              {status === 'expected' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-800 border-amber-400'}`}>{T.statusExpectedBadge}</span>}
-                              {status === 'checked_in' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
-                              {status === 'completed' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
-                              {status === 'absent' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-red-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
+                              {status === 'expected' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-slate-100 text-amber-800 border-slate-300'}`}>{T.statusExpectedBadge}</span>}
+                              {status === 'checked_in' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/40' : 'bg-slate-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
+                              {status === 'completed' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/40' : 'bg-slate-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
+                              {status === 'absent' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-slate-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
                                 {status !== 'checked_in' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 transition">
                                     In
                                   </button>
                                 )}
                                 {status === 'checked_in' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
+                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 transition">
                                     Out
                                   </button>
                                 )}
@@ -3706,7 +3436,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
           
 {/* Date Range Selection */}
-          <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
+          <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
             <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
               <div className="flex items-center gap-2">
                 <label>{T.fromLabel2}</label>
@@ -3714,7 +3444,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   type="date"
                   value={reportStartDate}
                   onChange={(e) => setReportStartDate(e.target.value)}
-                  className={`rounded-lg border px-3 py-1.5 font-bold outline-none ${
+                  className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
                   }`}
                 />
@@ -3725,7 +3455,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   type="date"
                   value={reportEndDate}
                   onChange={(e) => setReportEndDate(e.target.value)}
-                  className={`rounded-lg border px-3 py-1.5 font-bold outline-none ${
+                  className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
                   }`}
                 />
@@ -3742,7 +3472,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     setReportStartDate(start);
                     setReportEndDate(end);
                   }}
-                  className={`rounded-lg border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                  className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
                 >
                   This Month
                 </button>
@@ -3756,7 +3486,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     setReportStartDate(start);
                     setReportEndDate(end);
                   }}
-                  className={`rounded-lg border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                  className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
                 >
                   Past 30 Days
                 </button>
@@ -3777,7 +3507,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         </div>
 
         {/* Section 2: Time Log Table & Actions */}
-        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
@@ -3792,15 +3522,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   if (employees.length > 0) setLogEmployeeId(employees[0].id);
                   setShowAddLogModal(true);
                 }}
-                className={`rounded-xl px-4 py-2.5 text-xs font-extrabold shadow-md transition ${
+                className={`rounded-2xl px-4 py-2.5 text-xs font-extrabold shadow-md transition ${
                   isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
                 }`}
               >
                 📝 Log Hours / Task
               </button>
               <button
-                onClick={exportToCSV}
-                className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
+                onClick={exportFilteredLogsCSV}
+                className={`rounded-2xl border px-4 py-2.5 text-xs font-bold transition ${
                   isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
                 }`}
               >
@@ -3810,31 +3540,13 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           </div>
 
           {/* Filters */}
-          <div className={`mt-5 flex flex-wrap items-center gap-4 rounded-xl border p-4 ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-300 bg-slate-100 text-black'}`}>
-            <div>
-              <label className={`mr-2 text-xs font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>Filter Date:</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-bold outline-none ${
-                  isDark ? 'border-white/40 bg-black/70 text-white focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
-                }`}
-              />
-              <button
-                onClick={() => setSelectedDate('')}
-                className={`ml-2 text-xs font-bold underline ${isDark ? 'text-white hover:text-amber-200' : 'text-black hover:text-blue-700'}`}
-              >
-                All Dates
-              </button>
-            </div>
-
+          <div className={`mt-5 flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-200/60 bg-slate-100 text-black'}`}>
             <div>
               <label className={`mr-2 text-xs font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>Filter Language:</label>
               <select
                 value={filterLang}
                 onChange={(e) => setFilterLang(e.target.value)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-bold outline-none ${
+                className={`rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
                   isDark ? 'border-white/40 bg-black/70 text-white focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
                 }`}
               >
@@ -3849,11 +3561,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           </div>
 
           {/* Log Table */}
-          <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+          <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className={`text-xs font-extrabold uppercase tracking-wider border-b ${
-                  isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-300'
+                  isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-200/60'
                 }`}>
                   <tr>
                     <th className="px-5 py-4">Date</th>
@@ -3881,7 +3593,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                         <td className="px-5 py-4 text-xs font-bold">
                           {log.projectTask}
                         </td>
-                        <td className={`px-5 py-4 font-mono text-xs font-extrabold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                        <td className={`px-5 py-4 font-mono text-xs font-extrabold ${isDark ? 'text-emerald-300' : 'text-slate-700'}`}>
                           {log.hours} hrs
                         </td>
                         <td className="px-5 py-4 font-mono text-xs font-bold">
@@ -3890,7 +3602,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                         <td className="px-5 py-4 text-right">
                           <button
                             onClick={() => handleDeleteLog(log.id)}
-                            className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-red-600 hover:text-red-800'}`}
+                            className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-slate-600 hover:text-red-800'}`}
                           >
                             Delete
                           </button>
@@ -3918,7 +3630,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <select
                   value={logEmployeeId}
                   onChange={(e) => setLogEmployeeId(e.target.value)}
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 >
@@ -3937,7 +3649,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   required
                   value={logDate}
                   onChange={(e) => setLogDate(e.target.value)}
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
@@ -3953,7 +3665,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   required
                   value={logHours}
                   onChange={(e) => setLogHours(parseFloat(e.target.value) || 0)}
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
@@ -3967,7 +3679,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={logProjectTask}
                   onChange={(e) => setLogProjectTask(e.target.value)}
                   placeholder="e.g. Client Consultation / Operations"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
@@ -3977,7 +3689,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <button
                   type="button"
                   onClick={() => setShowAddLogModal(false)}
-                  className={`rounded-xl border px-4 py-2.5 font-bold transition ${
+                  className={`rounded-2xl border px-4 py-2.5 font-bold transition ${
                     isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
                   }`}
                 >
@@ -3985,7 +3697,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </button>
                 <button
                   type="submit"
-                  className={`rounded-xl px-4 py-2.5 font-extrabold transition ${
+                  className={`rounded-2xl px-4 py-2.5 font-extrabold transition ${
                     isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
                   }`}
                 >
@@ -4015,7 +3727,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={newEmpUsername}
                   onChange={(e) => setNewEmpUsername(e.target.value)}
                   placeholder="e.g. philippe, maximilian..."
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
@@ -4032,14 +3744,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={newEmpPin}
                   onChange={(e) => setNewEmpPin(e.target.value)}
                   placeholder="e.g. 1234"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold font-mono outline-none ${
+                  className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold font-mono outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
               </div>
 
               {/* === OPTIONAL FIELDS === */}
-              <details className={`rounded-xl border p-3 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <details className={`rounded-2xl border p-3 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                 <summary className={`cursor-pointer text-[0.7rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Optional fields (Full name, Role, Languages, Shift)
                 </summary>
@@ -4051,7 +3763,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       value={newEmpName}
                       onChange={(e) => setNewEmpName(e.target.value)}
                       placeholder="e.g. Alex Miller"
-                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                      className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                         isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                       }`}
                     />
@@ -4063,7 +3775,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       value={newEmpRole}
                       onChange={(e) => setNewEmpRole(e.target.value)}
                       placeholder="e.g. Senior Advisor"
-                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                      className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                         isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                       }`}
                     />
@@ -4075,7 +3787,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       value={newEmpLangs}
                       onChange={(e) => setNewEmpLangs(e.target.value)}
                       placeholder="EN, DE, FR"
-                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                      className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                         isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                       }`}
                     />
@@ -4087,24 +3799,32 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       value={newEmpShift}
                       onChange={(e) => setNewEmpShift(e.target.value)}
                       placeholder="11:00 AM"
-                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                      className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none ${
                         isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                       }`}
                     />
                   </div>
                   <div>
                     <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                      Team Name <span className={`text-xs font-normal opacity-60`}>(e.g. EN Team A, DE Team 2)</span>
+                      Team Name
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={newEmpTeam}
                       onChange={(e) => setNewEmpTeam(e.target.value)}
-                      placeholder="e.g. EN Team A"
-                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                      className={`mt-1 w-full rounded-2xl border px-3 py-2.5 font-bold outline-none cursor-pointer ${
                         isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                       }`}
-                    />
+                    >
+                      <option value="">-- No Team Assigned --</option>
+                      <option value="Swiss">Swiss</option>
+                      <option value="Japan">Japan</option>
+                      <option value="Spain">Spain</option>
+                      <option value="France">France</option>
+                      <option value="Germany">Germany</option>
+                      <option value="UK">UK</option>
+                      <option value="AU">AU</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                 </div>
               </details>
@@ -4113,7 +3833,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <button
                   type="button"
                   onClick={() => setShowAddEmpModal(false)}
-                  className={`rounded-xl border px-4 py-2.5 font-bold transition ${
+                  className={`rounded-2xl border px-4 py-2.5 font-bold transition ${
                     isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
                   }`}
                 >
@@ -4121,7 +3841,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </button>
                 <button
                   type="submit"
-                  className={`rounded-xl px-4 py-2.5 font-extrabold transition ${
+                  className={`rounded-2xl px-4 py-2.5 font-extrabold transition ${
                     isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
                   }`}
                 >
@@ -4148,7 +3868,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   type="time"
                   value={editTimesCheckIn}
                   onChange={(e) => setEditTimesCheckIn(e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-2.5 font-bold outline-none text-base ${
+                  className={`w-full rounded-2xl border px-4 py-2.5 font-bold outline-none text-base ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
@@ -4160,7 +3880,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   type="time"
                   value={editTimesCheckOut}
                   onChange={(e) => setEditTimesCheckOut(e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-2.5 font-bold outline-none text-base ${
+                  className={`w-full rounded-2xl border px-4 py-2.5 font-bold outline-none text-base ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
@@ -4170,7 +3890,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <button
                   type="button"
                   onClick={() => handleClearEditedTimes(editingTimesEmp.id)}
-                  className="rounded-xl border border-rose-500/50 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 px-3 py-2 text-xs font-extrabold transition"
+                  className="rounded-2xl border border-rose-500/50 bg-rose-950/40 text-rose-300 hover:bg-black/60 px-3 py-2 text-xs font-extrabold transition"
                   title="Remove in/out times for today & set status back to expected"
                 >
                   🗑️ Clear Times
@@ -4179,7 +3899,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <button
                     type="button"
                     onClick={() => setEditingTimesEmp(null)}
-                    className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                    className={`rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                       isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
                     }`}
                   >
@@ -4187,8 +3907,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   </button>
                   <button
                     type="submit"
-                    className={`rounded-xl px-4 py-2 text-xs font-extrabold transition ${
-                      isDark ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    className={`rounded-2xl px-4 py-2 text-xs font-extrabold transition ${
+                      isDark ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-900 text-white hover:bg-black'
                     }`}
                   >
                     Save Times
@@ -4218,7 +3938,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     type="text"
                     value={editEmpUsername}
                     onChange={(e) => setEditEmpUsername(e.target.value)}
-                    className={`w-full rounded-xl border px-3 py-2 font-mono font-bold outline-none ${
+                    className={`w-full rounded-2xl border px-3 py-2 font-mono font-bold outline-none ${
                       isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                     }`}
                   />
@@ -4230,7 +3950,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     maxLength={8}
                     value={editEmpPin}
                     onChange={(e) => setEditEmpPin(e.target.value)}
-                    className={`w-full rounded-xl border px-3 py-2 font-mono font-bold outline-none ${
+                    className={`w-full rounded-2xl border px-3 py-2 font-mono font-bold outline-none ${
                       isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                     }`}
                   />
@@ -4244,7 +3964,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={editEmpName}
                   onChange={(e) => setEditEmpName(e.target.value)}
                   placeholder="e.g. Alex Miller"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-2xl border px-3 py-2 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
@@ -4257,45 +3977,63 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={editEmpRole}
                   onChange={(e) => setEditEmpRole(e.target.value)}
                   placeholder="e.g. Senior Advisor"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-2xl border px-3 py-2 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block font-extrabold mb-1">Languages (Optional, comma-separated):</label>
-                <input
-                  type="text"
+                <label className="block font-extrabold mb-1">Language:</label>
+                <select
                   value={editEmpLangs}
                   onChange={(e) => setEditEmpLangs(e.target.value)}
-                  placeholder="EN, RU, DE"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-2xl border px-3 py-2 font-bold outline-none cursor-pointer ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
-                />
+                >
+                  <option value="">-- Select Language --</option>
+                  <option value="EN">EN</option>
+                  <option value="DE">DE</option>
+                  <option value="FR">FR</option>
+                  <option value="ES">ES</option>
+                  <option value="IT">IT</option>
+                  <option value="RU">RU</option>
+                  <option value="NL">NL</option>
+                  <option value="PT">PT</option>
+                  <option value="GR">GR</option>
+                  <option value="TR">TR</option>
+                </select>
               </div>
 
               <div>
                 <label className="block font-extrabold mb-1">
-                  Team Name: <span className="text-xs font-normal opacity-60">(e.g. EN Team A, DE Team 2)</span>
+                  Team Name:
                 </label>
-                <input
-                  type="text"
+                <select
                   value={editEmpTeam}
                   onChange={(e) => setEditEmpTeam(e.target.value)}
-                  placeholder="e.g. EN Team A"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-2xl border px-3 py-2 font-bold outline-none cursor-pointer ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
-                />
+                >
+                  <option value="">-- No Team Assigned --</option>
+                  <option value="Swiss">Swiss</option>
+                  <option value="Japan">Japan</option>
+                  <option value="Spain">Spain</option>
+                  <option value="France">France</option>
+                  <option value="Germany">Germany</option>
+                  <option value="UK">UK</option>
+                  <option value="AU">AU</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingEmp(null)}
-                  className={`rounded-xl border px-4 py-2 font-bold transition ${
+                  className={`rounded-2xl border px-4 py-2 font-bold transition ${
                     isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
                   }`}
                 >
@@ -4303,7 +4041,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </button>
                 <button
                   type="submit"
-                  className={`rounded-xl px-4 py-2 font-extrabold transition ${
+                  className={`rounded-2xl px-4 py-2 font-extrabold transition ${
                     isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
                   }`}
                 >
@@ -4327,13 +4065,13 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500"
+                  className="rounded-2xl bg-slate-900 px-4 py-2 text-xs font-extrabold text-white shadow hover:bg-slate-800"
                 >
                   🖨️ Print / Save as PDF
                 </button>
                 <button
                   onClick={() => setShowPrintReportModal(false)}
-                  className="rounded-xl border px-3 py-2 text-xs font-bold opacity-75 hover:opacity-100"
+                  className="rounded-2xl border px-3 py-2 text-xs font-bold opacity-75 hover:opacity-100"
                 >
                   Close ✕
                 </button>
@@ -4378,7 +4116,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
 
             {/* Total Grand Summary */}
-            <div className="mt-6 flex justify-between items-center rounded-xl border p-4 bg-black/20 border-white/15">
+            <div className="mt-6 flex justify-between items-center rounded-2xl border p-4 bg-black/20 border-white/15">
               <div>
                 <span className="text-xs font-bold opacity-75">Total Active Employees: </span>
                 <span className="text-sm font-extrabold">{employees.length}</span>
@@ -4412,14 +4150,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       {/* Clockify Integration Modal */}
       {showClockifyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
-          <div className={`w-full max-w-xl rounded-2xl border p-6 shadow-2xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
+          <div className={`w-full max-w-xl rounded-2xl border p-6 shadow-2xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
             <div className="flex items-center justify-between border-b pb-4 border-white/20">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 ⚡ Clockify.me API Backup & Sync
               </h3>
               <button
                 onClick={() => setShowClockifyModal(false)}
-                className="rounded-lg px-2.5 py-1 hover:bg-white/10 text-xs font-bold border border-white/20"
+                className="rounded-2xl px-2.5 py-1 hover:bg-white/10 text-xs font-bold border border-white/20"
               >
                 ✕ Close
               </button>
@@ -4430,7 +4168,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </p>
 
             {clockifyConnectedUser && (
-              <div className="mt-3 rounded-lg bg-emerald-500/20 border border-emerald-500/30 p-2.5 text-xs font-semibold text-emerald-300 flex items-center justify-between">
+              <div className="mt-3 rounded-2xl bg-slate-800/20 border border-slate-300/30 p-2.5 text-xs font-semibold text-emerald-300 flex items-center justify-between">
                 <span>👤 Connected User: <strong>{clockifyConnectedUser}</strong></span>
                 {clockifyLastSynced && <span>Last Synced: {clockifyLastSynced}</span>}
               </div>
@@ -4444,7 +4182,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={clockifyApiKey}
                   onChange={(e) => setClockifyApiKey(e.target.value)}
                   placeholder="Paste your Clockify API Key..."
-                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                  className={`w-full rounded-2xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
                 />
               </div>
               <div>
@@ -4454,12 +4192,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={clockifyWorkspaceId}
                   onChange={(e) => setClockifyWorkspaceId(e.target.value)}
                   placeholder="Leave empty for default workspace..."
-                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
+                  className={`w-full rounded-2xl border px-3.5 py-2 text-xs outline-none ${isDark ? 'border-white/30 bg-black/50 text-white' : 'border-slate-400 bg-slate-100 text-black'}`}
                 />
               </div>
 
               {clockifySyncStatus && (
-                <div className="rounded-xl bg-black/40 border border-white/20 p-3 text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
+                <div className="rounded-2xl bg-black/40 border border-white/20 p-3 text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
                   {clockifySyncStatus}
                 </div>
               )}
@@ -4467,19 +4205,19 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                 <button
                   onClick={() => handleSaveClockifyConfig(clockifyApiKey, clockifyWorkspaceId)}
-                  className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold hover:bg-white/20"
+                  className="rounded-2xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold hover:bg-white/20"
                 >
                   💾 Save Config
                 </button>
                 <button
                   onClick={() => handleSyncToClockify(false)}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow"
+                  className="rounded-2xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-black shadow"
                 >
                   ⚡ Sync Now
                 </button>
                 <button
                   onClick={handleFullClockifySetup}
-                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow"
+                  className="rounded-2xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-black shadow"
                 >
                   🚀 Full Setup + Invite Staff
                 </button>
@@ -4490,7 +4228,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       )}
 
       {/* Footer & Premium Language Switcher */}
-      <footer className={`mt-16 border-t py-8 px-6 ${isDark ? 'border-white/10 bg-black/40 text-slate-300' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
+      <footer className={`mt-16 border-t py-8 px-6 ${isDark ? 'border-white/10 bg-black/40 text-slate-300' : 'border-slate-200/60 bg-slate-100 text-slate-700'}`}>
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row text-xs font-bold">
           
           <div className="flex items-center gap-2">
@@ -4499,25 +4237,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <span>Asia/Nicosia (Cyprus Time)</span>
           </div>
 
-          {/* Premium Language Switcher */}
-          <div className="flex items-center gap-2">
-            <span className="text-[0.7rem] uppercase font-extrabold tracking-wider opacity-75">
-              🌐 Language / Язык:
-            </span>
-            <select
-              value={lang}
-              onChange={(e) => {
-                setLang(e.target.value as Lang);
-                localStorage.setItem('team_tracker_lang', e.target.value);
-              }}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold outline-none shadow-sm cursor-pointer transition ${
-                isDark ? 'border-white/20 bg-black/60 text-white focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-500'
-              }`}
-            >
-              <option value="en" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🇬🇧 English</option>
-              <option value="ru" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🇷🇺 Русский</option>
-            </select>
-          </div>
 
         </div>
       </footer>
