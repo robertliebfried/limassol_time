@@ -1310,14 +1310,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setEditStatus(emp.status);
   };
 
-  // Save Modified Shift Entry/Leave Times & User Credentials
+  // Save Modified User Credentials
   const handleSaveEditedShift = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEmp) return;
-
-    const inTime = editCheckInTime.trim();
-    const outTime = editCheckOutTime.trim();
-    const updatedStatus = editStatus;
 
     const updated = employees.map(emp => {
       if (emp.id === editingEmp.id) {
@@ -1326,46 +1322,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           name: editEmpName.trim() || emp.name,
           username: editEmpUsername.trim().toLowerCase() || emp.username,
           pin: editEmpPin.trim() || emp.pin || '1234',
-          status: updatedStatus,
-          checkInTime: updatedStatus === 'expected' || updatedStatus === 'absent' ? undefined : inTime,
-          checkOutTime: updatedStatus === 'completed' ? outTime : undefined,
         };
       }
       return emp;
     });
 
     saveEmployees(updated);
-
-    // If status is completed or updated, sync/recalculate log for today
-    if (updatedStatus === 'completed') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const actualHours = calculateExactHours(inTime, outTime);
-      const existingLogIndex = logs.findIndex(l => l.employeeId === editingEmp.id && l.date === todayStr);
-
-      if (existingLogIndex >= 0) {
-        const updatedLogs = [...logs];
-        updatedLogs[existingLogIndex] = {
-          ...updatedLogs[existingLogIndex],
-          employeeName: editEmpName.trim() || editingEmp.name,
-          hours: actualHours,
-          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
-          timestamp: `${inTime} - ${outTime}`,
-        };
-        saveLogs(updatedLogs);
-      } else {
-        const autoLog: TimeLog = {
-          id: `log-${Date.now()}`,
-          date: todayStr,
-          employeeId: editingEmp.id,
-          employeeName: editEmpName.trim() || editingEmp.name,
-          hours: actualHours,
-          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
-          timestamp: `${inTime} - ${outTime}`,
-        };
-        saveLogs([autoLog, ...logs]);
-      }
-    }
-
     setEditingEmp(null);
   };
 
@@ -3003,7 +2965,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                 onClick={() => handleOpenEditShift(emp)}
                                 className="rounded-lg bg-amber-600 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-amber-500"
                               >
-                                {T.editShiftBtn}
+                                Edit Info
                               </button>
                               <button
                                 onClick={() => handleDeleteEmp(emp.id)}
@@ -3620,31 +3582,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         </div>
       )}
 
-      {/* Modal 3: Modify Shift Times & User Credentials */}
+      {/* Modal 3: Modify User Credentials */}
       {editingEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
             <div className="flex items-center justify-between">
               <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                ✏️ {T.editShiftTitle} ({editingEmp.name})
+                ✏️ Edit Credentials ({editingEmp.name})
               </h3>
               <button onClick={() => setEditingEmp(null)} className="text-sm font-bold text-slate-400 hover:text-white">✕</button>
             </div>
-            <p className="mt-1 text-xs opacity-75">{editingEmp.role} (Target: {editingEmp.expectedShift})</p>
 
             <form onSubmit={handleSaveEditedShift} className="mt-4 space-y-3 text-xs">
-              <div>
-                <label className="block font-extrabold mb-1">Full Name:</label>
-                <input
-                  type="text"
-                  value={editEmpName}
-                  onChange={(e) => setEditEmpName(e.target.value)}
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
-                  }`}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-extrabold mb-1">Username:</label>
@@ -3670,76 +3619,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   />
                 </div>
               </div>
-              <div>
-                <label className="block font-extrabold mb-1">{T.statusLabel}</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as Employee['status'])}
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
-                  }`}
-                >
-                  <option value="expected" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>⏰ Expected (Not arrived)</option>
-                  <option value="checked_in" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🟢 Working (Arrived)</option>
-                  <option value="completed" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>🏁 Shift Completed (Left)</option>
-                  <option value="absent" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>❌ Absent / Off</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-extrabold mb-1">{T.checkInLabel}</label>
-                <input
-                  type="text"
-                  value={editCheckInTime}
-                  onChange={(e) => setEditCheckInTime(e.target.value)}
-                  placeholder="e.g. 11:00 AM or 10:45 AM"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold font-mono outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block font-extrabold mb-1">{T.checkOutLabel}</label>
-                <input
-                  type="text"
-                  value={editCheckOutTime}
-                  onChange={(e) => setEditCheckOutTime(e.target.value)}
-                  placeholder="e.g. 07:00 PM or 08:00 PM"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold font-mono outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
-
-              {/* Presets for quick filling */}
-              <div>
-                <label className="block text-[0.7rem] font-bold text-slate-400 mb-1.5">Quick Presets:</label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { setEditCheckInTime('11:00 AM'); setEditCheckOutTime('07:00 PM'); setEditStatus('completed'); }}
-                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
-                  >
-                    11:00 AM - 07:00 PM (8h)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditCheckInTime('11:30 AM'); setEditCheckOutTime('07:30 PM'); setEditStatus('completed'); }}
-                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
-                  >
-                    11:30 AM - 07:30 PM (8h)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEditCheckInTime('11:00 AM'); setEditCheckOutTime('08:00 PM'); setEditStatus('completed'); }}
-                    className="rounded bg-slate-700 px-2 py-1 text-[0.65rem] font-bold text-slate-200 hover:bg-slate-600"
-                  >
-                    11:00 AM - 08:00 PM (9h)
-                  </button>
-                </div>
-              </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
