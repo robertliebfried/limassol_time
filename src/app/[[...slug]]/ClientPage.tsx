@@ -466,6 +466,7 @@ interface Employee {
   checkInTimestamp?: number;
   accumulatedSeconds?: number;
   sortOrder?: number;
+  archivedAt?: number;
 }
 
 interface TimeLog {
@@ -904,8 +905,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
       if (savedDeleted) {
         try {
-          currentDeleted = JSON.parse(savedDeleted);
+          const parsed = JSON.parse(savedDeleted) as Employee[];
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          currentDeleted = parsed.filter(emp => {
+            const age = now - (emp.archivedAt || now);
+            return age <= SEVEN_DAYS_MS;
+          });
           setDeletedEmployees(currentDeleted);
+          localStorage.setItem('team_deleted_employees_v1', JSON.stringify(currentDeleted));
         } catch {}
       }
 
@@ -1636,13 +1644,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     saveLogs(logs.filter(l => l.id !== logId));
   };
 
-  // Delete Employee → Archive
+  // Archive/Delete Employee (Auto-purged after 7 days)
   const handleDeleteEmp = (empId: string) => {
-    if (window.confirm('Archive this employee? They will be moved to the Deleted folder and can be restored.')) {
+    if (window.confirm('Archive this employee? They will be kept in the Deleted folder for 7 days before auto-removal.')) {
       const emp = employees.find(e => e.id === empId || e.username === empId);
       if (!emp) return;
       const key = (emp.username || emp.name).toLowerCase().trim().replace(/\s+/g, '');
-      const newDeleted = [emp, ...deletedEmployees.filter(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, '') !== key)];
+      const archivedEmp: Employee = { ...emp, archivedAt: Date.now() };
+      const newDeleted = [archivedEmp, ...deletedEmployees.filter(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, '') !== key)];
       setDeletedEmployees(newDeleted);
       localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
       
@@ -1651,6 +1660,21 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
       const activeOnly = employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key);
       saveEmployees(activeOnly);
+    }
+  };
+
+  // Delete Employee Forever (Immediate Purge)
+  const handleDeleteForeverEmp = (empId: string) => {
+    const emp = deletedEmployees.find(e => e.id === empId || e.username === empId);
+    if (!emp) return;
+    if (window.confirm(`Permanently delete "${emp.name}" forever? This action cannot be undone.`)) {
+      const key = (emp.username || emp.name).toLowerCase().trim().replace(/\s+/g, '');
+      const newDeleted = deletedEmployees.filter(e => (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '') !== key);
+      setDeletedEmployees(newDeleted);
+      localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
+      
+      const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
+      deleteFirestoreEmployee(username);
     }
   };
 
@@ -2363,14 +2387,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>⏱️</span> Dashboard
                 </button>
                 <button
-                  onClick={() => window.location.href = '/employees'}
+                  onClick={() => handleTabChange('employees', '/team')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'employees'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                   }`}
                 >
-                  <span>👥</span> Employees ({employees.length})
+                  <span>👥</span> Team ({employees.length})
                 </button>
                 <button
                   onClick={() => window.location.href = '/reports'}
@@ -3008,26 +3032,43 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           <tr>
                             <th className="p-3">{T.colName}</th>
                             <th className="p-3">{T.colRole}</th>
-                            <th className="p-3">{T.colLanguages}</th>
+                            <th className="p-3">Auto-Purge Status</th>
                             <th className="p-3 text-right">{T.colAction}</th>
                           </tr>
                         </thead>
                         <tbody className={`divide-y ${isDark ? 'divide-red-900/30' : 'divide-red-100'}`}>
-                          {deletedEmployees.map(emp => (
-                            <tr key={emp.id} className="opacity-70 hover:opacity-100 transition">
-                              <td className="p-3 font-extrabold">{emp.name}</td>
-                              <td className="p-3">{emp.role}</td>
-                              <td className="p-3 font-mono">{emp.languages.join('/')}</td>
-                              <td className="p-3 text-right">
-                                <button
-                                  onClick={() => handleRestoreEmp(emp.id)}
-                                  className="rounded-lg bg-emerald-700/70 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-600 transition"
-                                >
-                                  {T.restoreBtn2}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {deletedEmployees.map(emp => {
+                            const archivedAt = emp.archivedAt || Date.now();
+                            const daysLeft = Math.max(1, Math.ceil((7 * 86400 * 1000 - (Date.now() - archivedAt)) / (86400 * 1000)));
+                            return (
+                              <tr key={emp.id} className="opacity-80 hover:opacity-100 transition">
+                                <td className="p-3 font-extrabold">{emp.name}</td>
+                                <td className="p-3">{emp.role}</td>
+                                <td className="p-3">
+                                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/30">
+                                    ⏳ Auto-deletes in {daysLeft}d
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => handleRestoreEmp(emp.id)}
+                                      className="rounded-lg bg-emerald-700/80 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-emerald-600 transition flex items-center gap-1"
+                                    >
+                                      <span>↩️</span> {T.restoreBtn2}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteForeverEmp(emp.id)}
+                                      className="rounded-lg bg-red-700/80 px-3 py-1.5 text-xs font-bold text-red-100 hover:bg-red-600 transition flex items-center gap-1"
+                                      title="Permanently delete from database"
+                                    >
+                                      <span>🔥</span> Delete Forever
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
