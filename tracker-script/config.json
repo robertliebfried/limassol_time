@@ -1,6 +1,0 @@
-{
-    "clockify_api_key": "",
-    "clockify_workspace_id": "",
-    "check_interval_seconds": 30,
-    "activity_watch_url": "http://127.0.0.1:5600"
-}
