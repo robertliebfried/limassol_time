@@ -573,6 +573,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
   { id: 'emp-24', name: 'ger3', username: 'ger3', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
   { id: 'emp-25', name: 'Messi', username: 'messi', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
   { id: 'emp-26', name: 'Andres', username: 'andres', pin: '1234', languages: ['EN', 'ES'], role: 'CS Agent', expectedShift: '11:00 AM', status: 'expected' },
+  { id: 'emp-27', name: 'Christine', username: 'christine', pin: '1234', languages: ['EN'], role: 'CS Agent', expectedShift: '09:00 AM', status: 'expected' },
 ];
 
 const INITIAL_LOGS: TimeLog[] = [];
