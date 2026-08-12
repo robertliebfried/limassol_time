@@ -432,9 +432,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const handleTabChange = (tab: 'timeTracker' | 'employees' | 'reports' | 'setup', url: string) => {
     setActiveTab(tab);
     if (tab === 'reports') {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      setReportStartDate(yesterday);
-      setLogDate(yesterday);
+      const today = new Date().toISOString().split('T')[0];
+      setReportStartDate(today);
+      setLogDate(today);
     }
     if (typeof window !== 'undefined') {
       window.history.pushState(null, '', url);
@@ -464,8 +464,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
   // Advanced Reporting State
   const [reportStartDate, setReportStartDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    return new Date().toISOString().split('T')[0];
   });
   const [reportEndDate, setReportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
@@ -484,9 +483,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // New Log Form
   const [logEmployeeId, setLogEmployeeId] = useState<string>('');
   const [logDate, setLogDate] = useState<string>(() => {
-    if (initialTab === 'reports') {
-      return new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    }
     return new Date().toISOString().split('T')[0];
   });
   const [logHours, setLogHours] = useState<number>(8);
