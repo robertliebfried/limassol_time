@@ -691,6 +691,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
+  const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
+  const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
+  const [editTimesCheckOut, setEditTimesCheckOut] = useState<string>('');
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
   // Advanced Reporting State
@@ -741,6 +744,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Kiosk Live Timer & Break Menu State
   const [showBreakMenu, setShowBreakMenu] = useState<boolean>(false);
   const [kioskBillableTime, setKioskBillableTime] = useState<string>('00:00:00');
+  const [lastActivityMap, setLastActivityMap] = useState<Record<string, number>>({});
 
   // Shift Event History (persisted per employee per day)
   const [shiftEvents, setShiftEvents] = useState<ShiftEvent[]>([]);
@@ -1401,7 +1405,48 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
 
 
-  // Open Edit Credentials & Optional Info Modal
+  // Open Edit Times Modal (for Reports page)
+  const handleOpenEditTimes = (emp: Employee) => {
+    setEditingTimesEmp(emp);
+    setEditTimesCheckIn(emp.checkInTime || '');
+    setEditTimesCheckOut(emp.checkOutTime || '');
+  };
+
+  // Save Modified Times
+  const handleSaveEditedTimes = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTimesEmp) return;
+
+    const updatedEmployees = employees.map(emp => {
+      if (emp.id === editingTimesEmp.id) {
+        const updatedEmp = { ...emp };
+        if (editTimesCheckIn) {
+          updatedEmp.checkInTime = editTimesCheckIn;
+          
+          const [time, modifier] = editTimesCheckIn.split(' ');
+          if (time && modifier) {
+            const [hours, minutes] = time.split(':');
+            let hrs = parseInt(hours, 10);
+            if (modifier === 'PM' && hrs < 12) hrs += 12;
+            if (modifier === 'AM' && hrs === 12) hrs = 0;
+            const d = new Date();
+            d.setHours(hrs, parseInt(minutes, 10), 0, 0);
+            updatedEmp.checkInTimestamp = d.getTime();
+          }
+        }
+        if (editTimesCheckOut) {
+          updatedEmp.checkOutTime = editTimesCheckOut;
+          updatedEmp.status = 'completed';
+        }
+        return updatedEmp;
+      }
+      return emp;
+    });
+    saveEmployees(updatedEmployees);
+    setEditingTimesEmp(null);
+  };
+
+
   const handleOpenEditShift = (emp: Employee) => {
     setEditingEmp(emp);
     setEditEmpName(emp.name);
@@ -1421,12 +1466,17 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       ? editEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean)
       : [];
 
+    const newUsername = editEmpUsername.trim().toLowerCase() || editingEmp.username;
+    if (newUsername !== editingEmp.username) {
+      deleteFirestoreEmployee(editingEmp.username);
+    }
+
     const updated = employees.map(emp => {
       if (emp.id === editingEmp.id) {
         return {
           ...emp,
           name: editEmpName.trim() || emp.name,
-          username: editEmpUsername.trim().toLowerCase() || emp.username,
+          username: newUsername,
           pin: editEmpPin.trim() || emp.pin || '1234',
           role: editEmpRole.trim() || 'Team Member',
           languages: langs,
@@ -1737,11 +1787,51 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   useEffect(() => {
     if (activeTab === 'timeTracker') {
       fetchLiveStatuses();
-      const interval = setInterval(fetchLiveStatuses, 30000); // Poll every 30s
+      const interval = setInterval(fetchLiveStatuses, 10000); // Poll every 10s
       return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, clockifyApiKey, clockifyWorkspaceId]);
+
+  // AW Auto-Status Sync for Kiosk (Clock In)
+  useEffect(() => {
+    if (authRole === 'user' && activeEmployee) {
+      const now = Date.now();
+      const liveData = liveStatuses[activeEmployee.id];
+      
+      if (liveData && liveData.status === 'online') {
+        // AW is tracking
+        setLastActivityMap(prev => ({...prev, [activeEmployee.id]: now}));
+        
+        // Auto clock-in if expected or completed or on break
+        if (activeEmployee.status === 'expected' || activeEmployee.status === 'completed' || activeEmployee.status === 'on_break') {
+          const cTime = cyprusTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Nicosia' });
+          const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cTime } : e);
+          
+          saveEmployees(updated);
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveStatuses, activeEmployee, authRole]);
+
+  // AW Auto-Status Sync for Kiosk (Auto Break on Inactivity)
+  useEffect(() => {
+    if (authRole === 'user' && activeEmployee && activeEmployee.status === 'checked_in') {
+      const interval = setInterval(() => {
+        const lastActive = lastActivityMap[activeEmployee.id];
+        // If we have a last active time and it's been > 30 seconds
+        if (lastActive && Date.now() - lastActive > 30000) {
+          const cTime = cyprusTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Nicosia' });
+          const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'on_break' as const, checkOutTime: cTime } : e);
+          
+          saveEmployees(updated);
+        }
+      }, 5000); // check every 5 seconds
+      return () => clearInterval(interval);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authRole, activeEmployee, lastActivityMap, cyprusTime]);
 
   // Full Clockify Workspace Setup
   const handleFullClockifySetup = async () => {
@@ -2036,32 +2126,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               )
             )}
 
-            {authRole === 'admin' && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    const nowTime = cyprusTime || '11:00 AM';
-                    const updated = employees.map(emp => emp.status === 'expected' ? { ...emp, status: 'checked_in' as const, checkInTime: nowTime } : emp);
-                    saveEmployees(updated);
-                  }}
-                  className="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-emerald-600 transition"
-                  title="Bulk Clock In All Expected Staff"
-                >
-                  🟢 Bulk Clock In
-                </button>
-                <button
-                  onClick={() => {
-                    const nowTime = cyprusTime || '07:00 PM';
-                    const updated = employees.map(emp => emp.status === 'checked_in' ? { ...emp, status: 'completed' as const, checkOutTime: nowTime } : emp);
-                    saveEmployees(updated);
-                  }}
-                  className="rounded-xl bg-rose-700 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-rose-600 transition"
-                  title="Bulk Clock Out Working Staff"
-                >
-                  🔴 Bulk Clock Out
-                </button>
-              </div>
-            )}
 
             {/* 3. Login / Logout Button */}
             {isAuthenticated ? (
@@ -2202,7 +2266,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     </button>
                   </div>
                   <p className="mt-1 text-xs font-semibold opacity-85">
-                    {T.roleLabel} {activeEmployee.role || 'Team Member'} | {T.targetShiftLabel} {activeEmployee.expectedShift || '11:00 AM'} {activeEmployee.languages && activeEmployee.languages.length > 0 && `| Languages: ${activeEmployee.languages.join(' / ')}`}
+                    {T.roleLabel} {activeEmployee.role || 'Team Member'} {activeEmployee.languages && activeEmployee.languages.length > 0 && `| Languages: ${activeEmployee.languages.join(' / ')}`}
                   </p>
 
                   {/* Status Badge & Live Billable Ticking Timer */}
@@ -2240,6 +2304,26 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                         </div>
                       </div>
                     )}
+
+                    {/* AW Live Tracker Status */}
+                    <div className={`rounded-xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
+                      liveStatuses[activeEmployee.id]?.status === 'online' 
+                        ? isDark ? 'border-sky-500/50 bg-sky-950/60' : 'border-sky-400 bg-sky-100'
+                        : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-rose-100'
+                    }`}>
+                      <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${
+                        liveStatuses[activeEmployee.id]?.status === 'online'
+                          ? isDark ? 'text-sky-400' : 'text-sky-700'
+                          : isDark ? 'text-rose-400' : 'text-rose-700'
+                      }`}>
+                        {liveStatuses[activeEmployee.id]?.status === 'online' ? '⚡ AW TRACKER: CONNECTED' : '🔴 AW TRACKER: OFFLINE'}
+                      </div>
+                      {liveStatuses[activeEmployee.id]?.status === 'online' && (
+                        <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
+                          {liveStatuses[activeEmployee.id].task} ({liveStatuses[activeEmployee.id].duration})
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2504,10 +2588,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
                   {/* Arrival / Departure Details */}
                   <div className="mt-3 rounded-lg border p-2.5 text-xs font-bold space-y-1 bg-black/20 border-white/10">
-                    <div className="flex justify-between items-center text-[0.7rem] text-slate-400">
-                      <span>{T.shiftTargetLabel}</span>
-                      <span className="font-extrabold text-amber-400">⏰ {emp.expectedShift}</span>
-                    </div>
+
 
                     {status === 'expected' && (
                       <div className="text-amber-400 font-extrabold flex items-center gap-1 text-[0.75rem]">
@@ -2550,65 +2631,20 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
                 {/* Quick Action Buttons */}
                 <div className="mt-4 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                  {status === 'expected' && (
-                    <>
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
-                        className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center justify-center gap-1"
-                      >
-                        🟢 {T.arrivedBtn}
-                      </button>
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'absent')} 
-                        className="rounded-lg bg-red-900/60 px-3 py-2 text-xs font-bold text-red-200 shadow transition hover:bg-red-800 active:scale-95"
-                        title="Mark Absent"
-                      >
-                        ❌ Off
-                      </button>
-                    </>
-                  )}
-
-                  {status === 'checked_in' && (
-                    <>
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'completed')} 
-                        className="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-blue-500 active:scale-95 flex items-center justify-center gap-1"
-                      >
-                        🔴 {T.leftBtn}
-                      </button>
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'expected')} 
-                        className="rounded-lg bg-slate-700 px-2 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-600"
-                        title="Reset Status"
-                      >
-                        ↩️
-                      </button>
-                    </>
-                  )}
-
-                  {status === 'completed' && (
-                    <div className="w-full flex gap-2">
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
-                        className="w-1/2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-500 flex items-center justify-center gap-1"
-                      >
-                        ▶ Play
-                      </button>
-                      <button 
-                        onClick={() => handleStatusChange(emp.id, 'checked_in')} 
-                        className="w-1/2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
-                      >
-                        {T.resetReopenBtn}
-                      </button>
-                    </div>
-                  )}
-
-                  {status === 'absent' && (
+                  {status !== 'checked_in' && (
                     <button 
-                      onClick={() => handleStatusChange(emp.id, 'expected')} 
-                      className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700 flex items-center justify-center gap-1"
+                      onClick={() => handleStatusChange(emp.id, 'checked_in')} 
+                      className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center justify-center gap-1"
                     >
-                      {T.resetToExpectedBtn}
+                      In
+                    </button>
+                  )}
+                  {status === 'checked_in' && (
+                    <button 
+                      onClick={() => handleStatusChange(emp.id, 'completed')} 
+                      className="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-blue-500 active:scale-95 flex items-center justify-center gap-1"
+                    >
+                      Out
                     </button>
                   )}
                 </div>
@@ -2618,6 +2654,94 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           )}
           </div>
         </div>
+          {/* REAL-TIME DASHBOARD WIDGETS */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Live Status Breakdown */}
+            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-extrabold text-lg flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  Live Team Status
+                </h3>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {employees.map(emp => {
+                  const isOnline = emp.status === 'checked_in';
+                  return (
+                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isOnline 
+                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
+                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
+                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
+                        }`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-sm flex items-center gap-1.5">
+                            {emp.name}
+                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
+                          </div>
+                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isOnline && (
+                        <div className="text-right">
+                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+                            WORKING
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Metrics & Activity Feed */}
+            <div className="space-y-6">
+              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
+                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
+                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
+                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
+              </div>
+
+              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                  {Object.values(liveStatuses).length === 0 ? (
+                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
+                  ) : (
+                    Object.values(liveStatuses).map((status, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                        <div>
+                          <div className="text-xs font-bold">
+                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                          </div>
+                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
+                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            
+          </div>
+
           </div>
         )}
 
@@ -2666,7 +2790,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       <th className="p-3">Username</th>
                       <th className="p-3">PIN</th>
                       <th className="p-3">{T.colRoleDept}</th>
-                      <th className="p-3">{T.colTargetShift}</th>
                       <th className="p-3">{T.colLanguages}</th>
                       <th className="p-3 text-right">{T.colActionsLbl}</th>
                     </tr>
@@ -2680,7 +2803,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           <td className="p-3 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
                           <td className="p-3 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
                           <td className="p-3 opacity-90">{emp.role}</td>
-                          <td className="p-3 font-mono font-bold text-amber-400">{emp.expectedShift}</td>
                           <td className="p-3">
                             <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-[0.7rem] font-bold">
                               {emp.languages.join(' / ')}
@@ -2742,7 +2864,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             <th className="p-3">{T.colName}</th>
                             <th className="p-3">{T.colRole}</th>
                             <th className="p-3">{T.colLanguages}</th>
-                            <th className="p-3">{T.colShift}</th>
                             <th className="p-3 text-right">{T.colAction}</th>
                           </tr>
                         </thead>
@@ -2752,7 +2873,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               <td className="p-3 font-extrabold">{emp.name}</td>
                               <td className="p-3">{emp.role}</td>
                               <td className="p-3 font-mono">{emp.languages.join('/')}</td>
-                              <td className="p-3">{emp.expectedShift}</td>
                               <td className="p-3 text-right">
                                 <button
                                   onClick={() => handleRestoreEmp(emp.id)}
@@ -3077,94 +3197,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
           )}
 
-          {/* REAL-TIME DASHBOARD WIDGETS */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Live Status Breakdown */}
-            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-extrabold text-lg flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  Live Team Status
-                </h3>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {employees.map(emp => {
-                  const isOnline = emp.status === 'checked_in';
-                  return (
-                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isOnline 
-                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
-                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
-                    }`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
-                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
-                        }`}>
-                          {emp.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-sm flex items-center gap-1.5">
-                            {emp.name}
-                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
-                          </div>
-                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {isOnline && (
-                        <div className="text-right">
-                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                            WORKING
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top Metrics & Activity Feed */}
-            <div className="space-y-6">
-              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
-                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
-                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
-                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
-              </div>
-
-              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                  {Object.values(liveStatuses).length === 0 ? (
-                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
-                  ) : (
-                    Object.values(liveStatuses).map((status, i) => (
-                      <div key={i} className="flex gap-3 items-start">
-                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                        <div>
-                          <div className="text-xs font-bold">
-                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
-                          </div>
-                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
-                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-            
-          </div>
-
           {/* Search & Status Filters Bar */}
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
             {/* Search Input */}
@@ -3254,7 +3286,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   }`}>
                     <tr>
                       <th className="px-4 py-3.5">{T.colNameRole}</th>
-                      <th className="px-4 py-3.5">{T.colShiftTarget}</th>
                       <th className="px-4 py-3.5">{T.colArrival}</th>
                       <th className="px-4 py-3.5">{T.colDeparture}</th>
                       <th className="px-4 py-3.5 text-center">{T.colWorkedHrs}</th>
@@ -3290,9 +3321,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               </div>
                               <div className="text-[0.7rem] font-medium opacity-75">{emp.role}</div>
                             </td>
-                            <td className="px-4 py-3 font-mono font-bold text-amber-400">
-                              ⏰ {emp.expectedShift}
-                            </td>
                             <td className="px-4 py-3 font-mono font-bold">
                               {checkIn ? (
                                 <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
@@ -3322,23 +3350,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                {status === 'expected' && (
+                                {status !== 'checked_in' && (
                                   <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
-                                    {T.arrivedBtn}
+                                    In
                                   </button>
                                 )}
                                 {status === 'checked_in' && (
                                   <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
-                                    {T.leftBtn}
-                                  </button>
-                                )}
-                                {status === 'completed' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition" title="Resume Shift">
-                                    ▶ Play
+                                    Out
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => handleOpenEditShift(emp)}
+                                  onClick={() => handleOpenEditTimes(emp)}
                                   className="rounded border border-slate-500 bg-slate-800 px-2.5 py-1 font-bold text-slate-200 hover:bg-slate-700 transition"
                                   title="Modify entry/leave hours"
                                 >
@@ -3772,6 +3795,64 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       )}
 
       {/* Modal 3: Modify User Credentials */}
+      {/* Edit Times Modal (Reports Page) */}
+      {editingTimesEmp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-sm rounded-2xl border-2 p-6 shadow-2xl animate-fade-in-up ${
+            isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'
+          }`}>
+            <h2 className="mb-4 text-xl font-black">Edit Times: {editingTimesEmp.name}</h2>
+            <form onSubmit={handleSaveEditedTimes} className="space-y-4">
+              <div>
+                <label className="block font-extrabold mb-1">Clock In Time:</label>
+                <input
+                  type="text"
+                  value={editTimesCheckIn}
+                  onChange={(e) => setEditTimesCheckIn(e.target.value)}
+                  placeholder="11:00 AM"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Clock Out Time:</label>
+                <input
+                  type="text"
+                  value={editTimesCheckOut}
+                  onChange={(e) => setEditTimesCheckOut(e.target.value)}
+                  placeholder="07:00 PM"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTimesEmp(null)}
+                  className={`rounded-xl border px-4 py-2 font-bold transition ${
+                    isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`rounded-xl px-4 py-2 font-extrabold transition ${
+                    isDark ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  Save Times
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {editingEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
@@ -3842,19 +3923,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={editEmpLangs}
                   onChange={(e) => setEditEmpLangs(e.target.value)}
                   placeholder="EN, RU, DE"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block font-extrabold mb-1">Common Shift Schedule (Optional):</label>
-                <input
-                  type="text"
-                  value={editEmpShift}
-                  onChange={(e) => setEditEmpShift(e.target.value)}
-                  placeholder="11:00 AM"
                   className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
