@@ -711,7 +711,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [empSearchQuery, setEmpSearchQuery] = useState('');
   const [breakElapsedSeconds, setBreakElapsedSeconds] = useState(0);
   const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
-  const [empSortOrder, setEmpSortOrder] = useState<'default' | 'name'>('default');
+  const [empSortOrder, setEmpSortOrder] = useState<'name_asc' | 'name_desc' | 'last_online' | 'last_registered'>('name_asc');
 
   // Modals
   const [showAddLogModal, setShowAddLogModal] = useState(false);
@@ -2150,10 +2150,22 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
     return true;
   }).sort((a, b) => {
-    if (empSortOrder === 'name') {
-      return a.name.localeCompare(b.name);
+    if (empSortOrder === 'name_desc') {
+      return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' });
     }
-    return 0; // Default order
+    if (empSortOrder === 'last_online') {
+      const statusWeight = (s: string) => (s === 'checked_in' ? 2 : s === 'on_break' ? 1 : 0);
+      const weightDiff = statusWeight(b.status) - statusWeight(a.status);
+      if (weightDiff !== 0) return weightDiff;
+      const tsA = a.checkInTimestamp || 0;
+      const tsB = b.checkInTimestamp || 0;
+      return tsB - tsA;
+    }
+    if (empSortOrder === 'last_registered') {
+      return (b.sortOrder ?? 0) - (a.sortOrder ?? 0);
+    }
+    // Default: name_asc (A - Z)
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 
   return (
@@ -2696,18 +2708,35 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               
               {/* Live Status Breakdown Grid */}
               <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <h3 className="font-extrabold text-base flex items-center gap-2">
                     <span>🟢 Live Agents Roster</span>
                     <span className="text-xs text-slate-400 font-normal">({filteredEmployees.length} shown)</span>
                   </h3>
-                  <div className="flex items-center gap-1 text-xs">
-                    <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">
-                      🟢 {employees.filter(e => e.status === 'checked_in').length} Working
-                    </span>
-                    <span className="text-slate-400 font-bold bg-slate-800/40 border border-slate-700/20 px-2 py-0.5 rounded">
-                      ⚫ {employees.filter(e => e.status !== 'checked_in').length} Off
-                    </span>
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-400">Sort:</span>
+                      <select
+                        value={empSortOrder}
+                        onChange={(e) => setEmpSortOrder(e.target.value as 'name_asc' | 'name_desc' | 'last_online' | 'last_registered')}
+                        className={`rounded-lg border px-2.5 py-1 text-xs font-extrabold outline-none cursor-pointer transition ${
+                          isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                        }`}
+                      >
+                        <option value="name_asc">🔤 Name (A - Z)</option>
+                        <option value="name_desc">🔤 Name (Z - A)</option>
+                        <option value="last_online">🟢 Last Online / Active</option>
+                        <option value="last_registered">🆕 Last Registered</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">
+                        🟢 {employees.filter(e => e.status === 'checked_in').length} Working
+                      </span>
+                      <span className="text-slate-400 font-bold bg-slate-800/40 border border-slate-700/20 px-2 py-0.5 rounded">
+                        ⚫ {employees.filter(e => e.status !== 'checked_in').length} Off
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
@@ -2827,18 +2856,26 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </button>
               </div>
 
-              {/* Toolbar */}
-              <div className="mt-4 flex gap-2 items-center justify-end">
-                <button
-                  onClick={() => setEmpSortOrder(empSortOrder === 'default' ? 'name' : 'default')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
-                    empSortOrder === 'name' 
-                      ? (isDark ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300' : 'bg-indigo-100 border-indigo-300 text-indigo-700')
-                      : (isDark ? 'border-white/20 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200')
-                  }`}
-                >
-                  {empSortOrder === 'name' ? '⬇️ Sorted A-Z' : '🔀 Default Sort'}
-                </button>
+              {/* Toolbar with Sort Options */}
+              <div className="mt-4 flex flex-wrap gap-2 items-center justify-between border-t border-b py-2.5 my-2 border-white/10">
+                <div className="text-xs font-bold text-slate-400">
+                  Showing {filteredEmployees.length} of {employees.length} team members
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-slate-400">Sort by:</span>
+                  <select
+                    value={empSortOrder}
+                    onChange={(e) => setEmpSortOrder(e.target.value as 'name_asc' | 'name_desc' | 'last_online' | 'last_registered')}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold outline-none cursor-pointer transition ${
+                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                    }`}
+                  >
+                    <option value="name_asc">🔤 Name (A - Z)</option>
+                    <option value="name_desc">🔤 Name (Z - A)</option>
+                    <option value="last_online">🟢 Last Online / Active</option>
+                    <option value="last_registered">🆕 Last Registered</option>
+                  </select>
+                </div>
               </div>
 
               {/* Employees Table */}
