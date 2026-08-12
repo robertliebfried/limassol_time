@@ -249,6 +249,8 @@ interface Employee {
   sortOrder?: number;
   archivedAt?: number;
   team?: string;
+  trackingClient?: string;
+  lastSeen?: string;
 }
 
 interface TimeLog {
@@ -1173,6 +1175,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     let checkOut = emp.checkOutTime;
     let liveDurationStr = '';
     let isLiveFromClockify = false;
+    let isLiveFromAW = false;
 
     if (liveStatuses[emp.id] && liveStatuses[emp.id].status === 'online') {
       status = 'checked_in';
@@ -1180,6 +1183,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       checkOut = undefined;
       liveDurationStr = liveStatuses[emp.id].duration;
       isLiveFromClockify = true;
+    }
+
+    if (emp.trackingClient === 'AW' && status === 'checked_in') {
+      if (emp.lastSeen) {
+        const diffMins = (Date.now() - new Date(emp.lastSeen).getTime()) / 60000;
+        if (diffMins < 5) {
+          isLiveFromAW = true;
+        }
+      }
     }
 
     // Calculate live hours if working
@@ -1202,7 +1214,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       }
     }
 
-    return { status, checkIn, checkOut, liveDurationStr, isLiveFromClockify, activeHrsDisplay };
+    return { status, checkIn, checkOut, liveDurationStr, isLiveFromClockify, isLiveFromAW, activeHrsDisplay };
   };
 
   // Calendar Helpers
@@ -2580,12 +2592,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                   )}
                                 </div>
                               </div>
-                              <div className={`text-[0.65rem] font-bold flex items-center gap-1.5 flex-wrap ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                                <span>{isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}</span>
-                                {isLiveFromClockify && (
-                                  <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm" title="Tracking via ActivityWatch (Desktop)">💻 AW</span>
-                                )}
-                              </div>
+                                <span className={`text-[0.65rem] font-bold flex items-center gap-1.5 flex-wrap ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                  <span>{isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}</span>
+                                  {(isLiveFromClockify || isLiveFromAW) && (
+                                    <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm" title={isLiveFromAW ? "Tracking via ActivityWatch (Desktop)" : "Tracking via Clockify"}>💻 AW</span>
+                                  )}
+                                </span>
                             </div>
                           </div>
                           
@@ -2627,21 +2639,31 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <div className={`rounded-2xl border-2 p-5 shadow-lg h-[320px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
                   <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
                   <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                    {Object.values(liveStatuses).length === 0 ? (
-                      <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
+                    {employees.filter(e => e.status === 'checked_in').length === 0 ? (
+                      <div className="text-xs text-center opacity-50 mt-10">No active team members right now.</div>
                     ) : (
-                      Object.values(liveStatuses).map((status, i) => (
-                        <div key={i} className="flex gap-3 items-start">
-                          <div className="mt-1 w-2 h-2 rounded-full bg-slate-800 flex-shrink-0"></div>
-                          <div>
-                            <div className="text-xs font-bold">
-                              {employees.find(e => e.id === status.employeeId)?.name || status.employeeName || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                      employees.filter(e => e.status === 'checked_in').map((emp, i) => {
+                        const { checkIn, isLiveFromAW, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
+                        return (
+                          <div key={i} className="flex gap-3 items-start">
+                            <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse"></div>
+                            <div>
+                              <div className="text-xs font-bold flex items-center gap-1.5 flex-wrap">
+                                {emp.name} 
+                                <span className="opacity-70 font-normal">checked in</span>
+                                {(isLiveFromAW || isLiveFromClockify) ? (
+                                  <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm">💻 AW Tracker</span>
+                                ) : (
+                                  <span className="px-1 py-0.5 rounded text-[8px] border border-blue-500/40 bg-blue-500/20 text-blue-300 shadow-sm">🖥️ Web Manual</span>
+                                )}
+                              </div>
+                              <div className="text-[0.65rem] text-slate-500 mt-0.5">
+                                Since {formatNiceDisplayTime(checkIn || '')} {activeHrsDisplay ? `(${activeHrsDisplay})` : ''}
+                              </div>
                             </div>
-                            <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
-                            <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

@@ -13,6 +13,8 @@ export interface FirestoreEmployeeDoc {
   checkInTime?: string;
   checkOutTime?: string;
   sortOrder?: number;
+  trackingClient?: string;
+  lastSeen?: string;
 }
 
 // Fetch all employees from Firestore REST API (0 dependencies)
@@ -47,6 +49,8 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
         checkInTime: fields.checkInTime?.stringValue,
         checkOutTime: fields.checkOutTime?.stringValue,
         sortOrder: fields.sortOrder?.integerValue ? parseInt(fields.sortOrder.integerValue) : undefined,
+        trackingClient: fields.trackingClient?.stringValue,
+        lastSeen: fields.lastSeen?.timestampValue,
       };
     }
     return result;
@@ -105,10 +109,12 @@ export async function updateFirestoreEmployee(
   const docId = username.toLowerCase().trim().replace(/\s+/g, '');
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
 
+  const now = new Date().toISOString();
   const fields: Record<string, FieldValue> = {
     username: { stringValue: docId },
     status: { stringValue: status },
-    lastUpdated: { timestampValue: new Date().toISOString() },
+    trackingClient: { stringValue: 'WEB' },
+    lastUpdated: { timestampValue: now },
   };
   if (checkInTime) fields.checkInTime = { stringValue: checkInTime };
   if (checkOutTime) fields.checkOutTime = { stringValue: checkOutTime };
