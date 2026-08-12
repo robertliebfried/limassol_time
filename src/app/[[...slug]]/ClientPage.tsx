@@ -3,21 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee } from '@/lib/firebase';
 
-
 const TRANSLATIONS = {
   en: {
     appTitle: 'Team Hours & Shift Tracker',
     appSubtitle: 'Limassol / Cyprus Timezone Shift Management',
-    tabTimeTracker: '⏱️ Time Tracker',
-    tabEmployees: '👥 Employees',
-    tabReports: '📊 Reports & Payroll',
+    tabTimeTracker: 'Time Tracker',
+    tabEmployees: 'Employees',
+    tabReports: 'Reports & Payroll',
     pinTitle: 'Internal Team Tracker',
     pinSubtitle: 'Limassol / Cyprus Timezone Shift Management',
     pinPlaceholder: 'Enter PIN...',
     pinButton: 'Enter',
     pinError: 'Incorrect PIN. Try again.',
-    lightMode: '☀️ Light Mode',
-    darkMode: '🌙 Dark Mode',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
     totalEmployees: 'TOTAL EMPLOYEES',
     active: 'active',
     hoursToday: 'HOURS TODAY',
@@ -28,24 +27,24 @@ const TRANSLATIONS = {
     currentMonthTotal: 'Current month total',
     shiftTracker: 'Shift Arrival & Departure Tracker',
     flexibleShifts: 'Flexible shifts (Most staff: 11:00 AM – 7:00/8:00 PM Cyprus)',
-    monthlyCalendar: '📅 Monthly Calendar',
-    dailyTimesheetTable: '📊 Daily Timesheet Table',
-    cardsView: '🎴 Cards View',
-    bulkArrive: '⚡ Bulk Arrive 11 AM',
-    bulkLeft: '⚡ Bulk Left (End Shifts)',
-    newDayReset: '🔄 New Day Reset',
-    addEmployee: '➕ Add Employee',
-    logHours: '📝 Log Hours',
-    searchEmployee: '🔍 Search employee by name, role or shift...',
+    monthlyCalendar: 'Monthly Calendar',
+    dailyTimesheetTable: 'Daily Timesheet Table',
+    cardsView: 'Cards View',
+    bulkArrive: 'Bulk Arrive 11 AM',
+    bulkLeft: 'Bulk Left (End Shifts)',
+    newDayReset: 'New Day Reset',
+    addEmployee: 'Add Employee',
+    logHours: 'Log Hours',
+    searchEmployee: 'Search employee by name, role or shift...',
     statusAll: 'All',
-    statusWorking: '🟢 Working',
-    statusExpected: '🕐 Expected',
-    statusDone: '✅ Done',
-    statusOff: '❌ Off',
-    arrived: '🟢 Arrived',
-    leftOffice: '🔴 Left Office',
-    resetReopen: '↩️ Reset / Re-open',
-    resetToExpected: '↩️ Reset to Expected',
+    statusWorking: 'Working',
+    statusExpected: 'Expected',
+    statusDone: 'Done',
+    statusOff: 'Off',
+    arrived: 'Arrived',
+    leftOffice: 'Left Office',
+    resetReopen: 'Reset / Re-open',
+    resetToExpected: 'Reset to Expected',
     noLogsDay: 'No logs',
     workedLabel: 'Worked:',
     employeeDirectory: 'Employee Directory',
@@ -60,7 +59,7 @@ const TRANSLATIONS = {
     editBtn: 'Edit',
     deleteBtn: 'Delete',
     deletedArchive: 'Deleted Employees Archive',
-    restoreBtn: '↩️ Restore',
+    restoreBtn: 'Restore',
     noArchived: 'No archived employees yet.',
     reportsTitle: 'Reports & Payroll Center',
     dateRange: 'Date Range:',
@@ -68,8 +67,8 @@ const TRANSLATIONS = {
     toLabel: 'To:',
     thisMonth: 'This Month',
     past30: 'Past 30 Days',
-    exportPayroll: '📥 Export Payroll Summary CSV',
-    exportDetailed: '📥 Export Detailed Shift CSV',
+    exportPayroll: 'Export Payroll Summary CSV',
+    exportDetailed: 'Export Detailed Shift CSV',
     printReport: '{T.printReport}',
     timeLogsTable: 'Time Logs Table',
     dateCol: 'Date',
@@ -97,38 +96,38 @@ const TRANSLATIONS = {
     dateLabel: 'Date:',
     hoursWorkedLabel: 'Hours Worked:',
     taskLabel: 'Task / Project Description:',
-    submitLog: '✅ Submit Log',
+    submitLog: 'Submit Log',
     clockifyTitle: '{T.clockifyTitle}',
     clockifyDesc: 'Connect your Clockify.me workspace to automatically back up attendance logs and provide your employees with Clockify\'s mobile/web app for self-tracking.',
     clockifyKeyLabel: 'Clockify API Key:',
     clockifyWsLabel: 'Workspace ID (Optional):',
-    fullSetupBtn: '🚀 Full Setup + Invite Employees',
+    fullSetupBtn: 'Full Setup + Invite Employees',
     saveSyncBtn: 'Save & Sync Now',
     closeBtn: 'Close',
-    hideLabel: '▲ Hide',
-    showLabel: '▼ Show',
+    hideLabel: 'Hide',
+    showLabel: 'Show',
     // Admin dashboard
     shiftArrivalTracker: 'Shift Arrival & Departure Tracker',
     flexibleShiftsNote: 'Flexible shifts (Most staff: 11:00 AM – 7:00/8:00 PM Cyprus)',
-    monthlyCalendarBtn: '📅 Monthly Calendar',
-    dailyTimesheetBtn: '📊 Daily Timesheet Table',
-    cardsViewBtn: '🎴 Cards View',
-    bulkArriveBtn: '⚡ Bulk Arrive 11 AM',
-    bulkLeftBtn: '⚡ Bulk Left (End Shifts)',
-    newDayResetBtn: '🧹 New Day Reset',
-    addEmployeeBtn: '➕ Add Employee',
+    monthlyCalendarBtn: 'Monthly Calendar',
+    dailyTimesheetBtn: 'Daily Timesheet Table',
+    cardsViewBtn: 'Cards View',
+    bulkArriveBtn: 'Bulk Arrive 11 AM',
+    bulkLeftBtn: 'Bulk Left (End Shifts)',
+    newDayResetBtn: 'New Day Reset',
+    addEmployeeBtn: 'Add Employee',
     clickDayHint: 'Click any day to view/edit daily timesheet',
-    prevMonth: '◀ Prev Month',
+    prevMonth: 'Prev Month',
     todayBtn: 'Today',
-    nextMonth: 'Next Month ▶',
+    nextMonth: 'Next Month',
     workedLabel2: 'Worked:',
     noLogsLabel: 'No logs',
-    searchPlaceholder: '🔍 Search employee by name, role or shift...',
+    searchPlaceholder: 'Search employee by name, role or shift...',
     filterAll: 'All',
-    filterWorking: '🟢 Working',
-    filterExpected: '⏰ Expected',
-    filterDone: '🏁 Done',
-    filterOff: '❌ Off',
+    filterWorking: 'Working',
+    filterExpected: 'Expected',
+    filterDone: 'Done',
+    filterOff: 'Off',
     colNameRole: 'Employee Name & Role',
     colShiftTarget: 'Shift Target',
     colArrival: 'Arrival (In)',
@@ -137,23 +136,23 @@ const TRANSLATIONS = {
     colShiftStatus: 'Shift Status',
     colActions: 'Actions / Modify',
     noEmployeesFilter: 'No employees found matching filter criteria.',
-    statusExpectedBadge: '⏰ Expected',
-    statusWorkingBadge: '🟢 Working',
-    statusDoneBadge: '🏁 Shift Done',
-    statusAbsentBadge: '❌ Absent',
+    statusExpectedBadge: 'Expected',
+    statusWorkingBadge: 'Working',
+    statusDoneBadge: 'Shift Done',
+    statusAbsentBadge: 'Absent',
     arrivedBtn: 'Arrived',
     leftBtn: 'Left',
-    editTimesBtn: '✏️ Edit Times',
+    editTimesBtn: 'Edit Times',
     shiftTargetLabel: 'Shift Target:',
-    notArrivedYet: '🟡 Status: Not arrived yet',
-    arrivedAtLabel: '🟢 Arrived at:',
-    leftOfficeBadge: '🔴 Left Office',
-    resetReopenBtn: '↩️ Reset / Re-open',
-    resetToExpectedBtn: '↩️ Reset to Expected',
+    notArrivedYet: 'Status: Not arrived yet',
+    arrivedAtLabel: 'Arrived at:',
+    leftOfficeBadge: 'Left Office',
+    resetReopenBtn: 'Reset / Re-open',
+    resetToExpectedBtn: 'Reset to Expected',
     noEmpMatchFilter: 'No employees match your search or filter criteria.',
-    empDirectoryTitle: '👥 Employee Directory & Staff Roster',
+    empDirectoryTitle: 'Employee Directory & Staff Roster',
     empDirectoryDesc: 'Manage all 30+ team members, shift targets, spoken languages, and roles',
-    addNewEmpBtn: '➕ Add New Employee',
+    addNewEmpBtn: 'Add New Employee',
     colNum: '#',
     colEmpName: 'Employee Name',
     colRoleDept: 'Role / Department',
@@ -162,25 +161,25 @@ const TRANSLATIONS = {
     colTodayStatus: "Today's Status",
     colTotalHrs: 'Total Worked Hours',
     colActionsLbl: 'Actions',
-    editShiftBtn: '✏️ Edit Shift',
+    editShiftBtn: 'Edit Shift',
     deletedArchiveTitle: 'Deleted Employees Archive',
     noArchivedYet: 'No archived employees yet.',
     colName: 'Name',
     colRole: 'Role',
     colShift: 'Shift',
     colAction: 'Action',
-    restoreBtn2: '↩️ Restore',
-    reportsAdvTitle: '📊 Advanced Reports & Payroll Center',
+    restoreBtn2: 'Restore',
+    reportsAdvTitle: 'Advanced Reports & Payroll Center',
     reportsAdvDesc: 'Generate, filter and export attendance & payroll summaries for all 30+ employees',
-    exportPayrollBtn: '📥 Export Payroll Summary CSV',
-    exportDetailedBtn: '📥 Export Detailed Shift CSV',
-    printPdfBtn: '🖨️ Print / PDF Report',
+    exportPayrollBtn: 'Export Payroll Summary CSV',
+    exportDetailedBtn: 'Export Detailed Shift CSV',
+    printPdfBtn: 'Print / PDF Report',
     automatedReports: 'Automated Reports Recipient:',
     fromLabel2: 'From:',
     toLabel2: 'To:',
     thisMonthBtn: 'This Month',
     past30Btn: 'Past 30 Days',
-    timeLogsTableTitle: '📋 Time Logs Table',
+    timeLogsTableTitle: 'Time Logs Table',
     colDate: 'Date',
     colEmployee: 'Employee',
     colTask: 'Task / Project',
@@ -199,29 +198,33 @@ const TRANSLATIONS = {
     lunchBreak: '{T.lunchBreak}',
     coffeeBreak: '{T.coffeeBreak}',
     shortBreak: '{T.shortBreak}',
-    clockInBtn: '🟢 Clock In (Start Work)',
-    pauseBreakBtn: '⏸️ Pause / Break...',
-    clockOutBtn: '🔴 Clock Out (Left Office)',
-    resumeWorkBtn: '▶️ Resume Work',
-    reopenBtn: '↩️ Re-open / Clock In Again',
-    shiftHistoryTitle: "📋 Today's Shift History",
-    liveLabel: '🟢 LIVE — WORKED TODAY',
-    onBreakLabel: '🟡 ON BREAK',
-    setupTabTitle: '💻 PC Setup',
-    setupHeader: '💻 Work PC Setup',
+    clockInBtn: 'Clock In (Start Work)',
+    pauseBreakBtn: 'Pause / Break...',
+    clockOutBtn: 'Clock Out (Left Office)',
+    resumeWorkBtn: 'Resume Work',
+    reopenBtn: 'Re-open / Clock In Again',
+    shiftHistoryTitle: "Today's Shift History",
+    liveLabel: 'LIVE — WORKED TODAY',
+    onBreakLabel: 'ON BREAK',
+    setupTabTitle: 'PC Setup',
+    setupHeader: 'Work PC Setup',
     setupSubheader: 'Just 3 steps to enable automatic time tracking',
     step1Header: 'Install ActivityWatch',
     step1Text: 'This program monitors when you are active at your computer. Download and install it (click "Next" through setup).',
-    step1DownloadBtn: '⬇️ Download ActivityWatch',
-    step1TrayNote: 'After installation, a ⏱ icon will appear in the system tray (near the clock)',
+    step1DownloadBtn: 'Download ActivityWatch',
+    step1TrayNote: 'After installation, a tray icon will appear near the clock',
     step2Header: 'Download Limassol Tracker',
     step2Text: 'A small helper app that connects ActivityWatch with the time tracking system.',
-    step2DownloadBtn: '⬇️ Download LimassolTracker.exe',
+    step2DownloadBtn: 'Download LimassolTracker.exe',
     step2FolderNote: 'Place this executable file in any convenient folder on your Desktop',
     step3Header: 'Run & Select Your Name',
     step3Text: 'Launch LimassolTracker.exe — a window with a dropdown list will open. Select your name and click "Save and Run".',
-    step3DoneBadge: '✅ Done! The timer will automatically track when you are active',
-    step3AutostartNote: '💡 Add LimassolTracker.exe to Startup: Win+R → "shell:startup" → copy file there',
+    step3DoneBadge: 'Done! The timer will automatically track when you are active',
+    step3AutostartNote: 'Tip: Add LimassolTracker.exe to Startup: Win+R → "shell:startup" → copy file there',
+    autostartTipTitle: 'Tip: To run the tracker automatically when your PC turns on:',
+    autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
+  },
+} as const;,
     autostartTipTitle: '💡 Tip: To run the tracker automatically when your PC turns on:',
     autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
   },
@@ -2158,17 +2161,17 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               <button
                 onClick={handleLogout}
                 title={`Log Out (${authRole === 'admin' ? 'Admin' : activeEmployee?.name})`}
-                className="flex items-center justify-center h-8 w-8 rounded-2xl border border-red-500/30 bg-slate-800/10 text-[0.95rem] text-red-400 hover:bg-slate-800/20 transition shadow-sm"
+                className="flex items-center justify-center px-3 h-8 rounded-2xl border border-red-500/30 bg-slate-800/10 text-[0.75rem] font-extrabold text-red-500 hover:bg-slate-800/20 transition shadow-sm"
               >
-                🚪
+                Logout
               </button>
             ) : (
               <button
                 onClick={() => setIsAuthenticated(false)}
                 title="Log In"
-                className="flex items-center justify-center h-8 w-8 rounded-2xl bg-slate-900 text-[0.95rem] text-white hover:bg-slate-800 transition shadow-sm"
+                className="flex items-center justify-center px-3 h-8 rounded-2xl bg-slate-900 text-[0.75rem] font-extrabold text-white hover:bg-slate-800 transition shadow-sm"
               >
-                🔑
+                Login
               </button>
             )}
 
@@ -2551,7 +2554,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     </div>
                   ) : (
                     filteredEmployees.map(emp => {
-                      const { status, checkIn, activeHrsDisplay } = getMergedEmployeeState(emp);
+                      const { status, checkIn, activeHrsDisplay, isLiveFromClockify } = getMergedEmployeeState(emp);
                       const isOnline = status === 'checked_in';
                       return (
                         <div key={emp.id} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
@@ -2577,8 +2580,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                   )}
                                 </div>
                               </div>
-                              <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                                {isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}
+                              <div className={`text-[0.65rem] font-bold flex items-center gap-1.5 flex-wrap ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                <span>{isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}</span>
+                                {isLiveFromClockify && (
+                                  <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm" title="Tracking via ActivityWatch (Desktop)">💻 AW</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2588,18 +2594,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             {isOnline ? (
                               <button
                                 onClick={() => handleStatusChange(emp.id, 'completed')}
-                                className="rounded-2xl bg-slate-900/80 hover:bg-slate-900 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                className="rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-3 py-1 text-[0.75rem] font-extrabold shadow-sm transition active:scale-95 flex items-center justify-center"
                                 title="Manual override: Stop billing time (e.g. empty chair / YouTube open)"
                               >
-                                <span>🔴</span> Out
+                                Out
                               </button>
                             ) : (
                               <button
                                 onClick={() => handleStatusChange(emp.id, 'checked_in')}
-                                className="rounded-2xl bg-slate-900/80 hover:bg-slate-900 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 text-[0.75rem] font-extrabold shadow-md transition active:scale-95 flex items-center justify-center"
                                 title="Manual override: Start billing time"
                               >
-                                <span>🟢</span> In
+                                In
                               </button>
                             )}
                           </div>
