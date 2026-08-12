@@ -25,37 +25,42 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
+CURRENT_VERSION = "1.0.8"
+
 def auto_update():
     try:
         import urllib.request
         import subprocess
         req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
-            version = response.read().decode('utf-8').strip()
-        current_version = "1.0.7"
-        if version > current_version:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {version} found! Downloading...")
-            exe_url = "https://limassoltime.web.app/downloads/LimassolTracker.exe"
+            latest_version = response.read().decode('utf-8').strip()
+
+        if latest_version > CURRENT_VERSION:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {latest_version} found (current: {CURRENT_VERSION}). Downloading...")
+            # Download versioned file (e.g. LimassolTracker_v1.0.9.exe)
+            exe_url = f"https://limassoltime.web.app/downloads/LimassolTracker_v{latest_version}.exe"
             new_exe = "LimassolTracker_new.exe"
-            
+
             req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req_exe, timeout=30) as response, open(new_exe, 'wb') as out_file:
+            with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe, 'wb') as out_file:
                 out_file.write(response.read())
-                
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting...")
-            bat_content = '''@echo off
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
+            bat_content = f'''@echo off
 timeout /t 2 /nobreak >nul
-taskkill /f /im LimassolTracker.exe >nul
-del LimassolTracker.exe
+taskkill /f /im LimassolTracker.exe >nul 2>&1
+del /f LimassolTracker.exe
 ren LimassolTracker_new.exe LimassolTracker.exe
 start LimassolTracker.exe
-del update.bat
+del /f update.bat
 '''
             with open("update.bat", "w") as f:
                 f.write(bat_content)
-                
+
             subprocess.Popen("update.bat", shell=True)
             sys.exit(0)
+        else:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Up to date (v{CURRENT_VERSION})")
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Update check failed: {e}")
 
@@ -215,7 +220,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.0.7")
+    win.title("Limassol Tracker Setup v1.0.8")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -356,15 +361,30 @@ def sync_loop(username, pin):
 # Entry Point
 # -------------------------------------------------------------------
 def add_to_startup():
+    exe_path = sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__)
     try:
-        key = reg.HKEY_CURRENT_USER
+        # Method 1: Windows Registry
         key_value = r"Software\Microsoft\Windows\CurrentVersion\Run"
-        open_key = reg.OpenKey(key, key_value, 0, reg.KEY_ALL_ACCESS)
-        target = f'"{sys.executable}" --minimized'
-        reg.SetValueEx(open_key, "LimassolTracker", 0, reg.REG_SZ, target)
+        open_key = reg.OpenKey(reg.HKEY_CURRENT_USER, key_value, 0, reg.KEY_ALL_ACCESS)
+        reg.SetValueEx(open_key, "LimassolTracker", 0, reg.REG_SZ, f'"{exe_path}"')
         reg.CloseKey(open_key)
+        print(f"[{now()}] Startup registered via Registry")
     except Exception as e:
-        print("Startup error:", e)
+        print(f"[{now()}] Registry startup error: {e}")
+    try:
+        # Method 2: Startup Folder (shell:startup) as backup
+        import winshell
+        startup_folder = winshell.startup()
+        shortcut_path = os.path.join(startup_folder, "LimassolTracker.lnk")
+        if not os.path.exists(shortcut_path):
+            with winshell.shortcut(shortcut_path) as shortcut:
+                shortcut.path = exe_path
+                shortcut.description = "Limassol Tracker"
+                shortcut.working_directory = os.path.dirname(exe_path)
+            print(f"[{now()}] Startup shortcut created in startup folder")
+    except Exception:
+        # winshell not available — Registry method is sufficient
+        pass
 
 def show_tray_notification(username):
     try:
@@ -374,7 +394,7 @@ def show_tray_notification(username):
         pystray = None
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.0.7 — {username.capitalize()}")
+    win.title(f"Limassol Tracker v1.0.8 — {username.capitalize()}")
     win.geometry("340x120")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
