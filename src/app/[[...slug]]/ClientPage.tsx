@@ -1467,7 +1467,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       : [];
 
     const newUsername = editEmpUsername.trim().toLowerCase() || editingEmp.username;
-    if (newUsername !== editingEmp.username) {
+    if (editingEmp.username && newUsername !== editingEmp.username) {
       deleteFirestoreEmployee(editingEmp.username);
     }
 
@@ -2177,7 +2177,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>⏱️</span> Dashboard
                 </button>
                 <button
-                  onClick={() => handleTabChange('employees', '/team')}
+                  onClick={() => window.location.href = '/employees'}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'employees'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2187,7 +2187,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>👥</span> Employees ({employees.length})
                 </button>
                 <button
-                  onClick={() => handleTabChange('reports', '/reports')}
+                  onClick={() => window.location.href = '/reports'}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'reports'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2197,7 +2197,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>📊</span> Reports & Payroll
                 </button>
                 <button
-                  onClick={() => handleTabChange('setup', '/setup')}
+                  onClick={() => window.location.href = '/setup'}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'setup'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2216,7 +2216,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
             <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
               <button
-                onClick={() => handleTabChange('timeTracker', '/dashboard')}
+                onClick={() => window.location.href = '/dashboard'}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                   activeTab === 'timeTracker'
                     ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2226,7 +2226,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <span>🏠</span> My Shift
               </button>
               <button
-                onClick={() => handleTabChange('setup', '/setup')}
+                onClick={() => window.location.href = '/setup'}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                   activeTab === 'setup'
                     ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -3061,7 +3061,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               <div className="flex-1"></div>
               <div className="flex items-center gap-2">
                  <button
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => window.location.href = '/reports'}
                   className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
                     viewMode === 'grid'
                       ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
