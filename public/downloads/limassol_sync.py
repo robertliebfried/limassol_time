@@ -385,11 +385,6 @@ def show_tray_notification(username):
     )
     label.pack(expand=True)
 
-    tk.Label(
-        win, text="Window can be closed, it will keep tracking in tray",
-        font=("Arial", 8), bg="#0f172a", fg="#64748b"
-    ).pack(pady=(0, 8))
-
     def create_image():
         if pystray:
             image = Image.new('RGB', (64, 64), color=(27, 153, 139))
