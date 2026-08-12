@@ -578,7 +578,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
 
 const INITIAL_LOGS: TimeLog[] = [];
 
-export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { initialTab?: 'timeTracker' | 'employees' | 'reports' }) {
+export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { initialTab?: 'timeTracker' | 'employees' | 'reports' | 'setup' }) {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
   const [currentDomain, setCurrentDomain] = useState<string>('');
   
