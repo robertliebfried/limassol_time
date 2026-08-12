@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee } from '@/lib/firebase';
+import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee } from '@/lib/firebase';
 
 const TRANSLATIONS = {
   en: {
@@ -1454,7 +1454,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
       
       const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
-      deleteFirestoreEmployee(username);
+      purgeFirestoreEmployee(username);
     }
   };
 

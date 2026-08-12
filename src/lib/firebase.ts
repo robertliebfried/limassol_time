@@ -146,8 +146,17 @@ export async function deleteFirestoreEmployee(username: string) {
         },
       }),
     });
+  } catch (error) {
+    console.error(`Failed to soft-delete employee ${username}:`, error);
+  }
+}
+
+export async function purgeFirestoreEmployee(username: string) {
+  const docId = username.toLowerCase().trim().replace(/\s+/g, '');
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
+  try {
     await fetch(url, { method: 'DELETE' });
-  } catch (e) {
-    console.error('Firestore REST delete error:', e);
+  } catch (error) {
+    console.error(`Failed to permanently delete employee ${username}:`, error);
   }
 }
