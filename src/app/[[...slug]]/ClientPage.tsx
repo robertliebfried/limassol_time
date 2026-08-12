@@ -3034,24 +3034,22 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <tr>
                       <th className="p-3">{T.colNum}</th>
                       <th className="p-3">{T.colEmpName}</th>
+                      <th className="p-3">Username</th>
+                      <th className="p-3">PIN</th>
                       <th className="p-3">{T.colRoleDept}</th>
                       <th className="p-3">{T.colTargetShift}</th>
                       <th className="p-3">{T.colLanguages}</th>
-                      <th className="p-3 text-center">{T.colTodayStatus}</th>
-                      <th className="p-3 text-center">{T.colTotalHrs}</th>
                       <th className="p-3 text-right">{T.colActionsLbl}</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
                     {filteredEmployees.map((emp, idx) => {
-                      const empTotalHours = logs
-                        .filter(l => l.employeeId === emp.id)
-                        .reduce((sum, l) => sum + l.hours, 0);
-
                       return (
                         <tr key={emp.id} className="hover:bg-white/5 transition">
                           <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
                           <td className="p-3 font-extrabold text-sm">{emp.name}</td>
+                          <td className="p-3 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
+                          <td className="p-3 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
                           <td className="p-3 opacity-90">{emp.role}</td>
                           <td className="p-3 font-mono font-bold text-amber-400">{emp.expectedShift}</td>
                           <td className="p-3">
@@ -3059,13 +3057,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               {emp.languages.join(' / ')}
                             </span>
                           </td>
-                          <td className="p-3 text-center">
-                            {emp.status === 'checked_in' && <span className="rounded-full bg-emerald-900/60 px-2.5 py-1 text-emerald-300 font-extrabold text-[0.7rem] border border-emerald-500/40">🟢 Working ({emp.checkInTime})</span>}
-                            {emp.status === 'completed' && <span className="rounded-full bg-blue-900/60 px-2.5 py-1 text-blue-300 font-extrabold text-[0.7rem] border border-blue-500/40">🏁 Left ({emp.checkOutTime})</span>}
-                            {emp.status === 'expected' && <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300 font-bold text-[0.7rem]">⏰ Expected</span>}
-                            {emp.status === 'absent' && <span className="rounded-full bg-red-950 px-2.5 py-1 text-red-300 font-bold text-[0.7rem]">❌ Off</span>}
-                          </td>
-                          <td className="p-3 text-center font-mono font-extrabold text-emerald-400 text-sm">{empTotalHours.toFixed(1)} hrs</td>
                           <td className="p-3 text-right">
                             <div className="flex justify-end gap-1.5">
                               <button
