@@ -1286,6 +1286,45 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
   };
 
+  // Converts ANY raw time string ("08 pm", "12 pm", "20 00", "2000", "1100", "08:00:00 pm", "17:27") into clean "08:00 PM"
+  const formatNiceDisplayTime = (timeStr?: string): string => {
+    if (!timeStr) return '-';
+    const clean = timeStr.trim();
+    if (clean === '-' || clean === '') return '-';
+
+    if (/^\d{4}$/.test(clean)) {
+      const hrs = parseInt(clean.slice(0, 2), 10);
+      const mins = parseInt(clean.slice(2, 4), 10);
+      return format24To12Hour(`${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`);
+    }
+
+    if (/^\d{1,2}\s+\d{2}$/.test(clean)) {
+      const parts = clean.split(/\s+/);
+      return format24To12Hour(`${String(parseInt(parts[0], 10)).padStart(2, '0')}:${parts[1]}`);
+    }
+
+    const hrOnlyMatch = clean.match(/^(\d{1,2})\s*(AM|PM)$/i);
+    if (hrOnlyMatch) {
+      let hrs = parseInt(hrOnlyMatch[1], 10);
+      const period = hrOnlyMatch[2].toUpperCase();
+      if (period === 'PM' && hrs < 12) hrs += 12;
+      if (period === 'AM' && hrs === 12) hrs = 0;
+      return format24To12Hour(`${String(hrs).padStart(2, '0')}:00`);
+    }
+
+    if (/^\d{1,2}$/.test(clean)) {
+      const hrs = parseInt(clean, 10);
+      return format24To12Hour(`${String(hrs).padStart(2, '0')}:00`);
+    }
+
+    const h24 = parseTo24HourTime(clean);
+    if (h24) {
+      return format24To12Hour(h24);
+    }
+
+    return clean;
+  };
+
   // Helper to parse time strings like "11:04 AM" or "19:15" into total minutes
   const parseTimeToMinutes = (timeStr?: string): number => {
     if (!timeStr) return 0;
@@ -2653,7 +2692,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                 <span className="text-[0.65rem] font-bold opacity-60 flex-shrink-0">({emp.role})</span>
                               </div>
                               <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                                {isOnline ? `🟢 ONLINE (${checkIn || '11:00 AM'}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}
+                                {isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}
                               </div>
                             </div>
                           </div>
@@ -2963,7 +3002,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-serif text-xl font-bold flex items-center gap-2">
-                <span>📊</span> {T.reportsAdvTitle}
+                {T.reportsAdvTitle}
               </h2>
               <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 {T.reportsAdvDesc}
@@ -3300,7 +3339,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             <td className="px-4 py-3 font-mono font-bold">
                               {checkIn ? (
                                 <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
-                                  🟢 {checkIn}
+                                  🟢 {formatNiceDisplayTime(checkIn)}
                                 </span>
                               ) : (
                                 <span className="text-slate-500 font-normal">-</span>
@@ -3309,7 +3348,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             <td className="px-4 py-3 font-mono font-bold">
                               {checkOut ? (
                                 <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>
-                                  🔴 {checkOut}
+                                  🔴 {formatNiceDisplayTime(checkOut)}
                                 </span>
                               ) : (
                                 <span className="text-slate-500 font-normal">-</span>
