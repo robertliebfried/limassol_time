@@ -1406,6 +1406,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   };
 
   // Clean Reset for New Day
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleResetAllForNewDay = () => {
     if (window.confirm('Start a new clean day? This will reset all shift statuses to Expected for today.')) {
       const resetList = employees.map(emp => ({
