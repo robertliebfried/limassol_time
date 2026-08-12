@@ -467,6 +467,7 @@ interface Employee {
   accumulatedSeconds?: number;
   sortOrder?: number;
   archivedAt?: number;
+  team?: string;
 }
 
 interface TimeLog {
@@ -736,6 +737,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [newEmpRole, setNewEmpRole] = useState('');
   const [newEmpLangs, setNewEmpLangs] = useState('EN');
   const [newEmpShift, setNewEmpShift] = useState('11:00 AM');
+  const [newEmpTeam, setNewEmpTeam] = useState('');
 
   // Edit Employee Form
   const [editEmpName, setEditEmpName] = useState('');
@@ -744,6 +746,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [editEmpRole, setEditEmpRole] = useState('');
   const [editEmpLangs, setEditEmpLangs] = useState('');
   const [editEmpShift, setEditEmpShift] = useState('');
+  const [editEmpTeam, setEditEmpTeam] = useState('');
 
   // Kiosk Live Timer & Break Menu State
   const [showBreakMenu, setShowBreakMenu] = useState<boolean>(false);
@@ -932,6 +935,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             checkInTime: doc.checkInTime,
             checkOutTime: doc.checkOutTime,
             sortOrder: doc.sortOrder ?? idx,
+            team: doc.team || '',
           }));
           
           const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
@@ -1077,6 +1081,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         checkInTime: emp.checkInTime,
         checkOutTime: emp.checkOutTime,
         sortOrder: idx,
+        team: emp.team || '',
       });
     });
   };
@@ -1297,6 +1302,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       role: newEmpRole.trim() || 'Team Member',
       expectedShift: newEmpShift,
       status: 'expected',
+      team: newEmpTeam.trim() || '',
     };
 
     saveEmployees([...employees.filter(e => (e.username || '').toLowerCase().replace(/\s+/g, '') !== uname), newEmp]);
@@ -1306,6 +1312,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setNewEmpRole('');
     setNewEmpLangs('');
     setNewEmpShift('');
+    setNewEmpTeam('');
     setShowAddEmpModal(false);
   };
 
@@ -1585,6 +1592,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setEditEmpRole(emp.role || '');
     setEditEmpLangs((emp.languages || []).join(', '));
     setEditEmpShift(emp.expectedShift || '');
+    setEditEmpTeam(emp.team || '');
   };
 
   // Save Modified User Credentials & Info
@@ -1611,6 +1619,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           role: editEmpRole.trim() || 'Team Member',
           languages: langs,
           expectedShift: editEmpShift.trim(),
+          team: editEmpTeam.trim() || emp.team || '',
         };
       }
       return emp;
@@ -2949,57 +2958,113 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </div>
               </div>
 
-              {/* Employees Table */}
-              <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-                <table className="w-full text-left text-xs">
-                  <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/60 text-white' : 'bg-slate-200 text-black'}`}>
-                    <tr>
-                      <th className="p-3">{T.colNum}</th>
-                      <th className="p-3">{T.colEmpName}</th>
-                      <th className="p-3">Username</th>
-                      <th className="p-3">PIN</th>
-                      <th className="p-3">{T.colRoleDept}</th>
-                      <th className="p-3">{T.colLanguages}</th>
-                      <th className="p-3 text-right">{T.colActionsLbl}</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
-                    {filteredEmployees.map((emp, idx) => {
+              {/* Employees Grouped by Team */}
+              {(() => {
+                // Build team → employees map, preserving sort order
+                const teamMap = new Map<string, typeof filteredEmployees>();
+                filteredEmployees.forEach(emp => {
+                  const key = emp.team?.trim() || '—';
+                  if (!teamMap.has(key)) teamMap.set(key, []);
+                  teamMap.get(key)!.push(emp);
+                });
+
+                // Sort groups: named teams alphabetically first, "—" last
+                const sortedKeys = Array.from(teamMap.keys()).sort((a, b) => {
+                  if (a === '—') return 1;
+                  if (b === '—') return -1;
+                  return a.localeCompare(b);
+                });
+
+                const teamColors = [
+                  { border: 'border-sky-500/30',   bg: 'bg-sky-500/8',   badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30' },
+                  { border: 'border-violet-500/30', bg: 'bg-violet-500/8', badge: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
+                  { border: 'border-emerald-500/30',bg: 'bg-emerald-500/8',badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
+                  { border: 'border-amber-500/30',  bg: 'bg-amber-500/8',  badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+                  { border: 'border-rose-500/30',   bg: 'bg-rose-500/8',   badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30' },
+                  { border: 'border-cyan-500/30',   bg: 'bg-cyan-500/8',   badge: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' },
+                  { border: 'border-fuchsia-500/30',bg: 'bg-fuchsia-500/8',badge: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30' },
+                  { border: 'border-orange-500/30', bg: 'bg-orange-500/8', badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' },
+                ];
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    {sortedKeys.map((teamName, colorIdx) => {
+                      const members = teamMap.get(teamName)!;
+                      const color = teamColors[colorIdx % teamColors.length];
+                      const isNoTeam = teamName === '—';
                       return (
-                        <tr key={emp.id} className="hover:bg-white/5 transition">
-                          <td className="p-3 font-mono font-bold text-slate-400">{idx + 1}</td>
-                          <td className="p-3 font-extrabold text-sm">{emp.name}</td>
-                          <td className="p-3 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
-                          <td className="p-3 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
-                          <td className="p-3 opacity-90">{emp.role}</td>
-                          <td className="p-3">
-                            <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-[0.7rem] font-bold">
-                              {emp.languages.join(' / ')}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex justify-end gap-1.5">
-                              <button
-                                onClick={() => handleOpenEditShift(emp)}
-                                className="rounded-lg bg-amber-600 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-amber-500"
-                              >
-                                Edit Info
-                              </button>
-                              <button
-                                onClick={() => handleDeleteEmp(emp.id)}
-                                className="rounded-lg bg-red-900/60 px-2 py-1 text-[0.7rem] font-bold text-red-200 hover:bg-red-800"
-                                title="Remove Employee"
-                              >
-                                ✕
-                              </button>
+                        <div key={teamName} className={`rounded-xl border-2 overflow-hidden ${isDark ? color.border + ' ' + color.bg : 'border-slate-200 bg-slate-50'}`}>
+                          {/* Team Header */}
+                          <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDark ? color.border : 'border-slate-200'}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{isNoTeam ? '🔹' : '👥'}</span>
+                              <span className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                                {isNoTeam ? 'No Team Assigned' : teamName}
+                              </span>
+                              <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${isDark ? color.badge : 'bg-slate-200 text-slate-600'}`}>
+                                {members.length} agent{members.length !== 1 ? 's' : ''}
+                              </span>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+
+                          {/* Team Members Table */}
+                          <table className="w-full text-left text-xs">
+                            <thead className={`font-extrabold uppercase text-[10px] tracking-wider border-b ${isDark ? 'text-slate-400 bg-black/30' : 'text-slate-500 bg-slate-100'}`}>
+                              <tr>
+                                <th className="px-4 py-2">#</th>
+                                <th className="px-4 py-2">{T.colEmpName}</th>
+                                <th className="px-4 py-2">Username</th>
+                                <th className="px-4 py-2">PIN</th>
+                                <th className="px-4 py-2">{T.colRoleDept}</th>
+                                <th className="px-4 py-2">{T.colLanguages}</th>
+                                <th className="px-4 py-2 text-right">{T.colActionsLbl}</th>
+                              </tr>
+                            </thead>
+                            <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-200'}`}>
+                              {members.map((emp, idx) => (
+                                <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-100'}`}>
+                                  <td className="px-4 py-2.5 font-mono font-bold text-slate-500">{idx + 1}</td>
+                                  <td className="px-4 py-2.5 font-extrabold">{emp.name}</td>
+                                  <td className="px-4 py-2.5 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
+                                  <td className="px-4 py-2.5 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
+                                  <td className="px-4 py-2.5 opacity-80">{emp.role}</td>
+                                  <td className="px-4 py-2.5">
+                                    <span className="rounded bg-white/10 px-2 py-0.5 font-mono text-[0.7rem] font-bold">
+                                      {emp.languages.join(' / ')}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right">
+                                    <div className="flex justify-end gap-1.5">
+                                      <button
+                                        onClick={() => handleOpenEditShift(emp)}
+                                        className="rounded-lg bg-amber-600 px-2.5 py-1 text-[0.7rem] font-bold text-white hover:bg-amber-500 transition"
+                                      >
+                                        Edit Info
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteEmp(emp.id)}
+                                        className="rounded-lg bg-red-900/60 px-2 py-1 text-[0.7rem] font-bold text-red-200 hover:bg-red-800 transition"
+                                        title="Remove Employee"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                    {filteredEmployees.length === 0 && (
+                      <div className={`rounded-xl border-2 p-8 text-center text-sm font-bold opacity-60 ${isDark ? 'border-white/10 text-white' : 'border-slate-200 text-slate-500'}`}>
+                        {T.noEmpMatchFilter}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Deleted Employees Archive */}
@@ -3972,6 +4037,20 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       }`}
                     />
                   </div>
+                  <div>
+                    <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                      Team Name <span className={`text-xs font-normal opacity-60`}>(e.g. EN Team A, DE Team 2)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newEmpTeam}
+                      onChange={(e) => setNewEmpTeam(e.target.value)}
+                      placeholder="e.g. EN Team A"
+                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                      }`}
+                    />
+                  </div>
                 </div>
               </details>
 
@@ -4136,6 +4215,21 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   value={editEmpLangs}
                   onChange={(e) => setEditEmpLangs(e.target.value)}
                   placeholder="EN, RU, DE"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">
+                  Team Name: <span className="text-xs font-normal opacity-60">(e.g. EN Team A, DE Team 2)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editEmpTeam}
+                  onChange={(e) => setEditEmpTeam(e.target.value)}
+                  placeholder="e.g. EN Team A"
                   className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}

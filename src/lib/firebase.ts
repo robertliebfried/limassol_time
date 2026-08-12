@@ -8,6 +8,7 @@ export interface FirestoreEmployeeDoc {
   role?: string;
   languages?: string[];
   expectedShift?: string;
+  team?: string;
   status: 'expected' | 'checked_in' | 'on_break' | 'completed' | 'absent';
   checkInTime?: string;
   checkOutTime?: string;
@@ -41,6 +42,7 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
         role: fields.role?.stringValue,
         languages: langs,
         expectedShift: fields.expectedShift?.stringValue,
+        team: fields.team?.stringValue,
         status: (fields.status?.stringValue as FirestoreEmployeeDoc['status']) || 'expected',
         checkInTime: fields.checkInTime?.stringValue,
         checkOutTime: fields.checkOutTime?.stringValue,
@@ -74,6 +76,7 @@ export async function saveFirestoreEmployee(
   if (profile.pin) fields.pin = { stringValue: profile.pin };
   if (profile.role) fields.role = { stringValue: profile.role };
   if (profile.expectedShift) fields.expectedShift = { stringValue: profile.expectedShift };
+  if (profile.team !== undefined) fields.team = { stringValue: profile.team || '' };
   if (profile.languages && profile.languages.length > 0) {
     fields.languages = { arrayValue: { values: profile.languages.map(l => ({ stringValue: l })) } };
   }
