@@ -25,28 +25,31 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.0"
+CURRENT_VERSION = "1.1.1"
 
-def auto_update():
-    try:
-        import urllib.request
-        import subprocess
-        req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            latest_version = response.read().decode('utf-8').strip()
+def auto_update(manual=False):
+    def _update():
+        try:
+            import urllib.request
+            import subprocess
+            req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                latest_version = response.read().decode('utf-8').strip()
 
-        if latest_version > CURRENT_VERSION:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {latest_version} found (current: {CURRENT_VERSION}). Downloading...")
-            # Download versioned file (e.g. LimassolTracker_v1.0.9.exe)
-            exe_url = f"https://limassoltime.web.app/downloads/LimassolTracker_v{latest_version}.exe"
-            new_exe = "LimassolTracker_new.exe"
+            if latest_version > CURRENT_VERSION:
+                if manual:
+                    messagebox.showinfo("Update Found", f"New version {latest_version} found! Downloading and restarting...")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {latest_version} found (current: {CURRENT_VERSION}). Downloading...")
+                # Download versioned file (e.g. LimassolTracker_v1.0.9.exe)
+                exe_url = f"https://limassoltime.web.app/downloads/LimassolTracker_v{latest_version}.exe"
+                new_exe = "LimassolTracker_new.exe"
 
-            req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe, 'wb') as out_file:
-                out_file.write(response.read())
+                req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe, 'wb') as out_file:
+                    out_file.write(response.read())
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
-            bat_content = f'''@echo off
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
+                bat_content = f'''@echo off
 timeout /t 2 /nobreak >nul
 taskkill /f /im LimassolTracker.exe >nul 2>&1
 del /f LimassolTracker.exe
@@ -54,15 +57,20 @@ ren LimassolTracker_new.exe LimassolTracker.exe
 start LimassolTracker.exe
 del /f update.bat
 '''
-            with open("update.bat", "w") as f:
-                f.write(bat_content)
+                with open("update.bat", "w") as f:
+                    f.write(bat_content)
 
-            subprocess.Popen("update.bat", shell=True)
-            sys.exit(0)
-        else:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Up to date (v{CURRENT_VERSION})")
-    except Exception as e:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Update check failed: {e}")
+                subprocess.Popen("update.bat", shell=True)
+                os._exit(0)
+            else:
+                if manual:
+                    messagebox.showinfo("Up to date", f"You have the latest version (v{CURRENT_VERSION}).")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Up to date (v{CURRENT_VERSION})")
+        except Exception as e:
+            if manual:
+                messagebox.showerror("Update Error", f"Failed to check for updates:\n{e}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Update check failed: {e}")
+    threading.Thread(target=_update, daemon=True).start()
 
 def update_loop():
     while True:
@@ -220,7 +228,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.1.0")
+    win.title("Limassol Tracker Setup v1.1.1")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -398,8 +406,8 @@ def show_tray_notification(username):
         has_tray = False
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.1.0 — {username.capitalize()}")
-    win.geometry("360x160")
+    win.title(f"Limassol Tracker v1.1.1 — {username.capitalize()}")
+    win.geometry("360x170")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
 
@@ -437,12 +445,25 @@ def show_tray_notification(username):
         subprocess.Popen([sys.executable] + sys.argv[1:])
         os._exit(0)
 
+    def check_updates():
+        auto_update(manual=True)
+
+    btn_frame = tk.Frame(win, bg="#0f172a")
+    btn_frame.pack(pady=(12, 0))
+
     tk.Button(
-        win, text="🚪 Logout / Change Agent", command=logout,
+        btn_frame, text="🔄 Check for Updates", command=check_updates,
+        bg="#334155", fg="white", font=("Segoe UI", 8),
+        activebackground="#475569", activeforeground="white",
+        relief="flat", cursor="hand2", padx=8, pady=2
+    ).pack(side="left", padx=5)
+
+    tk.Button(
+        btn_frame, text="🚪 Logout / Change Agent", command=logout,
         bg="#b91c1c", fg="white", font=("Segoe UI", 8, "bold"),
         activebackground="#991b1b", activeforeground="white",
-        relief="flat", cursor="hand2", padx=10, pady=2
-    ).pack(pady=(12, 0))
+        relief="flat", cursor="hand2", padx=8, pady=2
+    ).pack(side="left", padx=5)
 
     # --- Persistent tray icon (created once, never recreated) ---
     tray_icon = [None]
@@ -474,6 +495,7 @@ def show_tray_notification(username):
                 ),
                 pystray.MenuItem("Show Tracker", lambda icon, item: show_window()),
                 pystray.Menu.SEPARATOR,
+                pystray.MenuItem("Check for Updates", lambda icon, item: check_updates()),
                 pystray.MenuItem("Logout", lambda icon, item: logout()),
                 pystray.MenuItem("Quit", lambda icon, item: quit_app()),
             )
