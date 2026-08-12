@@ -711,6 +711,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [editEmpName, setEditEmpName] = useState('');
   const [editEmpUsername, setEditEmpUsername] = useState('');
   const [editEmpPin, setEditEmpPin] = useState('');
+  const [editEmpRole, setEditEmpRole] = useState('');
+  const [editEmpLangs, setEditEmpLangs] = useState('');
+  const [editEmpShift, setEditEmpShift] = useState('');
 
   // Kiosk Live Timer & Break Menu State
   const [showBreakMenu, setShowBreakMenu] = useState<boolean>(false);
@@ -1426,18 +1429,25 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
   };
 
-  // Open Edit Credentials Modal
+  // Open Edit Credentials & Optional Info Modal
   const handleOpenEditShift = (emp: Employee) => {
     setEditingEmp(emp);
     setEditEmpName(emp.name);
     setEditEmpUsername(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''));
     setEditEmpPin(emp.pin || '1234');
+    setEditEmpRole(emp.role || '');
+    setEditEmpLangs((emp.languages || []).join(', '));
+    setEditEmpShift(emp.expectedShift || '');
   };
 
-  // Save Modified User Credentials
+  // Save Modified User Credentials & Info
   const handleSaveEditedShift = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEmp) return;
+
+    const langs = editEmpLangs
+      ? editEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean)
+      : [];
 
     const updated = employees.map(emp => {
       if (emp.id === editingEmp.id) {
@@ -1446,12 +1456,21 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           name: editEmpName.trim() || emp.name,
           username: editEmpUsername.trim().toLowerCase() || emp.username,
           pin: editEmpPin.trim() || emp.pin || '1234',
+          role: editEmpRole.trim() || 'Team Member',
+          languages: langs,
+          expectedShift: editEmpShift.trim(),
         };
       }
       return emp;
     });
 
     saveEmployees(updated);
+
+    if (activeEmployee && (activeEmployee.id === editingEmp.id || activeEmployee.username === editingEmp.username)) {
+      const selfUpdated = updated.find(e => e.id === editingEmp.id || e.username === editingEmp.username);
+      if (selfUpdated) setActiveEmployee(selfUpdated);
+    }
+
     setEditingEmp(null);
   };
 
@@ -2191,11 +2210,22 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-extrabold ${isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-800'}`}>
                     🟢 Employee Shift Kiosk
                   </div>
-                  <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight">
-                    {T.welcomeLabel} {activeEmployee.name}!
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <h2 className="text-3xl font-serif font-bold tracking-tight">
+                      {T.welcomeLabel} {activeEmployee.name}!
+                    </h2>
+                    <button
+                      onClick={() => handleOpenEditShift(activeEmployee)}
+                      className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow transition active:scale-95 flex items-center gap-1 ${
+                        isDark ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : 'border-slate-400 bg-slate-100 text-slate-900 hover:bg-slate-200'
+                      }`}
+                      title="Edit your optional profile info"
+                    >
+                      ✏️ Edit Profile
+                    </button>
+                  </div>
                   <p className="mt-1 text-xs font-semibold opacity-85">
-                    {T.roleLabel} {activeEmployee.role} | {T.targetShiftLabel} {activeEmployee.expectedShift}
+                    {T.roleLabel} {activeEmployee.role || 'Team Member'} | {T.targetShiftLabel} {activeEmployee.expectedShift || '11:00 AM'} {activeEmployee.languages && activeEmployee.languages.length > 0 && `| Languages: ${activeEmployee.languages.join(' / ')}`}
                   </p>
 
                   {/* Status Badge & Live Billable Ticking Timer */}
@@ -3779,6 +3809,59 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Full Name (Optional):</label>
+                <input
+                  type="text"
+                  value={editEmpName}
+                  onChange={(e) => setEditEmpName(e.target.value)}
+                  placeholder="e.g. Alex Miller"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Role / Position (Optional):</label>
+                <input
+                  type="text"
+                  value={editEmpRole}
+                  onChange={(e) => setEditEmpRole(e.target.value)}
+                  placeholder="e.g. Senior Advisor"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Languages (Optional, comma-separated):</label>
+                <input
+                  type="text"
+                  value={editEmpLangs}
+                  onChange={(e) => setEditEmpLangs(e.target.value)}
+                  placeholder="EN, RU, DE"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block font-extrabold mb-1">Common Shift Schedule (Optional):</label>
+                <input
+                  type="text"
+                  value={editEmpShift}
+                  onChange={(e) => setEditEmpShift(e.target.value)}
+                  placeholder="11:00 AM"
+                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
+                  }`}
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -3795,7 +3878,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
                   }`}
                 >
-                  Save Shift Times
+                  Save Info
                 </button>
               </div>
             </form>
