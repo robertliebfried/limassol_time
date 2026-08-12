@@ -2932,7 +2932,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {T.step2Text}
                     </p>
                     <a
-                      href="/downloads/LimassolTracker_v1.0.9.exe"
+                      href="/downloads/LimassolTracker_v1.1.0.exe"
                       download
                       className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >

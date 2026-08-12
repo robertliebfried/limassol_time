@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.0.9"
+CURRENT_VERSION = "1.1.0"
 
 def auto_update():
     try:
@@ -220,7 +220,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.0.9")
+    win.title("Limassol Tracker Setup v1.1.0")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -398,8 +398,8 @@ def show_tray_notification(username):
         has_tray = False
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.0.9 — {username.capitalize()}")
-    win.geometry("360x130")
+    win.title(f"Limassol Tracker v1.1.0 — {username.capitalize()}")
+    win.geometry("360x160")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
 
@@ -423,7 +423,26 @@ def show_tray_notification(username):
         bg="#0f172a", fg="#94a3b8", selectcolor="#1e293b",
         activebackground="#0f172a", activeforeground="white",
         font=("Segoe UI", 8)
-    ).pack(pady=(8, 0))
+    ).pack(pady=(4, 0))
+
+    def logout():
+        if os.path.exists(USER_FILE):
+            try:
+                os.remove(USER_FILE)
+            except:
+                pass
+        if tray_icon[0]:
+            tray_icon[0].stop()
+        import subprocess
+        subprocess.Popen([sys.executable] + sys.argv[1:])
+        os._exit(0)
+
+    tk.Button(
+        win, text="🚪 Logout / Change Agent", command=logout,
+        bg="#b91c1c", fg="white", font=("Segoe UI", 8, "bold"),
+        activebackground="#991b1b", activeforeground="white",
+        relief="flat", cursor="hand2", padx=10, pady=2
+    ).pack(pady=(12, 0))
 
     # --- Persistent tray icon (created once, never recreated) ---
     tray_icon = [None]
@@ -455,6 +474,7 @@ def show_tray_notification(username):
                 ),
                 pystray.MenuItem("Show Tracker", lambda icon, item: show_window()),
                 pystray.Menu.SEPARATOR,
+                pystray.MenuItem("Logout", lambda icon, item: logout()),
                 pystray.MenuItem("Quit", lambda icon, item: quit_app()),
             )
             icon = pystray.Icon(
