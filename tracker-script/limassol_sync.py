@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.1"
+CURRENT_VERSION = "1.1.2"
 
 def auto_update(manual=False):
     def _update():
@@ -228,7 +228,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.1.1")
+    win.title("Limassol Tracker Setup v1.1.2")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -406,7 +406,7 @@ def show_tray_notification(username):
         has_tray = False
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.1.1 — {username.capitalize()}")
+    win.title(f"Limassol Tracker v1.1.2 — {username.capitalize()}")
     win.geometry("360x170")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
