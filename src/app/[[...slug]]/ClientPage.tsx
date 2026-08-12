@@ -2495,13 +2495,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleResetAllForNewDay}
-                  className="rounded-2xl bg-slate-900 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-slate-800 transition active:scale-95 flex items-center gap-1"
-                  title="Start clean new day for all employees"
-                >
-                  <span>☀️</span> {T.newDayResetBtn}
-                </button>
+
                 <button
                   onClick={() => setShowAddEmpModal(true)}
                   className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
