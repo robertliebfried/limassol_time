@@ -1260,6 +1260,32 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setShowAddEmpModal(false);
   };
 
+  // Helper to parse time strings like "11:04 AM" or "05:27:16 pm" into "HH:mm" 24h format for input type="time"
+  const parseTo24HourTime = (timeStr?: string): string => {
+    if (!timeStr) return '';
+    const match = timeStr.match(/(\d+):(\d+)(?::\d+)?(?:\s*(AM|PM))?/i);
+    if (!match) return '';
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3] ? match[3].toUpperCase() : null;
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
+  // Helper to format 24h "HH:mm" time back to "hh:mm AM/PM" for display
+  const format24To12Hour = (time24?: string): string => {
+    if (!time24) return '';
+    const parts = time24.split(':');
+    if (parts.length < 2) return time24;
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+  };
+
   // Helper to parse time strings like "11:04 AM" or "19:15" into total minutes
   const parseTimeToMinutes = (timeStr?: string): number => {
     if (!timeStr) return 0;
@@ -1408,8 +1434,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Open Edit Times Modal (for Reports page)
   const handleOpenEditTimes = (emp: Employee) => {
     setEditingTimesEmp(emp);
-    setEditTimesCheckIn(emp.checkInTime || '');
-    setEditTimesCheckOut(emp.checkOutTime || '');
+    setEditTimesCheckIn(parseTo24HourTime(emp.checkInTime));
+    setEditTimesCheckOut(parseTo24HourTime(emp.checkOutTime));
   };
 
   // Save Modified Times
@@ -1421,24 +1447,40 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       if (emp.id === editingTimesEmp.id) {
         const updatedEmp = { ...emp };
         if (editTimesCheckIn) {
-          updatedEmp.checkInTime = editTimesCheckIn;
-          
-          const [time, modifier] = editTimesCheckIn.split(' ');
-          if (time && modifier) {
-            const [hours, minutes] = time.split(':');
-            let hrs = parseInt(hours, 10);
-            if (modifier === 'PM' && hrs < 12) hrs += 12;
-            if (modifier === 'AM' && hrs === 12) hrs = 0;
+          updatedEmp.checkInTime = format24To12Hour(editTimesCheckIn);
+          const parts = editTimesCheckIn.split(':');
+          if (parts.length >= 2) {
+            const hrs = parseInt(parts[0], 10);
+            const mins = parseInt(parts[1], 10);
             const d = new Date();
-            d.setHours(hrs, parseInt(minutes, 10), 0, 0);
+            d.setHours(hrs, mins, 0, 0);
             updatedEmp.checkInTimestamp = d.getTime();
           }
         }
         if (editTimesCheckOut) {
-          updatedEmp.checkOutTime = editTimesCheckOut;
+          updatedEmp.checkOutTime = format24To12Hour(editTimesCheckOut);
           updatedEmp.status = 'completed';
         }
         return updatedEmp;
+      }
+      return emp;
+    });
+    saveEmployees(updatedEmployees);
+    setEditingTimesEmp(null);
+  };
+
+  // Clear/Remove Times for an employee (e.g. if didn't arrive or wrong check in)
+  const handleClearEditedTimes = (empId: string) => {
+    const updatedEmployees = employees.map(emp => {
+      if (emp.id === empId || emp.username === empId) {
+        return {
+          ...emp,
+          status: 'expected' as const,
+          checkInTime: undefined,
+          checkOutTime: undefined,
+          checkInTimestamp: undefined,
+          accumulatedSeconds: 0
+        };
       }
       return emp;
     });
@@ -3738,49 +3780,57 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <h2 className="mb-4 text-xl font-black">Edit Times: {editingTimesEmp.name}</h2>
             <form onSubmit={handleSaveEditedTimes} className="space-y-4">
               <div>
-                <label className="block font-extrabold mb-1">Clock In Time:</label>
+                <label className="block font-extrabold mb-1 text-sm">Clock In Time:</label>
                 <input
-                  type="text"
+                  type="time"
                   value={editTimesCheckIn}
                   onChange={(e) => setEditTimesCheckIn(e.target.value)}
-                  placeholder="11:00 AM"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-xl border px-4 py-2.5 font-bold outline-none text-base ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block font-extrabold mb-1">Clock Out Time:</label>
+                <label className="block font-extrabold mb-1 text-sm">Clock Out Time:</label>
                 <input
-                  type="text"
+                  type="time"
                   value={editTimesCheckOut}
                   onChange={(e) => setEditTimesCheckOut(e.target.value)}
-                  placeholder="07:00 PM"
-                  className={`w-full rounded-xl border px-3 py-2 font-bold outline-none ${
+                  className={`w-full rounded-xl border px-4 py-2.5 font-bold outline-none text-base ${
                     isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-slate-100 text-black'
                   }`}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setEditingTimesEmp(null)}
-                  className={`rounded-xl border px-4 py-2 font-bold transition ${
-                    isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
-                  }`}
+                  onClick={() => handleClearEditedTimes(editingTimesEmp.id)}
+                  className="rounded-xl border border-rose-500/50 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 px-3 py-2 text-xs font-extrabold transition"
+                  title="Remove in/out times for today & set status back to expected"
                 >
-                  Cancel
+                  🗑️ Clear Times
                 </button>
-                <button
-                  type="submit"
-                  className={`rounded-xl px-4 py-2 font-extrabold transition ${
-                    isDark ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
-                >
-                  Save Times
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTimesEmp(null)}
+                    className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                      isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-200 text-black hover:bg-slate-300'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`rounded-xl px-4 py-2 text-xs font-extrabold transition ${
+                      isDark ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    }`}
+                  >
+                    Save Times
+                  </button>
+                </div>
               </div>
             </form>
           </div>
