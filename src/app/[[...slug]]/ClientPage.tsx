@@ -705,9 +705,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   });
   const [reportEndDate, setReportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
-  const [reportEmailRecipient, setReportEmailRecipient] = useState<string>('robertliebfried1987@gmail.com');
-  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
-  const [emailSentStatus, setEmailSentStatus] = useState<string | null>(null);
+
 
   // Search & Filter for 30+ Employees
   const [empSearchQuery, setEmpSearchQuery] = useState('');
@@ -1700,49 +1698,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     const username = restored.username || restored.name.toLowerCase().replace(/\s+/g, '');
     saveFirestoreEmployee(username, restored);
     saveEmployees([...employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key), restored]);
-  };
-
-  // Send Email Report Action
-  const handleSendReportEmailNow = () => {
-    if (!reportEmailRecipient.trim()) {
-      alert('Please enter a recipient email address.');
-      return;
-    }
-    setIsSendingEmail(true);
-
-    const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const workingCount = employees.filter(e => e.status === 'checked_in').length;
-    const completedCount = employees.filter(e => e.status === 'completed').length;
-    const expectedCount = employees.filter(e => e.status === 'expected').length;
-
-    let body = `Limassol Time Tracker - Daily Summary (${todayStr})\n`;
-    body += `--------------------------------------------------\n`;
-    body += `Total Staff: ${employees.length}\n`;
-    body += `Working Now: ${workingCount}\n`;
-    body += `Completed Shift: ${completedCount}\n`;
-    body += `Expected / Absent: ${expectedCount}\n\n`;
-
-    body += `EMPLOYEE DETAILS:\n`;
-    employees.forEach(emp => {
-      const inT = formatNiceDisplayTime(emp.checkInTime);
-      const outT = formatNiceDisplayTime(emp.checkOutTime);
-      body += `- ${emp.name} (${emp.role}): In: ${inT} | Out: ${outT} | Status: ${emp.status}\n`;
-    });
-
-    body += `\n--------------------------------------------------\n`;
-    body += `Generated from Limassol Time App (limassoltime.web.app)`;
-
-    const subject = encodeURIComponent(`Limassol Time Report - ${todayStr}`);
-    const encodedBody = encodeURIComponent(body);
-    
-    window.location.href = `mailto:${reportEmailRecipient.trim()}?subject=${subject}&body=${encodedBody}`;
-
-    setEmailSentStatus(`✅ Opened in mail client for ${reportEmailRecipient.trim()}!`);
-    setIsSendingEmail(false);
-
-    setTimeout(() => {
-      setEmailSentStatus(null);
-    }, 5000);
   };
 
   // CSV Export
@@ -3268,39 +3223,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
           </div>
 
-          {/* Scheduled Email Target Notification & Manual Dispatch */}
-          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-semibold text-emerald-300 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-              <span className="text-base flex-shrink-0">📧</span>
-              <span className="flex-shrink-0 font-bold">{T.automatedReports}</span>
-              <input
-                type="email"
-                value={reportEmailRecipient}
-                onChange={(e) => setReportEmailRecipient(e.target.value)}
-                placeholder="recipient@domain.com"
-                className="rounded-lg border border-emerald-500/40 bg-black/60 px-3 py-1.5 text-xs font-bold text-white outline-none focus:border-emerald-400 min-w-[220px]"
-              />
-              <button
-                type="button"
-                onClick={handleSendReportEmailNow}
-                disabled={isSendingEmail}
-                className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 text-xs font-extrabold shadow transition active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <span>🚀</span> {isSendingEmail ? 'Sending...' : 'Send Report Now'}
-              </button>
-              {emailSentStatus && (
-                <span className="text-xs font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2 py-1 rounded animate-pulse">{emailSentStatus}</span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-[0.7rem] font-bold">
-              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">⏰ Daily 1:00 PM</span>
-              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">📅 Friday 12:00 PM</span>
-              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 border border-emerald-500/30">🏆 Monthly 1st (10:00 AM)</span>
-            </div>
-          </div>
-
           
+
           {/* ── Rich Date Navigation Bar ── */}
           {(() => {
             const todayStr = new Date().toISOString().split('T')[0];
