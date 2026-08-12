@@ -619,7 +619,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
-  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports' | 'setup'>(initialTab);
 
   // Clockify Backup Integration State
   const [clockifyApiKey, setClockifyApiKey] = useState<string>('');
@@ -2050,6 +2050,16 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 >
                   <span>📊</span> Reports & Payroll
                 </button>
+                <button
+                  onClick={() => setActiveTab('setup')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                    activeTab === 'setup'
+                      ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
+                  }`}
+                >
+                  <span>💻</span> PC Setup
+                </button>
               </div>
             </div>
           </div>
@@ -3074,6 +3084,92 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         )}
 
         {/* Page Tab 3: Reports & Payroll Page */}
+        {/* ===================== PC SETUP TAB ===================== */}
+        {activeTab === 'setup' && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className={`rounded-3xl p-8 shadow-2xl border-2 ${ isDark ? 'bg-[#0f172a] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <h2 className="text-2xl font-black mb-2">💻 Установка на рабочий ПК</h2>
+              <p className={`text-sm mb-8 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Всего 3 шага — и трекинг времени заработает автоматически
+              </p>
+
+              {/* Step 1 */}
+              <div className={`rounded-2xl p-6 mb-4 border ${ isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl">1️⃣</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1">Установите ActivityWatch</h3>
+                    <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Эта программа отслеживает, когда вы за компьютером. Скачайте и установите (просто нажимайте «Далее»).
+                    </p>
+                    <a
+                      href="https://github.com/ActivityWatch/activitywatch/releases/download/v0.12.2/activitywatch-v0.12.2-windows-x86_64-setup.exe"
+                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition"
+                    >
+                      ⬇️ Скачать ActivityWatch
+                    </a>
+                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      После установки должна появиться иконка ⏱ возле часов (в трее)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className={`rounded-2xl p-6 mb-4 border ${ isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl">2️⃣</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1">Скачайте Limassol Tracker</h3>
+                    <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Небольшая программа, которая связывает ActivityWatch с системой учёта часов.
+                    </p>
+                    <a
+                      href="/downloads/LimassolTracker.exe"
+                      download
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition"
+                    >
+                      ⬇️ Скачать LimassolTracker.exe
+                    </a>
+                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Положите файл в любую удобную папку на рабочем столе
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className={`rounded-2xl p-6 border ${ isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl">3️⃣</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1">Запустите и выберите своё имя</h3>
+                    <p className={`text-sm mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Запустите <strong>LimassolTracker.exe</strong> — появится окошко с выпадающим списком. Выберите своё имя и нажмите «Сохранить и Запустить».
+                    </p>
+                    <div className={`rounded-xl p-3 text-sm font-mono mt-3 ${ isDark ? 'bg-black/40 text-green-400' : 'bg-slate-100 text-green-700'}`}>
+                      ✅ Готово! Таймер будет запускаться сам, когда вы работаете
+                    </div>
+                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      💡 Добавьте LimassolTracker.exe в автозагрузку: Win+R → «shell:startup» → скопируйте файл туда
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Autostart tip */}
+              <div className={`rounded-2xl p-4 mt-4 border ${ isDark ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'}`}>
+                <p className={`text-sm font-semibold ${ isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                  💡 Совет: Чтобы программа запускалась автоматически при включении компьютера:
+                </p>
+                <p className={`text-xs mt-1 ${ isDark ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
+                  Нажмите <strong>Win + R</strong>, введите <strong>shell:startup</strong> и нажмите Enter. Скопируйте файл LimassolTracker.exe в открывшуюся папку.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'reports' && (
           <div className="space-y-6">
             {/* Reports & Payroll Center */}
