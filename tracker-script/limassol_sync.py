@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.0.8"
+CURRENT_VERSION = "1.0.9"
 
 def auto_update():
     try:
@@ -220,7 +220,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.0.8")
+    win.title("Limassol Tracker Setup v1.0.9")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -387,71 +387,89 @@ def add_to_startup():
         pass
 
 def show_tray_notification(username):
+    # -------------------------------------------------------------------
+    # Windows 11 optimized tray — persistent icon, double-click to show
+    # -------------------------------------------------------------------
     try:
         import pystray
         from PIL import Image, ImageDraw
+        has_tray = True
     except ImportError:
-        pystray = None
+        has_tray = False
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.0.8 — {username.capitalize()}")
-    win.geometry("340x120")
+    win.title(f"Limassol Tracker v1.0.9 — {username.capitalize()}")
+    win.geometry("360x130")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
 
-    label = tk.Label(
-        win, text=f"✅ LimassolTime Sync Active\n👤 Agent: {username.capitalize()}",
-        font=("Arial", 10, "bold"), bg="#0f172a", fg="#4ade80"
-    )
-    label.pack(pady=10)
+    tk.Label(
+        win, text=f"Sync Active  |  Agent: {username.capitalize()}",
+        font=("Segoe UI", 10, "bold"), bg="#0f172a", fg="#4ade80"
+    ).pack(pady=(14, 2))
+
+    tk.Label(
+        win, text=f"v{CURRENT_VERSION}  •  ActivityWatch connected",
+        font=("Segoe UI", 8), bg="#0f172a", fg="#475569"
+    ).pack()
 
     topmost_var = tk.BooleanVar(value=False)
     def toggle_topmost():
         win.attributes("-topmost", topmost_var.get())
 
-    chk = tk.Checkbutton(
-        win, text="Keep this window always on top",
+    tk.Checkbutton(
+        win, text="Always on top",
         variable=topmost_var, command=toggle_topmost,
-        bg="#0f172a", fg="#94a3b8", selectcolor="#0f172a", activebackground="#0f172a", activeforeground="white"
-    )
-    chk.pack()
+        bg="#0f172a", fg="#94a3b8", selectcolor="#1e293b",
+        activebackground="#0f172a", activeforeground="white",
+        font=("Segoe UI", 8)
+    ).pack(pady=(8, 0))
 
-    def create_image():
-        if pystray:
-            image = Image.new('RGB', (64, 64), color=(27, 153, 139))
-            dc = ImageDraw.Draw(image)
-            dc.rectangle((16, 16, 48, 48), fill=(255, 255, 255))
-            return image
-        return None
+    # --- Persistent tray icon (created once, never recreated) ---
+    tray_icon = [None]
 
-    def hide_window():
+    def create_tray_image():
+        img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+        dc = ImageDraw.Draw(img)
+        dc.ellipse((2, 2, 62, 62), fill=(27, 153, 139))   # teal circle
+        dc.rectangle((20, 16, 28, 48), fill=(255, 255, 255))  # L vertical
+        dc.rectangle((20, 40, 44, 48), fill=(255, 255, 255))  # L horizontal
+        return img
+
+    def show_window():
+        win.after(0, lambda: (win.deiconify(), win.lift(), win.focus_force()))
+
+    def quit_app():
+        if tray_icon[0]:
+            tray_icon[0].stop()
+        win.after(0, lambda: os._exit(0))
+
+    def hide_to_tray():
         win.withdraw()
-        if pystray:
-            def on_show(icon, item):
-                icon.stop()
-                win.after(0, win.deiconify)
-                
-            def on_quit(icon, item):
-                icon.stop()
-                win.destroy()
-                os._exit(0)
-
+        if has_tray and tray_icon[0] is None:
             menu = pystray.Menu(
-                pystray.MenuItem(f'Agent: {username.capitalize()}', lambda: None),
-                pystray.MenuItem('Show Tracker', on_show),
-                pystray.MenuItem('Quit', on_quit)
+                pystray.MenuItem(
+                    f"Agent: {username.capitalize()}",
+                    lambda icon, item: None,
+                    enabled=False
+                ),
+                pystray.MenuItem("Show Tracker", lambda icon, item: show_window()),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("Quit", lambda icon, item: quit_app()),
             )
-            icon = pystray.Icon("LimassolTracker", create_image(), "Limassol Tracker Active", menu)
+            icon = pystray.Icon(
+                "LimassolTracker",
+                create_tray_image(),
+                f"Limassol Tracker  v{CURRENT_VERSION}",
+                menu
+            )
+            icon.default_action = lambda icon, item: show_window()
+            tray_icon[0] = icon
             threading.Thread(target=icon.run, daemon=True).start()
-        else:
-            # Fallback if pystray is not installed: just minimize instead of closing completely
-            pass
 
-    win.protocol("WM_DELETE_WINDOW", hide_window)
-    
-    # Always hide window by default if we are running sync, so it starts in tray
-    win.after(0, hide_window)
-        
+    win.protocol("WM_DELETE_WINDOW", hide_to_tray)
+    # Start in tray immediately on launch
+    win.after(100, hide_to_tray)
     win.mainloop()
 
 # -------------------------------------------------------------------
