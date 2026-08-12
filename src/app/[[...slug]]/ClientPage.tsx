@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchFirestoreEmployees, updateFirestoreEmployee } from '@/lib/firebase';
+import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee } from '@/lib/firebase';
 
 
 const TRANSLATIONS = {
@@ -465,6 +465,7 @@ interface Employee {
   checkOutTime?: string;
   checkInTimestamp?: number;
   accumulatedSeconds?: number;
+  sortOrder?: number;
 }
 
 interface TimeLog {
@@ -852,46 +853,78 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     return () => clearInterval(interval);
   }, []);
 
-  // 3. Load from localStorage
+  // 3. Load employees from Firestore (source of truth), fallback to localStorage
   useEffect(() => {
-    let parsedEmployees: Employee[] = INITIAL_EMPLOYEES;
-    const savedEmployees = localStorage.getItem('team_employees_v5');
-    if (savedEmployees) {
-      try { 
-        parsedEmployees = JSON.parse(savedEmployees);
-        setEmployees(parsedEmployees); 
-      } catch {}
-    }
+    const loadEmployees = async () => {
+      try {
+        const fsData = await fetchFirestoreEmployees();
+        if (fsData && Object.keys(fsData).length > 0) {
+          const fsEmps: Employee[] = Object.values(fsData).map((doc, idx) => ({
+            id: `emp-fs-${doc.username}`,
+            name: doc.name || doc.username,
+            username: doc.username,
+            pin: doc.pin || '1234',
+            role: doc.role || 'Team Member',
+            languages: doc.languages || [],
+            expectedShift: doc.expectedShift || '',
+            status: doc.status || 'expected',
+            checkInTime: doc.checkInTime,
+            checkOutTime: doc.checkOutTime,
+            sortOrder: doc.sortOrder ?? idx,
+          }));
+          // Sort by sortOrder
+          fsEmps.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+          setEmployees(fsEmps);
+          localStorage.setItem('team_employees_v5', JSON.stringify(fsEmps));
 
-    const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
-    const savedRole = sessionStorage.getItem('team_tracker_role') as AuthRole;
-    const savedEmpId = sessionStorage.getItem('team_tracker_emp_id');
-    
-    if (savedPinAuth === 'true') {
-      setIsAuthenticated(true);
-      if (savedRole === 'admin') {
-        setAuthRole('admin');
-      } else if (savedRole === 'user' && savedEmpId) {
-        setAuthRole('user');
-        const emp = parsedEmployees.find((e: Employee) => e.id === savedEmpId);
-        if (emp) setActiveEmployee(emp);
+          // Restore session
+          const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
+          const savedRole = sessionStorage.getItem('team_tracker_role') as AuthRole;
+          const savedEmpId = sessionStorage.getItem('team_tracker_emp_id');
+          if (savedPinAuth === 'true') {
+            setIsAuthenticated(true);
+            if (savedRole === 'admin') {
+              setAuthRole('admin');
+            } else if (savedRole === 'user' && savedEmpId) {
+              setAuthRole('user');
+              const emp = fsEmps.find((e: Employee) => e.id === savedEmpId || e.username === savedEmpId);
+              if (emp) setActiveEmployee(emp);
+            }
+          }
+          return;
+        }
+      } catch {}
+
+      // Fallback to localStorage if Firestore unavailable
+      const savedEmployees = localStorage.getItem('team_employees_v5');
+      let parsedEmployees: Employee[] = INITIAL_EMPLOYEES;
+      if (savedEmployees) {
+        try { parsedEmployees = JSON.parse(savedEmployees); setEmployees(parsedEmployees); } catch {}
       }
-    }
+      const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
+      const savedRole = sessionStorage.getItem('team_tracker_role') as AuthRole;
+      const savedEmpId = sessionStorage.getItem('team_tracker_emp_id');
+      if (savedPinAuth === 'true') {
+        setIsAuthenticated(true);
+        if (savedRole === 'admin') { setAuthRole('admin'); }
+        else if (savedRole === 'user' && savedEmpId) {
+          setAuthRole('user');
+          const emp = parsedEmployees.find((e: Employee) => e.id === savedEmpId);
+          if (emp) setActiveEmployee(emp);
+        }
+      }
+    };
+
+    loadEmployees();
 
     const savedTheme = localStorage.getItem('team_theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      setTheme(savedTheme);
-    }
+    if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
 
     const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
-    if (savedDeleted) {
-      try { setDeletedEmployees(JSON.parse(savedDeleted)); } catch {}
-    }
+    if (savedDeleted) { try { setDeletedEmployees(JSON.parse(savedDeleted)); } catch {} }
 
     const savedLogs = localStorage.getItem('team_logs_v5');
-    if (savedLogs) {
-      try { setLogs(JSON.parse(savedLogs)); } catch {}
-    }
+    if (savedLogs) { try { setLogs(JSON.parse(savedLogs)); } catch {} }
   }, []);
 
   // Firestore REST API Real-Time Sync (poll every 4 seconds)
@@ -960,12 +993,21 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const saveEmployees = (updated: Employee[]) => {
     setEmployees(updated);
     localStorage.setItem('team_employees_v5', JSON.stringify(updated));
-    try {
-      updated.forEach((emp) => {
-        const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
-        updateFirestoreEmployee(username, emp.status, emp.checkInTime, emp.checkOutTime);
+    // Sync ALL employee data to Firestore (single source of truth)
+    updated.forEach((emp, idx) => {
+      const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
+      saveFirestoreEmployee(username, {
+        name: emp.name,
+        pin: emp.pin,
+        role: emp.role,
+        languages: emp.languages,
+        expectedShift: emp.expectedShift,
+        status: emp.status,
+        checkInTime: emp.checkInTime,
+        checkOutTime: emp.checkOutTime,
+        sortOrder: idx,
       });
-    } catch {}
+    });
   };
 
   const saveLogs = (updated: TimeLog[]) => {
@@ -1164,14 +1206,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Add Employee Submit
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmpName.trim()) return;
+    if (!newEmpUsername.trim()) return;
 
+    const uname = newEmpUsername.trim().toLowerCase().replace(/\s+/g, '');
     const newEmp: Employee = {
       id: `emp-${Date.now()}`,
-      name: newEmpName.trim(),
-      username: newEmpUsername.trim().toLowerCase() || newEmpName.trim().toLowerCase().replace(/\s+/g, ''),
+      name: newEmpName.trim() || newEmpUsername.trim(),
+      username: uname,
       pin: newEmpPin.trim() || '1234',
-      languages: newEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean),
+      languages: newEmpLangs ? newEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean) : [],
       role: newEmpRole.trim() || 'Team Member',
       expectedShift: newEmpShift,
       status: 'expected',
@@ -1182,6 +1225,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     setNewEmpUsername('');
     setNewEmpPin('1234');
     setNewEmpRole('');
+    setNewEmpLangs('');
+    setNewEmpShift('');
     setShowAddEmpModal(false);
   };
 
@@ -1436,6 +1481,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       const newDeleted = [emp, ...deletedEmployees];
       setDeletedEmployees(newDeleted);
       localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
+      const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
+      deleteFirestoreEmployee(username);
       saveEmployees(employees.filter(e => e.id !== empId));
     }
   };
@@ -3579,38 +3626,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           <div className={`w-full max-w-md rounded-2xl border-2 p-6 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-400 bg-white text-black'}`}>
             <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.addEmpTitle}</h3>
             <form onSubmit={handleCreateEmployee} className="mt-4 space-y-4 text-xs">
+
+              {/* === REQUIRED FIELDS === */}
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empNameLabel}</label>
+                <label className={`block font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>
+                  Username <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
-                  value={newEmpName}
-                  onChange={(e) => setNewEmpName(e.target.value)}
-                  placeholder="e.g. Alex Miller"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empRoleLabel}</label>
-                <input
-                  type="text"
-                  value={newEmpRole}
-                  onChange={(e) => setNewEmpRole(e.target.value)}
-                  placeholder="e.g. Senior Advisor"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Username (for Login):</label>
-                <input
-                  type="text"
                   value={newEmpUsername}
                   onChange={(e) => setNewEmpUsername(e.target.value)}
-                  placeholder="e.g. maximilian, jameswhite..."
+                  placeholder="e.g. philippe, maximilian..."
                   className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
@@ -3618,43 +3645,78 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </div>
 
               <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Employee PIN (4 or 6 digits):</label>
+                <label className={`block font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>
+                  PIN (4–6 digits) <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   maxLength={8}
                   value={newEmpPin}
                   onChange={(e) => setNewEmpPin(e.target.value)}
-                  placeholder="e.g. 1234 or 9761"
+                  placeholder="e.g. 1234"
                   className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold font-mono outline-none ${
                     isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
                   }`}
                 />
               </div>
 
-              <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empLangLabel}</label>
-                <input
-                  type="text"
-                  value={newEmpLangs}
-                  onChange={(e) => setNewEmpLangs(e.target.value)}
-                  placeholder="EN, DE, FR"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empShiftLabel}</label>
-                <input
-                  type="text"
-                  value={newEmpShift}
-                  onChange={(e) => setNewEmpShift(e.target.value)}
-                  placeholder="11:00 AM"
-                  className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
-                  }`}
-                />
-              </div>
+              {/* === OPTIONAL FIELDS === */}
+              <details className={`rounded-xl border p-3 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                <summary className={`cursor-pointer text-[0.7rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Optional fields (Full name, Role, Languages, Shift)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empNameLabel}</label>
+                    <input
+                      type="text"
+                      value={newEmpName}
+                      onChange={(e) => setNewEmpName(e.target.value)}
+                      placeholder="e.g. Alex Miller"
+                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empRoleLabel}</label>
+                    <input
+                      type="text"
+                      value={newEmpRole}
+                      onChange={(e) => setNewEmpRole(e.target.value)}
+                      placeholder="e.g. Senior Advisor"
+                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empLangLabel}</label>
+                    <input
+                      type="text"
+                      value={newEmpLangs}
+                      onChange={(e) => setNewEmpLangs(e.target.value)}
+                      placeholder="EN, DE, FR"
+                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>{T.empShiftLabel}</label>
+                    <input
+                      type="text"
+                      value={newEmpShift}
+                      onChange={(e) => setNewEmpShift(e.target.value)}
+                      placeholder="11:00 AM"
+                      className={`mt-1 w-full rounded-xl border px-3 py-2.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white focus:border-white' : 'border-slate-400 bg-slate-100 text-black focus:border-black'
+                      }`}
+                    />
+                  </div>
+                </div>
+              </details>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button

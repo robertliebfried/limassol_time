@@ -4,9 +4,14 @@ const FIREBASE_PROJECT = "karfigestsa";
 export interface FirestoreEmployeeDoc {
   username: string;
   name?: string;
+  pin?: string;
+  role?: string;
+  languages?: string[];
+  expectedShift?: string;
   status: 'expected' | 'checked_in' | 'on_break' | 'completed' | 'absent';
   checkInTime?: string;
   checkOutTime?: string;
+  sortOrder?: number;
 }
 
 // Fetch all employees from Firestore REST API (0 dependencies)
@@ -24,18 +29,61 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
     for (const doc of data.documents) {
       const fields = doc.fields || {};
       const username = fields.username?.stringValue || doc.name.split('/').pop() || '';
+      const langs = fields.languages?.arrayValue?.values?.map((v: { stringValue?: string }) => v.stringValue || '') || [];
       result[username.toLowerCase()] = {
         username: username.toLowerCase(),
         name: fields.name?.stringValue,
+        pin: fields.pin?.stringValue,
+        role: fields.role?.stringValue,
+        languages: langs,
+        expectedShift: fields.expectedShift?.stringValue,
         status: (fields.status?.stringValue as FirestoreEmployeeDoc['status']) || 'expected',
         checkInTime: fields.checkInTime?.stringValue,
         checkOutTime: fields.checkOutTime?.stringValue,
+        sortOrder: fields.sortOrder?.integerValue ? parseInt(fields.sortOrder.integerValue) : undefined,
       };
     }
     return result;
   } catch (e) {
     console.error('Firestore REST fetch error:', e);
     return {};
+  }
+}
+
+type FieldValue = { stringValue?: string; timestampValue?: string; integerValue?: string; arrayValue?: { values: { stringValue: string }[] } };
+
+// Save full employee profile to Firestore (used when adding/editing employees)
+export async function saveFirestoreEmployee(
+  username: string,
+  profile: Partial<FirestoreEmployeeDoc>
+) {
+  const docId = username.toLowerCase().trim().replace(/\s+/g, '');
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
+
+  const fields: Record<string, FieldValue> = {
+    username: { stringValue: docId },
+    status: { stringValue: profile.status || 'expected' },
+    lastUpdated: { timestampValue: new Date().toISOString() },
+  };
+  if (profile.name) fields.name = { stringValue: profile.name };
+  if (profile.pin) fields.pin = { stringValue: profile.pin };
+  if (profile.role) fields.role = { stringValue: profile.role };
+  if (profile.expectedShift) fields.expectedShift = { stringValue: profile.expectedShift };
+  if (profile.languages && profile.languages.length > 0) {
+    fields.languages = { arrayValue: { values: profile.languages.map(l => ({ stringValue: l })) } };
+  }
+  if (profile.checkInTime) fields.checkInTime = { stringValue: profile.checkInTime };
+  if (profile.checkOutTime) fields.checkOutTime = { stringValue: profile.checkOutTime };
+  if (profile.sortOrder !== undefined) fields.sortOrder = { integerValue: String(profile.sortOrder) };
+
+  try {
+    await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+  } catch (e) {
+    console.error('Firestore REST save error:', e);
   }
 }
 
@@ -49,7 +97,7 @@ export async function updateFirestoreEmployee(
   const docId = username.toLowerCase().trim().replace(/\s+/g, '');
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
 
-  const fields: Record<string, { stringValue?: string; timestampValue?: string }> = {
+  const fields: Record<string, FieldValue> = {
     username: { stringValue: docId },
     status: { stringValue: status },
     lastUpdated: { timestampValue: new Date().toISOString() },
@@ -65,5 +113,16 @@ export async function updateFirestoreEmployee(
     });
   } catch (e) {
     console.error('Firestore REST update error:', e);
+  }
+}
+
+// Delete employee document from Firestore
+export async function deleteFirestoreEmployee(username: string) {
+  const docId = username.toLowerCase().trim().replace(/\s+/g, '');
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
+  try {
+    await fetch(url, { method: 'DELETE' });
+  } catch (e) {
+    console.error('Firestore REST delete error:', e);
   }
 }
