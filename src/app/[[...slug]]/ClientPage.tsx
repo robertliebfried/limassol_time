@@ -2523,224 +2523,158 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           </div>
         )}
 
-        {/* Admin / Manager Full Tabs View */}
+        {/* Admin / Manager Combined Command Center */}
         {authRole === 'admin' && activeTab === 'timeTracker' && (
-          <div className="space-y-8">
-
-        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                {T.shiftArrivalTracker} ({employees.length} {lang === 'ru' ? 'сотрудников' : 'Staff'})
-              </h2>
-              <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                {T.flexibleShiftsNote}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-
-              <button
-                onClick={handleResetAllForNewDay}
-                className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500 transition active:scale-95"
-                title="Start clean new day for all employees"
-              >
-                {T.newDayResetBtn}
-              </button>
-              <button
-                onClick={() => setShowAddEmpModal(true)}
-                className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
-                  isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
-                }`}
-              >
-                {T.addEmployeeBtn}
-              </button>
-            </div>
-          </div>
-
-          {/* VIEW MODE 2: Cards Grid View */}
-          
-
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredEmployees.length === 0 ? (
-              <div className="col-span-full py-8 text-center text-xs font-bold opacity-75">
-                {T.noEmpMatchFilter}
-              </div>
-            ) : (
-              filteredEmployees.map(emp => {
-                const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
-                return (
-              <div key={emp.id} className={`flex flex-col justify-between rounded-xl border-2 p-4 shadow-md transition ${isDark ? 'border-white/30 bg-black/40 text-white' : 'border-slate-300 bg-slate-50 text-black'}`}>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-black'}`}>
-                      {emp.name}
-                      {isLiveFromClockify && (
-                        <span className="ml-2 animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
-                          ⏱️ CLOCKIFY
-                        </span>
-                      )}
-                    </span>
-                    <span className={`rounded px-2 py-0.5 text-xs font-extrabold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
-                      {emp.languages.join('/')}
-                    </span>
-                  </div>
-                  <div className={`mt-1 text-xs font-bold truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{emp.role}</div>
-
-                  {/* Arrival / Departure Details */}
-                  <div className="mt-3 rounded-lg border p-2.5 text-xs font-bold space-y-1 bg-black/20 border-white/10">
-
-
-                    {status === 'expected' && (
-                      <div className="text-amber-400 font-extrabold flex items-center gap-1 text-[0.75rem]">
-                        <span>{T.notArrivedYet}</span>
-                      </div>
-                    )}
-
-                    {status === 'checked_in' && (
-                      <div className="text-emerald-400 font-extrabold flex items-center justify-between text-[0.75rem]">
-                        <span>{T.arrivedAtLabel}</span>
-                        <div className="flex items-center gap-2">
-                          {activeHrsDisplay && (
-                            <span className="font-mono text-emerald-300">{activeHrsDisplay}</span>
-                          )}
-                          <span className="font-mono bg-emerald-950 px-1.5 py-0.5 rounded text-white">{checkIn || cyprusTime || 'Now'}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {status === 'completed' && (
-                      <div className="space-y-1">
-                        <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
-                          <span>🟢 Arrived:</span>
-                          <span className="font-mono">{checkIn || '-'}</span>
-                        </div>
-                        <div className="text-blue-400 font-extrabold flex justify-between text-[0.7rem]">
-                          <span>🔴 Left:</span>
-                          <span className="font-mono">{checkOut || '-'}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {status === 'absent' && (
-                      <div className="text-red-400 font-extrabold text-[0.75rem]">
-                        <span>❌ Status: Absent / Off</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quick Action Buttons */}
-                <div className="mt-4 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                  {status !== 'checked_in' && (
-                    <button 
-                      onClick={() => handleStatusChange(emp.id, 'checked_in')} 
-                      className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-emerald-500 active:scale-95 flex items-center justify-center gap-1"
-                    >
-                      In
-                    </button>
-                  )}
-                  {status === 'checked_in' && (
-                    <button 
-                      onClick={() => handleStatusChange(emp.id, 'completed')} 
-                      className="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow transition hover:bg-blue-500 active:scale-95 flex items-center justify-center gap-1"
-                    >
-                      Out
-                    </button>
-                  )}
-                </div>
-              </div>
-                );
-              })
-          )}
-          </div>
-        </div>
-          {/* REAL-TIME DASHBOARD WIDGETS */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
             
-            {/* Live Status Breakdown */}
-            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-extrabold text-lg flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  Live Team Status
-                </h3>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
+            {/* Top Toolbar Actions */}
+            <div className={`rounded-2xl border-2 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <div>
+                  <h2 className="font-serif text-lg font-bold flex items-center gap-2">
+                    Live Team Status
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                      ⚡ Live Sync (LimassolTracker & Firestore)
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400">ActivityWatch tracking active across {employees.length} agents</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleResetAllForNewDay}
+                  className="rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500 transition active:scale-95 flex items-center gap-1"
+                  title="Start clean new day for all employees"
+                >
+                  <span>☀️</span> {T.newDayResetBtn}
+                </button>
+                <button
+                  onClick={() => setShowAddEmpModal(true)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
+                    isDark ? 'border-white bg-white text-slate-900 hover:bg-slate-100' : 'border-[#133137] bg-[#133137] text-white hover:bg-[#1a444c]'
+                  }`}
+                >
+                  {T.addEmployeeBtn}
+                </button>
+              </div>
+            </div>
+
+            {/* REAL-TIME DASHBOARD WIDGETS */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Live Status Breakdown Grid */}
+              <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2">
+                    <span>🟢 Live Agents Roster</span>
+                    <span className="text-xs text-slate-400 font-normal">({filteredEmployees.length} shown)</span>
+                  </h3>
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">
+                      🟢 {employees.filter(e => e.status === 'checked_in').length} Working
+                    </span>
+                    <span className="text-slate-400 font-bold bg-slate-800/40 border border-slate-700/20 px-2 py-0.5 rounded">
+                      ⚫ {employees.filter(e => e.status !== 'checked_in').length} Off
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                  {filteredEmployees.length === 0 ? (
+                    <div className="col-span-full py-8 text-center text-xs font-bold opacity-75">
+                      {T.noEmpMatchFilter}
+                    </div>
+                  ) : (
+                    filteredEmployees.map(emp => {
+                      const { status, checkIn, activeHrsDisplay } = getMergedEmployeeState(emp);
+                      const isOnline = status === 'checked_in';
+                      return (
+                        <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          isOnline 
+                            ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
+                            : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
+                        }`}>
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs flex-shrink-0 ${
+                              isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
+                            }`}>
+                              {emp.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-extrabold text-sm flex items-center gap-1.5 truncate">
+                                <span className="truncate">{emp.name}</span>
+                                <span className="text-[0.65rem] font-bold opacity-60 flex-shrink-0">({emp.role})</span>
+                              </div>
+                              <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                {isOnline ? `🟢 ONLINE (${checkIn || '11:00 AM'}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Manual Override Action Button */}
+                          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                            {isOnline ? (
+                              <button
+                                onClick={() => handleStatusChange(emp.id, 'completed')}
+                                className="rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                title="Manual override: Stop billing time (e.g. empty chair / YouTube open)"
+                              >
+                                <span>🔴</span> Out
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleStatusChange(emp.id, 'checked_in')}
+                                className="rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white px-2.5 py-1 text-[0.7rem] font-extrabold shadow transition active:scale-95 flex items-center gap-1"
+                                title="Manual override: Start billing time"
+                              >
+                                <span>🟢</span> In
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Top Metrics & Activity Feed */}
+              <div className="space-y-6">
+                <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
+                  <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
+                  <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
+                  <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
+                </div>
+
+                <div className={`rounded-2xl border-2 p-5 shadow-lg h-[320px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+                  <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                    {Object.values(liveStatuses).length === 0 ? (
+                      <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
+                    ) : (
+                      Object.values(liveStatuses).map((status, i) => (
+                        <div key={i} className="flex gap-3 items-start">
+                          <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                          <div>
+                            <div className="text-xs font-bold">
+                              {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                            </div>
+                            <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
+                            <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {employees.map(emp => {
-                  const isOnline = emp.status === 'checked_in';
-                  return (
-                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isOnline 
-                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
-                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
-                    }`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
-                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
-                        }`}>
-                          {emp.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-sm flex items-center gap-1.5">
-                            {emp.name}
-                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
-                          </div>
-                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {isOnline && (
-                        <div className="text-right">
-                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                            WORKING
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
-
-            {/* Top Metrics & Activity Feed */}
-            <div className="space-y-6">
-              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
-                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
-                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
-                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
-              </div>
-
-              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                  {Object.values(liveStatuses).length === 0 ? (
-                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
-                  ) : (
-                    Object.values(liveStatuses).map((status, i) => (
-                      <div key={i} className="flex gap-3 items-start">
-                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                        <div>
-                          <div className="text-xs font-bold">
-                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
-                          </div>
-                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
-                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-            
-          </div>
 
           </div>
         )}

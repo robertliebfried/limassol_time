@@ -20,6 +20,51 @@ CHECK_INTERVAL = 30  # seconds
 USER_FILE = "selected_user.json"
 
 # -------------------------------------------------------------------
+# AUTO-UPDATE MECHANISM
+# -------------------------------------------------------------------
+def auto_update():
+    try:
+        import urllib.request
+        import subprocess
+        req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            version = response.read().decode('utf-8').strip()
+            
+        current_version = "1.0.0"
+        if version > current_version:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {version} found! Downloading...")
+            exe_url = "https://limassoltime.web.app/downloads/LimassolTracker.exe"
+            new_exe = "LimassolTracker_new.exe"
+            
+            req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req_exe, timeout=30) as response, open(new_exe, 'wb') as out_file:
+                out_file.write(response.read())
+                
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting...")
+            bat_content = '''@echo off
+timeout /t 2 /nobreak >nul
+taskkill /f /im LimassolTracker.exe >nul
+del LimassolTracker.exe
+ren LimassolTracker_new.exe LimassolTracker.exe
+start LimassolTracker.exe
+del update.bat
+'''
+            with open("update.bat", "w") as f:
+                f.write(bat_content)
+                
+            subprocess.Popen("update.bat", shell=True)
+            sys.exit(0)
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Update check failed: {e}")
+
+def update_loop():
+    while True:
+        auto_update()
+        time.sleep(86400) # Check every 24 hours
+
+threading.Thread(target=update_loop, daemon=True).start()
+
+# -------------------------------------------------------------------
 # LimassolTime Firebase Firestore API (Primary)
 # -------------------------------------------------------------------
 def update_firestore_status(username, status):
