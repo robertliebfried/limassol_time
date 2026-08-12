@@ -2267,24 +2267,35 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     )}
 
                     {/* AW Live Tracker Status */}
-                    <div className={`rounded-2xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
-                      liveStatuses[activeEmployee.id]?.status === 'online' 
-                        ? isDark ? 'border-slate-300/50 bg-sky-950/60' : 'border-sky-400 bg-slate-100'
-                        : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-slate-100'
-                    }`}>
-                      <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${
-                        liveStatuses[activeEmployee.id]?.status === 'online'
-                          ? isDark ? 'text-sky-400' : 'text-slate-700'
-                          : isDark ? 'text-rose-400' : 'text-slate-700'
-                      }`}>
-                        {liveStatuses[activeEmployee.id]?.status === 'online' ? '⚡ AW TRACKER: CONNECTED' : '🔴 AW TRACKER: OFFLINE'}
-                      </div>
-                      {liveStatuses[activeEmployee.id]?.status === 'online' && (
-                        <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
-                          {liveStatuses[activeEmployee.id].task} ({liveStatuses[activeEmployee.id].duration})
+                    {(() => {
+                      const { isLiveFromAW, isLiveFromClockify, liveDurationStr } = getMergedEmployeeState(activeEmployee);
+                      const isTrackerLive = isLiveFromAW || isLiveFromClockify;
+                      return (
+                        <div className={`rounded-2xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
+                          isTrackerLive 
+                            ? isDark ? 'border-slate-300/50 bg-sky-950/60' : 'border-sky-400 bg-slate-100'
+                            : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-slate-100'
+                        }`}>
+                          <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${
+                            isTrackerLive
+                              ? isDark ? 'text-sky-400' : 'text-slate-700'
+                              : isDark ? 'text-rose-400' : 'text-slate-700'
+                          }`}>
+                            {isTrackerLive ? '⚡ AW TRACKER: CONNECTED' : '🔴 AW TRACKER: OFFLINE'}
+                          </div>
+                          {isLiveFromClockify && liveStatuses[activeEmployee.id] && (
+                            <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
+                              {liveStatuses[activeEmployee.id].task} ({liveDurationStr})
+                            </div>
+                          )}
+                          {isLiveFromAW && !isLiveFromClockify && (
+                            <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
+                              Tracking Activity (Desktop)
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
