@@ -220,9 +220,9 @@ const TRANSLATIONS = {
     step3Header: 'Run & Select Your Name',
     step3Text: 'Launch LimassolTracker.exe — a window with a dropdown list will open. Select your name and click "Save and Run".',
     step3DoneBadge: 'Done! The timer will automatically track when you are active',
-    step3AutostartNote: 'Tip: Add LimassolTracker.exe to Startup: Win+R → "shell:startup" → copy file there',
+    step3AutostartNote: 'The tracker will automatically start with Windows on next login.',
     autostartTipTitle: 'Tip: To run the tracker automatically when your PC turns on:',
-    autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
+    autostartTipText: 'No manual setup needed — startup is configured automatically.',
   },
 } as const;
 
@@ -2921,7 +2921,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {T.step2Text}
                     </p>
                     <a
-                      href="/downloads/LimassolTracker_v1.0.5.exe"
+                      href="/downloads/LimassolTracker_v1.0.8.exe"
                       download
                       className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >
