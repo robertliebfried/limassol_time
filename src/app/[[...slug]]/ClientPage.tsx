@@ -3301,58 +3301,189 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           </div>
 
           
-          {/* Quick Filters */}
-          <div className={`mt-5 rounded-xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold mr-2">📅 Quick Filters:</span>
-              {[
-                { label: 'Today', date: new Date().toISOString().split('T')[0] },
-                { label: 'Yesterday', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-                { label: 'Day Before Yesterday', date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
-              ].map(filter => (
-                <button
-                  key={filter.label}
-                  onClick={() => {
-                    setSelectedDate(filter.date);
-                    setLogDate(filter.date);
-                    setViewMode('grid');
-                  }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
-                    selectedDate === filter.date
-                      ? 'bg-amber-600 text-white border-transparent'
-                      : isDark
-                      ? 'border border-white/20 bg-transparent hover:bg-white/10'
-                      : 'border border-slate-300 bg-slate-100 hover:bg-slate-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-              <div className="flex-1"></div>
-              <div className="flex items-center gap-2">
-                 <button
-                  onClick={() => window.location.href = '/reports'}
-                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
-                    viewMode === 'grid'
-                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {T.dailyTimesheetBtn}
-                </button>
-                <button
-                  onClick={() => setViewMode('calendar')}
-                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
-                    viewMode === 'calendar'
-                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {T.monthlyCalendarBtn}
-                </button>
+          {/* ── Rich Date Navigation Bar ── */}
+          {(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const yesterStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+            // Parse selected date to build month dropdown
+            const selDate = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+            const viewYear = selDate.getFullYear();
+            const viewMonth = selDate.getMonth(); // 0-indexed
+
+            // All days in the selected month
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            const monthDays: { label: string; date: string }[] = [];
+            for (let d = 1; d <= daysInMonth; d++) {
+              const dt = new Date(viewYear, viewMonth, d);
+              const iso = dt.toISOString().split('T')[0];
+              const dayName = dt.toLocaleDateString('en-GB', { weekday: 'short' });
+              monthDays.push({ label: `${String(d).padStart(2,'0')} ${dayName}`, date: iso });
+            }
+
+            const monthLabel = selDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+            const goToDate = (iso: string) => {
+              setSelectedDate(iso);
+              setLogDate(iso);
+              setViewMode('grid');
+            };
+
+            const shiftDay = (delta: number) => {
+              const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+              base.setDate(base.getDate() + delta);
+              goToDate(base.toISOString().split('T')[0]);
+            };
+
+            const shiftMonth = (delta: number) => {
+              const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+              base.setMonth(base.getMonth() + delta);
+              // clamp to end of new month
+              const maxDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+              if (base.getDate() > maxDay) base.setDate(maxDay);
+              goToDate(base.toISOString().split('T')[0]);
+            };
+
+            const isTodaySelected = selectedDate === todayStr;
+
+            return (
+              <div className={`mt-5 rounded-xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
+                {/* Row 1: quick chips + view mode toggle */}
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider opacity-50 mr-1`}>📅 Date</span>
+
+                  {/* Today chip */}
+                  <button
+                    onClick={() => goToDate(todayStr)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
+                      isTodaySelected
+                        ? 'bg-emerald-600 text-white'
+                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
+                    }`}
+                  >
+                    Today
+                  </button>
+
+                  {/* Yesterday chip */}
+                  <button
+                    onClick={() => goToDate(yesterStr)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
+                      selectedDate === yesterStr
+                        ? 'bg-amber-600 text-white'
+                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+
+                  <div className="flex-1" />
+
+                  {/* View mode toggle */}
+                  <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'border-white/20' : 'border-slate-200'}`}>
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`px-3 py-1.5 text-xs font-extrabold transition ${
+                        viewMode === 'grid'
+                          ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
+                          : isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
+                      }`}
+                    >
+                      {T.dailyTimesheetBtn}
+                    </button>
+                    <button
+                      onClick={() => setViewMode('calendar')}
+                      className={`px-3 py-1.5 text-xs font-extrabold transition ${
+                        viewMode === 'calendar'
+                          ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
+                          : isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
+                      }`}
+                    >
+                      {T.monthlyCalendarBtn}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Row 2: Day navigator */}
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
+                  {/* Prev month */}
+                  <button
+                    onClick={() => shiftMonth(-1)}
+                    title="Previous month"
+                    className={`rounded-lg px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
+                  >
+                    «
+                  </button>
+
+                  {/* Prev day */}
+                  <button
+                    onClick={() => shiftDay(-1)}
+                    title="Previous day"
+                    className={`rounded-lg px-2.5 py-1 text-sm font-black transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
+                  >
+                    ‹
+                  </button>
+
+                  {/* Month dropdown */}
+                  <div className="flex items-center gap-2 flex-1 justify-center">
+                    <span className={`text-xs font-extrabold opacity-60`}>{monthLabel}</span>
+                    <select
+                      value={selectedDate || todayStr}
+                      onChange={e => goToDate(e.target.value)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-extrabold outline-none cursor-pointer transition ${
+                        isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                      }`}
+                    >
+                      {monthDays.map(d => (
+                        <option key={d.date} value={d.date}>
+                          {d.label}{d.date === todayStr ? ' — Today' : d.date === yesterStr ? ' — Yesterday' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Next day */}
+                  <button
+                    onClick={() => shiftDay(1)}
+                    title="Next day"
+                    disabled={selectedDate === todayStr || !selectedDate}
+                    className={`rounded-lg px-2.5 py-1 text-sm font-black transition ${
+                      (selectedDate === todayStr || !selectedDate)
+                        ? 'opacity-20 cursor-not-allowed'
+                        : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
+                    }`}
+                  >
+                    ›
+                  </button>
+
+                  {/* Next month */}
+                  <button
+                    onClick={() => shiftMonth(1)}
+                    title="Next month"
+                    disabled={viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth()}
+                    className={`rounded-lg px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${
+                      (viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth())
+                        ? 'opacity-20 cursor-not-allowed'
+                        : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
+                    }`}
+                  >
+                    »
+                  </button>
+
+                  {/* Native date picker */}
+                  <input
+                    type="date"
+                    max={todayStr}
+                    value={selectedDate || todayStr}
+                    onChange={e => goToDate(e.target.value)}
+                    title="Pick any date"
+                    className={`rounded-lg border px-2 py-1 text-xs font-bold outline-none cursor-pointer transition ${
+                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-300 bg-white text-slate-900'
+                    }`}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
 {/* VIEW MODE 0: Interactive Monthly Calendar */}
           {viewMode === 'calendar' && (
