@@ -705,6 +705,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [empSearchQuery, setEmpSearchQuery] = useState('');
   const [breakElapsedSeconds, setBreakElapsedSeconds] = useState(0);
   const [empStatusFilter, setEmpStatusFilter] = useState<string>('ALL');
+  const [empSortOrder, setEmpSortOrder] = useState<'default' | 'name'>('default');
 
   // Modals
   const [showAddLogModal, setShowAddLogModal] = useState(false);
@@ -1931,6 +1932,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       );
     }
     return true;
+  }).sort((a, b) => {
+    if (empSortOrder === 'name') {
+      return a.name.localeCompare(b.name);
+    }
+    return 0; // Default order
   });
 
   return (
@@ -2636,8 +2642,22 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </button>
               </div>
 
+              {/* Toolbar */}
+              <div className="mt-4 flex gap-2 items-center justify-end">
+                <button
+                  onClick={() => setEmpSortOrder(empSortOrder === 'default' ? 'name' : 'default')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
+                    empSortOrder === 'name' 
+                      ? (isDark ? 'bg-indigo-500/30 border-indigo-500/50 text-indigo-300' : 'bg-indigo-100 border-indigo-300 text-indigo-700')
+                      : (isDark ? 'border-white/20 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200')
+                  }`}
+                >
+                  {empSortOrder === 'name' ? '⬇️ Sorted A-Z' : '🔀 Default Sort'}
+                </button>
+              </div>
+
               {/* Employees Table */}
-              <div className="mt-6 overflow-x-auto rounded-xl border border-white/10">
+              <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
                 <table className="w-full text-left text-xs">
                   <thead className={`font-extrabold uppercase border-b ${isDark ? 'bg-black/60 text-white' : 'bg-slate-200 text-black'}`}>
                     <tr>
