@@ -9,15 +9,47 @@ import requests
 from datetime import datetime, timezone
 
 # -------------------------------------------------------------------
-# HARDCODED CONFIG (do not share this file)
+# CONFIGURATION
 # -------------------------------------------------------------------
+FIREBASE_API_KEY = "AIzaSyBOQaJrFF6opjdymkh2fd4nmEw4A6r3tOY"
+FIREBASE_PROJECT = "karfigestsa"
+
 CLOCKIFY_API_KEY = "ZWVlYjQ1ZDMtODMzNS00NWZmLTg2NjAtYmMxZDQ0MWM1NzQ5"
 AW_URL = "http://127.0.0.1:5600"
 CHECK_INTERVAL = 30  # seconds
 USER_FILE = "selected_user.json"
 
 # -------------------------------------------------------------------
-# Clockify API
+# LimassolTime Firebase Firestore API (Primary)
+# -------------------------------------------------------------------
+def update_firestore_status(username, status):
+    doc_id = username.lower().strip().replace(" ", "")
+    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/employees/{doc_id}?key={FIREBASE_API_KEY}"
+    
+    now_str = datetime.now().strftime("%I:%M %p")
+    fields = {
+        "username": {"stringValue": doc_id},
+        "status": {"stringValue": status},
+        "lastSeen": {"timestampValue": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    }
+    if status == "checked_in":
+        fields["checkInTime"] = {"stringValue": now_str}
+    elif status == "completed":
+        fields["checkOutTime"] = {"stringValue": now_str}
+        
+    try:
+        r = requests.patch(url, json={"fields": fields}, timeout=10)
+        if r.status_code in [200, 201]:
+            print(f"[{now()}] 🔥 LimassolTime status updated -> {status}")
+            return True
+        else:
+            print(f"[{now()}] Firestore status code: {r.status_code}")
+    except Exception as e:
+        print(f"[{now()}] Firestore update error: {e}")
+    return False
+
+# -------------------------------------------------------------------
+# Clockify API (Secondary Backup)
 # -------------------------------------------------------------------
 def clockify_get(path):
     try:
@@ -38,9 +70,6 @@ def get_workspace():
         return user["activeWorkspace"]
     return None
 
-def get_all_users(workspace_id):
-    return clockify_get(f"/workspaces/{workspace_id}/users") or []
-
 def get_running_timer(workspace_id, user_id):
     entries = clockify_get(
         f"/workspaces/{workspace_id}/user/{user_id}/time-entries?in-progress=true"
@@ -59,7 +88,7 @@ def start_timer(workspace_id):
             timeout=10
         )
         if r.status_code in [200, 201]:
-            print(f"[{now()}] ✅ Timer STARTED")
+            print(f"[{now()}] ✅ Clockify Timer STARTED")
             return True
     except Exception as e:
         print(f"Start timer error: {e}")
@@ -75,14 +104,14 @@ def stop_timer(workspace_id, user_id):
             timeout=10
         )
         if r.status_code == 200:
-            print(f"[{now()}] ⏹ Timer STOPPED (AFK)")
+            print(f"[{now()}] ⏹ Clockify Timer STOPPED (AFK)")
             return True
     except Exception as e:
         print(f"Stop timer error: {e}")
     return False
 
 # -------------------------------------------------------------------
-# ActivityWatch
+# ActivityWatch API
 # -------------------------------------------------------------------
 def get_afk_bucket():
     try:
@@ -110,38 +139,39 @@ def is_active(bucket_id):
     return False
 
 # -------------------------------------------------------------------
-# Helpers
+# Helpers & Storage
 # -------------------------------------------------------------------
 def now():
     return datetime.now().strftime("%H:%M:%S")
 
 def load_user():
     if os.path.exists(USER_FILE):
-        with open(USER_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(USER_FILE, "r") as f:
+                return json.load(f)
+        except:
+            pass
     return None
 
-def save_user(user_id, user_name, workspace_id):
+def save_user(username, pin):
     with open(USER_FILE, "w") as f:
         json.dump({
-            "user_id": user_id,
-            "user_name": user_name,
-            "workspace_id": workspace_id
+            "username": username.strip().lower(),
+            "pin": pin.strip()
         }, f)
 
 # -------------------------------------------------------------------
-# GUI: First-time setup window
+# GUI: First-time setup window (100% English, Username + PIN fields)
 # -------------------------------------------------------------------
 def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Time Tracker")
-    win.geometry("380x220")
+    win.title("Limassol Tracker Setup")
+    win.geometry("380x280")
     win.resizable(False, False)
     win.configure(bg="#1a1a2e")
 
-    # Center the window
     win.eval('tk::PlaceWindow . center')
 
     tk.Label(
@@ -150,123 +180,125 @@ def show_setup_window():
     ).pack(pady=(20, 5))
 
     tk.Label(
-        win, text="Выберите своё имя из списка:",
+        win, text="Enter your agent credentials:",
         font=("Arial", 11), bg="#1a1a2e", fg="#aaaacc"
-    ).pack(pady=(5, 10))
+    ).pack(pady=(2, 12))
 
-    # Fetch users from Clockify
-    status_label = tk.Label(
-        win, text="Загружаю список сотрудников...",
-        font=("Arial", 9), bg="#1a1a2e", fg="#888"
-    )
-    status_label.pack()
+    frame = tk.Frame(win, bg="#1a1a2e")
+    frame.pack(padx=25, fill="x")
 
-    combo = ttk.Combobox(win, state="readonly", width=35, font=("Arial", 11))
-    combo.pack(pady=10)
+    tk.Label(
+        frame, text="Username:",
+        font=("Arial", 10, "bold"), bg="#1a1a2e", fg="white", anchor="w"
+    ).grid(row=0, column=0, sticky="w", pady=4)
 
-    users_map = {}  # name -> (user_id, workspace_id)
+    username_entry = ttk.Entry(frame, font=("Arial", 11), width=22)
+    username_entry.grid(row=0, column=1, pady=4, padx=(10, 0))
+    username_entry.insert(0, "philippe")
 
-    def load_users():
-        workspace_id = get_workspace()
-        if not workspace_id:
-            status_label.config(text="❌ Ошибка подключения к Clockify", fg="red")
-            return
-        users = get_all_users(workspace_id)
-        if not users:
-            status_label.config(text="❌ Нет сотрудников в Clockify", fg="red")
-            return
-        for u in users:
-            name = u.get("name", u.get("email", "Unknown"))
-            users_map[name] = (u["id"], workspace_id)
-        combo["values"] = list(users_map.keys())
-        if combo["values"]:
-            combo.current(0)
-        status_label.config(text="✅ Выберите имя и нажмите Сохранить", fg="#88cc88")
+    tk.Label(
+        frame, text="PIN:",
+        font=("Arial", 10, "bold"), bg="#1a1a2e", fg="white", anchor="w"
+    ).grid(row=1, column=0, sticky="w", pady=4)
 
-    threading.Thread(target=load_users, daemon=True).start()
+    pin_entry = ttk.Entry(frame, font=("Arial", 11), show="*", width=22)
+    pin_entry.grid(row=1, column=1, pady=4, padx=(10, 0))
+    pin_entry.insert(0, "1234")
 
     def on_save():
-        selected = combo.get()
-        if not selected:
-            messagebox.showwarning("Внимание", "Пожалуйста, выберите имя!")
+        username = username_entry.get().strip().lower()
+        pin = pin_entry.get().strip()
+
+        if not username:
+            messagebox.showwarning("Warning", "Please enter your username!")
             return
-        user_id, workspace_id = users_map[selected]
-        save_user(user_id, selected, workspace_id)
-        result["user_id"] = user_id
-        result["user_name"] = selected
-        result["workspace_id"] = workspace_id
+        if not pin:
+            messagebox.showwarning("Warning", "Please enter your PIN!")
+            return
+
+        save_user(username, pin)
+        result["username"] = username
+        result["pin"] = pin
         win.destroy()
 
     btn = tk.Button(
-        win, text="  Сохранить и Запустить  ",
+        win, text="  Save & Start Tracker  ",
         font=("Arial", 11, "bold"),
         bg="#4f46e5", fg="white",
-        relief="flat", padx=10, pady=6,
+        relief="flat", padx=12, pady=7,
         cursor="hand2",
         command=on_save
     )
-    btn.pack(pady=5)
+    btn.pack(pady=18)
 
     win.mainloop()
-    return result if "user_id" in result else None
+    return result if "username" in result else None
 
 # -------------------------------------------------------------------
-# Tray Icon (simple notification in terminal)
+# Status Window (100% English)
 # -------------------------------------------------------------------
-def show_tray_notification(user_name):
-    """Show a small persistent status window in system tray area"""
+def show_tray_notification(username):
     win = tk.Tk()
-    win.title(f"Limassol Tracker — {user_name}")
-    win.geometry("300x80")
+    win.title(f"Limassol Tracker — {username.capitalize()}")
+    win.geometry("340x95")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
-    win.attributes("-topmost", False)
 
     label = tk.Label(
-        win, text=f"✅ Синхронизация активна\n👤 {user_name}",
-        font=("Arial", 10), bg="#0f172a", fg="#4ade80"
+        win, text=f"✅ LimassolTime Sync Active\n👤 Agent: {username.capitalize()}",
+        font=("Arial", 10, "bold"), bg="#0f172a", fg="#4ade80"
     )
     label.pack(expand=True)
 
     tk.Label(
-        win, text="Не закрывайте это окно",
-        font=("Arial", 8), bg="#0f172a", fg="#555"
-    ).pack()
+        win, text="Do not close this window while working",
+        font=("Arial", 8), bg="#0f172a", fg="#64748b"
+    ).pack(pady=(0, 8))
 
     win.mainloop()
 
 # -------------------------------------------------------------------
 # Main Sync Loop
 # -------------------------------------------------------------------
-def sync_loop(user_id, workspace_id, user_name):
-    print(f"\n[{now()}] 🚀 Запуск синхронизации для {user_name}")
-    print(f"[{now()}] Ищу ActivityWatch...")
+def sync_loop(username, pin):
+    print(f"\n[{now()}] 🚀 Starting LimassolTime Sync for {username}")
+    print(f"[{now()}] Searching for ActivityWatch...")
 
     bucket_id = None
     while not bucket_id:
         bucket_id = get_afk_bucket()
         if not bucket_id:
-            print(f"[{now()}] ⏳ Жду ActivityWatch...")
+            print(f"[{now()}] ⏳ Waiting for ActivityWatch (make sure aw-watcher-afk is running)...")
             time.sleep(5)
 
-    print(f"[{now()}] ✅ ActivityWatch найден! Начинаю мониторинг...\n")
+    print(f"[{now()}] ✅ ActivityWatch connected! Monitoring activity...\n")
+
+    workspace_id = get_workspace()
+    last_status = None
 
     while True:
         try:
             active = is_active(bucket_id)
-            timer_running = get_running_timer(workspace_id, user_id) is not None
+            current_status = "checked_in" if active else "completed"
 
-            if active and not timer_running:
-                start_timer(workspace_id)
-            elif not active and timer_running:
-                stop_timer(workspace_id, user_id)
-            else:
-                status = "🟢 Активен" if active else "🔴 AFK"
-                timer_status = "⏱ Таймер идет" if timer_running else "⏸ Таймер стоит"
-                print(f"[{now()}] {status} | {timer_status}")
+            # 1. Update LimassolTime Firebase (Primary)
+            if current_status != last_status:
+                update_firestore_status(username, current_status)
+                last_status = current_status
+
+            # 2. Update Clockify (Secondary Backup)
+            if workspace_id:
+                timer_running = get_running_timer(workspace_id, username) is not None
+                if active and not timer_running:
+                    start_timer(workspace_id)
+                elif not active and timer_running:
+                    stop_timer(workspace_id, username)
+
+            status_disp = "🟢 Active (Working)" if active else "🔴 Inactive (AFK)"
+            print(f"[{now()}] Status: {status_disp}")
 
         except Exception as e:
-            print(f"[{now()}] Ошибка: {e}")
+            print(f"[{now()}] Sync loop error: {e}")
 
         time.sleep(CHECK_INTERVAL)
 
@@ -277,27 +309,22 @@ def main():
     user_data = load_user()
 
     if not user_data:
-        # First launch — show setup GUI
         user_data = show_setup_window()
         if not user_data:
-            print("Настройка отменена.")
+            print("Setup cancelled.")
             return
 
-    user_id = user_data["user_id"]
-    user_name = user_data["user_name"]
-    workspace_id = user_data["workspace_id"]
+    username = user_data["username"]
+    pin = user_data.get("pin", "1234")
 
-    # Run sync loop in background thread
     sync_thread = threading.Thread(
         target=sync_loop,
-        args=(user_id, workspace_id, user_name),
+        args=(username, pin),
         daemon=True
     )
     sync_thread.start()
 
-    # Show status window (keeps program alive)
-    show_tray_notification(user_name)
-
+    show_tray_notification(username)
 
 if __name__ == "__main__":
     main()

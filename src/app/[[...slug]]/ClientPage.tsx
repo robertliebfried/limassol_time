@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { fetchFirestoreEmployees, updateFirestoreEmployee } from '@/lib/firebase';
 
 
 const TRANSLATIONS = {
@@ -206,6 +207,23 @@ const TRANSLATIONS = {
     shiftHistoryTitle: "📋 Today's Shift History",
     liveLabel: '🟢 LIVE — WORKED TODAY',
     onBreakLabel: '🟡 ON BREAK',
+    setupTabTitle: '💻 PC Setup',
+    setupHeader: '💻 Work PC Setup',
+    setupSubheader: 'Just 3 steps to enable automatic time tracking',
+    step1Header: 'Install ActivityWatch',
+    step1Text: 'This program monitors when you are active at your computer. Download and install it (click "Next" through setup).',
+    step1DownloadBtn: '⬇️ Download ActivityWatch',
+    step1TrayNote: 'After installation, a ⏱ icon will appear in the system tray (near the clock)',
+    step2Header: 'Download Limassol Tracker',
+    step2Text: 'A small helper app that connects ActivityWatch with the time tracking system.',
+    step2DownloadBtn: '⬇️ Download LimassolTracker.exe',
+    step2FolderNote: 'Place this executable file in any convenient folder on your Desktop',
+    step3Header: 'Run & Select Your Name',
+    step3Text: 'Launch LimassolTracker.exe — a window with a dropdown list will open. Select your name and click "Save and Run".',
+    step3DoneBadge: '✅ Done! The timer will automatically track when you are active',
+    step3AutostartNote: '💡 Add LimassolTracker.exe to Startup: Win+R → "shell:startup" → copy file there',
+    autostartTipTitle: '💡 Tip: To run the tracker automatically when your PC turns on:',
+    autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
   },
   ru: {
     appTitle: 'Учёт рабочего времени',
@@ -409,6 +427,23 @@ const TRANSLATIONS = {
     shiftHistoryTitle: '📋 История смены сегодня',
     liveLabel: '🟢 В СЕТИ — ОТРАБОТАНО СЕГОДНЯ',
     onBreakLabel: '🟡 НА ПЕРЕРЫВЕ',
+    setupTabTitle: '💻 Настройка ПК',
+    setupHeader: '💻 Установка на рабочий ПК',
+    setupSubheader: 'Всего 3 шага — и трекинг времени заработает автоматически',
+    step1Header: 'Установите ActivityWatch',
+    step1Text: 'Эта программа отслеживает, когда вы за компьютером. Скачайте и установите (просто нажимайте «Далее»).',
+    step1DownloadBtn: '⬇️ Скачать ActivityWatch',
+    step1TrayNote: 'После установки должна появиться иконка ⏱ возле часов (в трее)',
+    step2Header: 'Скачайте Limassol Tracker',
+    step2Text: 'Небольшая программа, которая связывает ActivityWatch с системой учёта часов.',
+    step2DownloadBtn: '⬇️ Скачать LimassolTracker.exe',
+    step2FolderNote: 'Положите файл в любую удобную папку на рабочем столе',
+    step3Header: 'Запустите и выберите своё имя',
+    step3Text: 'Запустите LimassolTracker.exe — появится окошко с выпадающим списком. Выберите своё имя и нажмите «Сохранить и Запустить».',
+    step3DoneBadge: '✅ Готово! Таймер будет запускаться сам, когда вы работаете',
+    step3AutostartNote: '💡 Добавьте LimassolTracker.exe в автозагрузку: Win+R → «shell:startup» → скопируйте файл туда',
+    autostartTipTitle: '💡 Совет: Чтобы программа запускалась автоматически при включении компьютера:',
+    autostartTipText: 'Нажмите Win + R, введите shell:startup и нажмите Enter. Скопируйте файл LimassolTracker.exe в открывшуюся папку.',
   },
 } as const;
 
@@ -633,7 +668,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Real-Time Dashboard State
   type LiveStatus = { employeeId: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
   const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatus>>({});
-  const [liveMetrics, setLiveMetrics] = useState({ totalActive: 0, activeHoursToday: 0 });
+
 
   // View mode & Shift Editing State
   const [viewMode, setViewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
@@ -859,6 +894,50 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
   }, []);
 
+  // Firestore REST API Real-Time Sync (poll every 4 seconds)
+  useEffect(() => {
+    const syncFirestore = async () => {
+      const fsData = await fetchFirestoreEmployees();
+      if (!fsData || Object.keys(fsData).length === 0) return;
+
+      setEmployees((prevEmps) => {
+        let hasChanges = false;
+        const newEmps = prevEmps.map((emp) => {
+          const docId = (emp.username || emp.name).toLowerCase().replace(/\s+/g, '');
+          const data = fsData[docId];
+          if (data) {
+            const updatedStatus = data.status || emp.status;
+            const updatedIn = data.checkInTime !== undefined ? data.checkInTime : emp.checkInTime;
+            const updatedOut = data.checkOutTime !== undefined ? data.checkOutTime : emp.checkOutTime;
+            if (
+              updatedStatus !== emp.status ||
+              updatedIn !== emp.checkInTime ||
+              updatedOut !== emp.checkOutTime
+            ) {
+              hasChanges = true;
+              return {
+                ...emp,
+                status: updatedStatus,
+                checkInTime: updatedIn,
+                checkOutTime: updatedOut,
+              };
+            }
+          }
+          return emp;
+        });
+        if (hasChanges) {
+          localStorage.setItem('team_employees_v5', JSON.stringify(newEmps));
+          return newEmps;
+        }
+        return prevEmps;
+      });
+    };
+
+    syncFirestore();
+    const interval = setInterval(syncFirestore, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Load shift events when employee logs in
   useEffect(() => {
     if (authRole === 'user' && activeEmployee) {
@@ -881,6 +960,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const saveEmployees = (updated: Employee[]) => {
     setEmployees(updated);
     localStorage.setItem('team_employees_v5', JSON.stringify(updated));
+    try {
+      updated.forEach((emp) => {
+        const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
+        updateFirestoreEmployee(username, emp.status, emp.checkInTime, emp.checkOutTime);
+      });
+    } catch {}
   };
 
   const saveLogs = (updated: TimeLog[]) => {
@@ -1571,7 +1656,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       const wsUsers = await usersRes.json();
 
       const newStatuses: Record<string, LiveStatus> = {};
-      let activeCount = 0;
 
       // 2. For each user, check if they have an in-progress timer
       for (const user of wsUsers) {
@@ -1603,12 +1687,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               duration: `${hrs > 0 ? hrs + 'h ' : ''}${mins}m`,
               startTime: start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
-            activeCount++;
           }
         }
       }
       setLiveStatuses(newStatuses);
-      setLiveMetrics(prev => ({ ...prev, totalActive: activeCount }));
     } catch (e) {
       console.error("Failed to fetch live statuses", e);
     }
@@ -2015,7 +2097,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                   }`}
                 >
-                  <span>💻</span> PC Setup
+                  {T.setupTabTitle}
                 </button>
               </div>
             </div>
@@ -2044,7 +2126,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                 }`}
               >
-                <span>💻</span> PC Setup
+                {T.setupTabTitle}
               </button>
             </div>
           </div>
@@ -2510,37 +2592,40 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   </span>
                   Live Team Status
                 </h3>
-                <span className="text-xs font-bold text-slate-400 bg-black/20 px-2 py-1 rounded">Synced with Clockify</span>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {employees.map(emp => {
-                  const live = liveStatuses[emp.id];
-                  const isOnline = !!live;
+                  const isOnline = emp.status === 'checked_in';
                   return (
                     <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
                       isOnline 
-                        ? (isDark ? 'border-emerald-500/30 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-emerald-200 bg-emerald-50')
+                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
                         : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
                     }`}>
                       <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs ${
-                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40' : 'bg-slate-700 text-slate-300'
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
+                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
                         }`}>
                           {emp.name.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-extrabold text-sm">{emp.name}</div>
+                          <div className="font-extrabold text-sm flex items-center gap-1.5">
+                            {emp.name}
+                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
+                          </div>
                           <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {isOnline ? '🟢 ONLINE' : '⚫ OFFLINE'}
+                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
                           </div>
                         </div>
                       </div>
                       
                       {isOnline && (
                         <div className="text-right">
-                          <div className="text-xs font-bold text-emerald-300 truncate max-w-[100px]" title={live.task}>{live.task}</div>
-                          <div className="text-[0.65rem] font-mono text-emerald-400/80">{live.duration}</div>
+                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+                            WORKING
+                          </span>
                         </div>
                       )}
                     </div>
@@ -2553,7 +2638,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <div className="space-y-6">
               <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
                 <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
-                <div className="text-6xl font-black drop-shadow-md">{liveMetrics.totalActive}</div>
+                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
                 <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
               </div>
 
@@ -3073,9 +3158,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         {activeTab === 'setup' && (
           <div className="max-w-2xl mx-auto space-y-6">
             <div className={`rounded-3xl p-8 shadow-2xl border-2 ${ isDark ? 'bg-[#0f172a] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-              <h2 className="text-2xl font-black mb-2">💻 Установка на рабочий ПК</h2>
+              <h2 className="text-2xl font-black mb-2">{T.setupHeader}</h2>
               <p className={`text-sm mb-8 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Всего 3 шага — и трекинг времени заработает автоматически
+                {T.setupSubheader}
               </p>
 
               {/* Step 1 */}
@@ -3083,18 +3168,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <div className="flex items-start gap-4">
                   <div className="text-3xl">1️⃣</div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-1">Установите ActivityWatch</h3>
+                    <h3 className="font-bold text-lg mb-1">{T.step1Header}</h3>
                     <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Эта программа отслеживает, когда вы за компьютером. Скачайте и установите (просто нажимайте «Далее»).
+                      {T.step1Text}
                     </p>
                     <a
                       href="https://github.com/ActivityWatch/activitywatch/releases/download/v0.12.2/activitywatch-v0.12.2-windows-x86_64-setup.exe"
                       className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition"
                     >
-                      ⬇️ Скачать ActivityWatch
+                      {T.step1DownloadBtn}
                     </a>
                     <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      После установки должна появиться иконка ⏱ возле часов (в трее)
+                      {T.step1TrayNote}
                     </p>
                   </div>
                 </div>
@@ -3105,19 +3190,19 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <div className="flex items-start gap-4">
                   <div className="text-3xl">2️⃣</div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-1">Скачайте Limassol Tracker</h3>
+                    <h3 className="font-bold text-lg mb-1">{T.step2Header}</h3>
                     <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Небольшая программа, которая связывает ActivityWatch с системой учёта часов.
+                      {T.step2Text}
                     </p>
                     <a
                       href="/downloads/LimassolTracker.exe"
                       download
                       className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition"
                     >
-                      ⬇️ Скачать LimassolTracker.exe
+                      {T.step2DownloadBtn}
                     </a>
                     <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      Положите файл в любую удобную папку на рабочем столе
+                      {T.step2FolderNote}
                     </p>
                   </div>
                 </div>
@@ -3128,15 +3213,15 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <div className="flex items-start gap-4">
                   <div className="text-3xl">3️⃣</div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-1">Запустите и выберите своё имя</h3>
+                    <h3 className="font-bold text-lg mb-1">{T.step3Header}</h3>
                     <p className={`text-sm mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Запустите <strong>LimassolTracker.exe</strong> — появится окошко с выпадающим списком. Выберите своё имя и нажмите «Сохранить и Запустить».
+                      {T.step3Text}
                     </p>
                     <div className={`rounded-xl p-3 text-sm font-mono mt-3 ${ isDark ? 'bg-black/40 text-green-400' : 'bg-slate-100 text-green-700'}`}>
-                      ✅ Готово! Таймер будет запускаться сам, когда вы работаете
+                      {T.step3DoneBadge}
                     </div>
                     <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      💡 Добавьте LimassolTracker.exe в автозагрузку: Win+R → «shell:startup» → скопируйте файл туда
+                      {T.step3AutostartNote}
                     </p>
                   </div>
                 </div>
@@ -3145,10 +3230,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               {/* Autostart tip */}
               <div className={`rounded-2xl p-4 mt-4 border ${ isDark ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'}`}>
                 <p className={`text-sm font-semibold ${ isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
-                  💡 Совет: Чтобы программа запускалась автоматически при включении компьютера:
+                  {T.autostartTipTitle}
                 </p>
                 <p className={`text-xs mt-1 ${ isDark ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
-                  Нажмите <strong>Win + R</strong>, введите <strong>shell:startup</strong> и нажмите Enter. Скопируйте файл LimassolTracker.exe в открывшуюся папку.
+                  {T.autostartTipText}
                 </p>
               </div>
             </div>
