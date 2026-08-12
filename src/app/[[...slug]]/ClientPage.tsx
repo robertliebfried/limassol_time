@@ -886,9 +886,29 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to filter out archived/deleted employees
+  const filterActiveEmps = (list: Employee[], deletedList: Employee[]): Employee[] => {
+    const deletedKeys = new Set(
+      deletedList.map(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, ''))
+    );
+    return list.filter(e => {
+      const key = (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '');
+      return !deletedKeys.has(key);
+    });
+  };
+
   // 3. Load employees from Firestore (source of truth), fallback to localStorage
   useEffect(() => {
     const loadEmployees = async () => {
+      let currentDeleted: Employee[] = [];
+      const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
+      if (savedDeleted) {
+        try {
+          currentDeleted = JSON.parse(savedDeleted);
+          setDeletedEmployees(currentDeleted);
+        } catch {}
+      }
+
       try {
         const fsData = await fetchFirestoreEmployees();
         if (fsData && Object.keys(fsData).length > 0) {
@@ -905,10 +925,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             checkOutTime: doc.checkOutTime,
             sortOrder: doc.sortOrder ?? idx,
           }));
-          // Sort by sortOrder
-          fsEmps.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
-          setEmployees(fsEmps);
-          localStorage.setItem('team_employees_v5', JSON.stringify(fsEmps));
+          
+          const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
+          activeOnly.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+          
+          setEmployees(activeOnly);
+          localStorage.setItem('team_employees_v5', JSON.stringify(activeOnly));
 
           // Restore session
           const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
@@ -920,7 +942,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               setAuthRole('admin');
             } else if (savedRole === 'user' && savedEmpId) {
               setAuthRole('user');
-              const emp = fsEmps.find((e: Employee) => e.id === savedEmpId || e.username === savedEmpId);
+              const emp = activeOnly.find((e: Employee) => e.id === savedEmpId || e.username === savedEmpId);
               if (emp) setActiveEmployee(emp);
             }
           }
@@ -932,7 +954,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       const savedEmployees = localStorage.getItem('team_employees_v5');
       let parsedEmployees: Employee[] = INITIAL_EMPLOYEES;
       if (savedEmployees) {
-        try { parsedEmployees = JSON.parse(savedEmployees); setEmployees(parsedEmployees); } catch {}
+        try {
+          parsedEmployees = JSON.parse(savedEmployees);
+          parsedEmployees = filterActiveEmps(parsedEmployees, currentDeleted);
+          setEmployees(parsedEmployees);
+        } catch {}
       }
       const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
       const savedRole = sessionStorage.getItem('team_tracker_role') as AuthRole;
@@ -953,9 +979,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     const savedTheme = localStorage.getItem('team_theme');
     if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
 
-    const savedDeleted = localStorage.getItem('team_deleted_employees_v1');
-    if (savedDeleted) { try { setDeletedEmployees(JSON.parse(savedDeleted)); } catch {} }
-
     const savedLogs = localStorage.getItem('team_logs_v5');
     if (savedLogs) { try { setLogs(JSON.parse(savedLogs)); } catch {} }
   }, []);
@@ -968,7 +991,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
       setEmployees((prevEmps) => {
         let hasChanges = false;
-        const newEmps = prevEmps.map((emp) => {
+        const deletedKeys = new Set(
+          deletedEmployees.map(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, ''))
+        );
+
+        const newEmps = prevEmps.filter(e => {
+          const k = (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '');
+          return !deletedKeys.has(k);
+        }).map((emp) => {
           const docId = (emp.username || emp.name).toLowerCase().replace(/\s+/g, '');
           const data = fsData[docId];
           if (data) {
@@ -991,7 +1021,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           }
           return emp;
         });
-        if (hasChanges) {
+        if (hasChanges || newEmps.length !== prevEmps.length) {
           localStorage.setItem('team_employees_v5', JSON.stringify(newEmps));
           return newEmps;
         }
@@ -1002,7 +1032,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     syncFirestore();
     const interval = setInterval(syncFirestore, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [deletedEmployees]);
 
   // Load shift events when employee logs in
   useEffect(() => {
@@ -1242,6 +1272,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     if (!newEmpUsername.trim()) return;
 
     const uname = newEmpUsername.trim().toLowerCase().replace(/\s+/g, '');
+
+    // Purge from deleted list if restoring or re-creating
+    const newDeleted = deletedEmployees.filter(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, '') !== uname);
+    if (newDeleted.length !== deletedEmployees.length) {
+      setDeletedEmployees(newDeleted);
+      localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
+    }
+
     const newEmp: Employee = {
       id: `emp-${Date.now()}`,
       name: newEmpName.trim() || newEmpUsername.trim(),
@@ -1253,7 +1291,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       status: 'expected',
     };
 
-    saveEmployees([...employees, newEmp]);
+    saveEmployees([...employees.filter(e => (e.username || '').toLowerCase().replace(/\s+/g, '') !== uname), newEmp]);
     setNewEmpName('');
     setNewEmpUsername('');
     setNewEmpPin('1234');
@@ -1601,25 +1639,34 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   // Delete Employee → Archive
   const handleDeleteEmp = (empId: string) => {
     if (window.confirm('Archive this employee? They will be moved to the Deleted folder and can be restored.')) {
-      const emp = employees.find(e => e.id === empId);
+      const emp = employees.find(e => e.id === empId || e.username === empId);
       if (!emp) return;
-      const newDeleted = [emp, ...deletedEmployees];
+      const key = (emp.username || emp.name).toLowerCase().trim().replace(/\s+/g, '');
+      const newDeleted = [emp, ...deletedEmployees.filter(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, '') !== key)];
       setDeletedEmployees(newDeleted);
       localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
+      
       const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
       deleteFirestoreEmployee(username);
-      saveEmployees(employees.filter(e => e.id !== empId));
+
+      const activeOnly = employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key);
+      saveEmployees(activeOnly);
     }
   };
 
   // Restore Employee from Archive
   const handleRestoreEmp = (empId: string) => {
-    const emp = deletedEmployees.find(e => e.id === empId);
+    const emp = deletedEmployees.find(e => e.id === empId || e.username === empId);
     if (!emp) return;
-    const newDeleted = deletedEmployees.filter(e => e.id !== empId);
+    const key = (emp.username || emp.name).toLowerCase().trim().replace(/\s+/g, '');
+    const newDeleted = deletedEmployees.filter(e => (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '') !== key);
     setDeletedEmployees(newDeleted);
     localStorage.setItem('team_deleted_employees_v1', JSON.stringify(newDeleted));
-    saveEmployees([...employees, { ...emp, status: 'expected', checkInTime: undefined, checkOutTime: undefined }]);
+
+    const restored: Employee = { ...emp, status: 'expected', checkInTime: undefined, checkOutTime: undefined };
+    const username = restored.username || restored.name.toLowerCase().replace(/\s+/g, '');
+    saveFirestoreEmployee(username, restored);
+    saveEmployees([...employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key), restored]);
   };
 
   // Send Email Report Action
@@ -2740,7 +2787,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                   {filteredEmployees.length === 0 ? (
                     <div className="col-span-full py-8 text-center text-xs font-bold opacity-75">
                       {T.noEmpMatchFilter}

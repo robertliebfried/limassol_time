@@ -28,6 +28,10 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
     const result: Record<string, FirestoreEmployeeDoc> = {};
     for (const doc of data.documents) {
       const fields = doc.fields || {};
+      const statusStr = fields.status?.stringValue;
+      const isDel = fields.isDeleted?.booleanValue;
+      if (statusStr === 'deleted' || isDel === true) continue;
+
       const username = fields.username?.stringValue || doc.name.split('/').pop() || '';
       const langs = fields.languages?.arrayValue?.values?.map((v: { stringValue?: string }) => v.stringValue || '') || [];
       result[username.toLowerCase()] = {
@@ -50,7 +54,7 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
   }
 }
 
-type FieldValue = { stringValue?: string; timestampValue?: string; integerValue?: string; arrayValue?: { values: { stringValue: string }[] } };
+type FieldValue = { stringValue?: string; timestampValue?: string; integerValue?: string; booleanValue?: boolean; arrayValue?: { values: { stringValue: string }[] } };
 
 // Save full employee profile to Firestore (used when adding/editing employees)
 export async function saveFirestoreEmployee(
@@ -63,6 +67,7 @@ export async function saveFirestoreEmployee(
   const fields: Record<string, FieldValue> = {
     username: { stringValue: docId },
     status: { stringValue: profile.status || 'expected' },
+    isDeleted: { booleanValue: false },
     lastUpdated: { timestampValue: new Date().toISOString() },
   };
   if (profile.name) fields.name = { stringValue: profile.name };
@@ -121,6 +126,17 @@ export async function deleteFirestoreEmployee(username: string) {
   const docId = username.toLowerCase().trim().replace(/\s+/g, '');
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
   try {
+    await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          status: { stringValue: 'deleted' },
+          isDeleted: { booleanValue: true },
+          lastUpdated: { timestampValue: new Date().toISOString() },
+        },
+      }),
+    });
     await fetch(url, { method: 'DELETE' });
   } catch (e) {
     console.error('Firestore REST delete error:', e);
