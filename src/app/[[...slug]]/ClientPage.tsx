@@ -224,10 +224,6 @@ const TRANSLATIONS = {
     autostartTipTitle: 'Tip: To run the tracker automatically when your PC turns on:',
     autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
   },
-} as const;,
-    autostartTipTitle: '💡 Tip: To run the tracker automatically when your PC turns on:',
-    autostartTipText: 'Press Win + R, type shell:startup, and press Enter. Copy the LimassolTracker.exe file into the opened folder.',
-  },
 } as const;
 
 interface Employee {
@@ -2566,7 +2562,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     </div>
                   ) : (
                     filteredEmployees.map(emp => {
-                      const { status, checkIn, activeHrsDisplay, isLiveFromClockify } = getMergedEmployeeState(emp);
+                      const { status, checkIn, activeHrsDisplay, isLiveFromClockify, isLiveFromAW } = getMergedEmployeeState(emp);
                       const isOnline = status === 'checked_in';
                       return (
                         <div key={emp.id} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${

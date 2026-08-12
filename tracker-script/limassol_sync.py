@@ -32,8 +32,7 @@ def auto_update():
         req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
             version = response.read().decode('utf-8').strip()
-            
-        current_version = "1.0.0"
+        current_version = "1.0.7"
         if version > current_version:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {version} found! Downloading...")
             exe_url = "https://limassoltime.web.app/downloads/LimassolTracker.exe"
@@ -216,9 +215,10 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.0.6")
+    win.title("Limassol Tracker Setup v1.0.7")
     win.geometry("380x280")
     win.resizable(False, False)
+    win.attributes("-topmost", True)
     win.configure(bg="#1a1a2e")
 
     win.eval('tk::PlaceWindow . center')
@@ -374,8 +374,8 @@ def show_tray_notification(username):
         pystray = None
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.0.6 — {username.capitalize()}")
-    win.geometry("340x95")
+    win.title(f"Limassol Tracker v1.0.7 — {username.capitalize()}")
+    win.geometry("340x120")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
 
@@ -383,7 +383,18 @@ def show_tray_notification(username):
         win, text=f"✅ LimassolTime Sync Active\n👤 Agent: {username.capitalize()}",
         font=("Arial", 10, "bold"), bg="#0f172a", fg="#4ade80"
     )
-    label.pack(expand=True)
+    label.pack(pady=10)
+
+    topmost_var = tk.BooleanVar(value=False)
+    def toggle_topmost():
+        win.attributes("-topmost", topmost_var.get())
+
+    chk = tk.Checkbutton(
+        win, text="Keep this window always on top",
+        variable=topmost_var, command=toggle_topmost,
+        bg="#0f172a", fg="#94a3b8", selectcolor="#0f172a", activebackground="#0f172a", activeforeground="white"
+    )
+    chk.pack()
 
     def create_image():
         if pystray:
