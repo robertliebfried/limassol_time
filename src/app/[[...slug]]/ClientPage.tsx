@@ -2027,12 +2027,40 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
           </div>
         )}
+
+        {/* Navigation for Employee: only PC Setup button */}
+        {authRole === 'user' && (
+          <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+            <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
+              <button
+                onClick={() => setActiveTab('timeTracker')}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                  activeTab === 'timeTracker'
+                    ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
+                }`}
+              >
+                <span>🏠</span> My Shift
+              </button>
+              <button
+                onClick={() => setActiveTab('setup')}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                  activeTab === 'setup'
+                    ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
+                }`}
+              >
+                <span>💻</span> PC Setup
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
         {/* User / Employee View */}
-        {authRole === 'user' && activeEmployee && (
+        {authRole === 'user' && activeEmployee && activeTab !== 'setup' && (
           <div className="space-y-8">
             <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-300 bg-white text-black'}`}>
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
