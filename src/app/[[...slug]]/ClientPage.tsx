@@ -652,11 +652,28 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [logs, setLogs] = useState<TimeLog[]>(INITIAL_LOGS);
   const [showDeletedArchive, setShowDeletedArchive] = useState(false);
   
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    if (initialTab === 'reports') {
+      return new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
   const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports' | 'setup'>(initialTab);
+
+  const handleTabChange = (tab: 'timeTracker' | 'employees' | 'reports' | 'setup', url: string) => {
+    setActiveTab(tab);
+    if (tab === 'reports') {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      setSelectedDate(yesterday);
+      setLogDate(yesterday);
+    }
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', url);
+    }
+  };
 
   // Clockify Backup Integration State
   const [clockifyApiKey, setClockifyApiKey] = useState<string>('');
@@ -695,7 +712,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
   // New Log Form
   const [logEmployeeId, setLogEmployeeId] = useState<string>('');
-  const [logDate, setLogDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState<string>(() => {
+    if (initialTab === 'reports') {
+      return new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
   const [logHours, setLogHours] = useState<number>(8);
   const [logProjectTask, setLogProjectTask] = useState<string>('General Operations');
 
@@ -1376,58 +1398,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
   };
 
-  // Bulk Action: Check-in all expected employees (or for specific shift)
-  const handleBulkCheckIn = (targetShift?: string) => {
-    const nowCyprus = cyprusTime || '11:00 AM';
-    const updated = employees.map(emp => {
-      if (emp.status === 'expected' && (!targetShift || emp.expectedShift.includes(targetShift))) {
-        return {
-          ...emp,
-          status: 'checked_in' as const,
-          checkInTime: nowCyprus,
-        };
-      }
-      return emp;
-    });
-    saveEmployees(updated);
-  };
 
-  // Bulk Action: Complete shifts for all currently checked-in employees
-  const handleBulkCheckOut = () => {
-    const nowCyprus = cyprusTime || '07:00 PM';
-    const todayStr = new Date().toISOString().split('T')[0];
-    const newLogs: TimeLog[] = [];
-
-    const updated = employees.map(emp => {
-      if (emp.status === 'checked_in') {
-        const inTime = emp.checkInTime || '11:00 AM';
-        const outTime = nowCyprus;
-        const actualHours = calculateExactHours(inTime, outTime);
-
-        newLogs.push({
-          id: `log-${Date.now()}-${emp.id}`,
-          date: todayStr,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          hours: actualHours,
-          projectTask: `Shift Attendance (${inTime} - ${outTime})`,
-          timestamp: `${inTime} - ${outTime}`,
-        });
-
-        return {
-          ...emp,
-          status: 'completed' as const,
-          checkOutTime: outTime,
-        };
-      }
-      return emp;
-    });
-
-    saveEmployees(updated);
-    if (newLogs.length > 0) {
-      saveLogs([...newLogs, ...logs]);
-    }
-  };
 
   // Open Edit Credentials & Optional Info Modal
   const handleOpenEditShift = (emp: Employee) => {
@@ -2126,17 +2097,17 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 text-xs font-extrabold">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setActiveTab('timeTracker')}
+                  onClick={() => handleTabChange('timeTracker', '/dashboard')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'timeTracker'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'
                   }`}
                 >
-                  <span>⏱️</span> Time Tracker
+                  <span>⏱️</span> Dashboard
                 </button>
                 <button
-                  onClick={() => setActiveTab('employees')}
+                  onClick={() => handleTabChange('employees', '/team')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'employees'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2146,7 +2117,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>👥</span> Employees ({employees.length})
                 </button>
                 <button
-                  onClick={() => setActiveTab('reports')}
+                  onClick={() => handleTabChange('reports', '/reports')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'reports'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2156,7 +2127,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   <span>📊</span> Reports & Payroll
                 </button>
                 <button
-                  onClick={() => setActiveTab('setup')}
+                  onClick={() => handleTabChange('setup', '/setup')}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                     activeTab === 'setup'
                       ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2175,7 +2146,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           <div className={`border-t px-6 py-2 ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
             <div className="mx-auto flex max-w-7xl items-center gap-2 text-xs font-extrabold">
               <button
-                onClick={() => setActiveTab('timeTracker')}
+                onClick={() => handleTabChange('timeTracker', '/dashboard')}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                   activeTab === 'timeTracker'
                     ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2185,7 +2156,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <span>🏠</span> My Shift
               </button>
               <button
-                onClick={() => setActiveTab('setup')}
+                onClick={() => handleTabChange('setup', '/setup')}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
                   activeTab === 'setup'
                     ? isDark ? 'bg-white text-slate-900 shadow-md' : 'bg-[#133137] text-white shadow-md'
@@ -2477,54 +2448,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {/* View Switcher */}
-              <div className={`flex items-center rounded-xl border p-1 ${isDark ? 'border-white/30 bg-black/40' : 'border-slate-300 bg-slate-200'}`}>
-                <button
-                  onClick={() => setViewMode('calendar')}
-                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
-                    viewMode === 'calendar'
-                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {T.monthlyCalendarBtn}
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
-                    viewMode === 'grid'
-                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {T.dailyTimesheetBtn}
-                </button>
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
-                    viewMode === 'cards'
-                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {T.cardsViewBtn}
-                </button>
-              </div>
 
-              <button
-                onClick={() => handleBulkCheckIn('11:00')}
-                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-emerald-500 transition active:scale-95"
-                title="Mark all 11 AM expected staff as arrived"
-              >
-                {T.bulkArriveBtn}
-              </button>
-              <button
-                onClick={handleBulkCheckOut}
-                className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-blue-500 transition active:scale-95"
-                title="Mark all active staff as left for the day"
-              >
-                {T.bulkLeftBtn}
-              </button>
               <button
                 onClick={handleResetAllForNewDay}
                 className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-extrabold text-white shadow hover:bg-amber-500 transition active:scale-95"
@@ -2543,399 +2467,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
           </div>
 
-          {/* VIEW MODE 0: Interactive Monthly Calendar */}
-          {viewMode === 'calendar' && (
-            <div className={`mt-5 rounded-xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
-              {/* Calendar Header Navigation */}
-              <div className="flex items-center justify-between border-b pb-4 mb-4 border-white/10">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-serif text-lg font-bold">
-                    📅 {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-                  </h3>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                    {T.clickDayHint}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const prev = new Date(calendarMonth);
-                      prev.setMonth(prev.getMonth() - 1);
-                      setCalendarMonth(prev);
-                    }}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
-                  >
-                    {T.prevMonth}
-                  </button>
-                  <button
-                    onClick={() => setCalendarMonth(new Date())}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
-                  >
-                    {T.todayBtn}
-                  </button>
-                  <button
-                    onClick={() => {
-                      const next = new Date(calendarMonth);
-                      next.setMonth(next.getMonth() + 1);
-                      setCalendarMonth(next);
-                    }}
-                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
-                  >
-                    {T.nextMonth}
-                  </button>
-                </div>
-              </div>
-
-              {/* Days of Week */}
-              <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-xs uppercase text-slate-400 mb-2">
-                <div>Mon</div>
-                <div>Tue</div>
-                <div>Wed</div>
-                <div>Thu</div>
-                <div>Fri</div>
-                <div>Sat</div>
-                <div>Sun</div>
-              </div>
-
-              {/* Month Grid Cells */}
-              <div className="grid grid-cols-7 gap-2">
-                {getDaysInMonth(calendarMonth).map((dayObj, idx) => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const isToday = dayObj.dateStr === todayStr;
-                  const isSelected = selectedDate === dayObj.dateStr;
-
-                  // Logs for this specific day
-                  const dayLogs = logs.filter(l => l.date === dayObj.dateStr);
-                  const dayTotalHours = dayLogs.reduce((sum, l) => sum + l.hours, 0);
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setSelectedDate(dayObj.dateStr);
-                        setLogDate(dayObj.dateStr);
-                        setViewMode('grid');
-                      }}
-                      className={`min-h-[85px] rounded-xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
-                        !dayObj.isCurrentMonth
-                          ? 'opacity-40 border-transparent bg-transparent'
-                          : isToday
-                          ? 'border-emerald-500 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
-                          : isSelected
-                          ? 'border-amber-500 bg-amber-950/40 text-white'
-                          : isDark
-                          ? 'border-white/15 bg-black/50 hover:border-white/40 hover:bg-black/70'
-                          : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`font-extrabold text-sm ${isToday ? 'text-emerald-400 font-black' : ''}`}>
-                          {dayObj.dayNum}
-                        </span>
-                        {isToday && (
-                          <span className="text-[0.6rem] font-bold bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">
-                            {lang === 'ru' ? 'Сегодня' : 'Today'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-2 space-y-1 text-[0.65rem] font-bold">
-                        {dayTotalHours > 0 ? (
-                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-emerald-500/30 flex justify-between">
-                            <span>{T.workedLabel2}</span>
-                            <span className="font-mono">{dayTotalHours}h</span>
-                          </div>
-                        ) : (
-                          <div className="text-slate-500 font-normal italic">{T.noLogsLabel}</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* REAL-TIME DASHBOARD WIDGETS */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Live Status Breakdown */}
-            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-extrabold text-lg flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  Live Team Status
-                </h3>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {employees.map(emp => {
-                  const isOnline = emp.status === 'checked_in';
-                  return (
-                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isOnline 
-                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
-                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
-                    }`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
-                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
-                        }`}>
-                          {emp.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-sm flex items-center gap-1.5">
-                            {emp.name}
-                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
-                          </div>
-                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {isOnline && (
-                        <div className="text-right">
-                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                            WORKING
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top Metrics & Activity Feed */}
-            <div className="space-y-6">
-              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
-                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
-                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
-                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
-              </div>
-
-              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
-                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                  {Object.values(liveStatuses).length === 0 ? (
-                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
-                  ) : (
-                    Object.values(liveStatuses).map((status, i) => (
-                      <div key={i} className="flex gap-3 items-start">
-                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                        <div>
-                          <div className="text-xs font-bold">
-                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
-                          </div>
-                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
-                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-            
-          </div>
-
-          {/* Search & Status Filters Bar */}
-          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px]">
-              <input
-                type="text"
-                placeholder={T.searchPlaceholder}
-                value={empSearchQuery}
-                onChange={(e) => setEmpSearchQuery(e.target.value)}
-                className={`w-full rounded-lg border px-3.5 py-2 text-xs font-bold outline-none ${
-                  isDark ? 'border-white/30 bg-black/60 text-white placeholder-slate-400 focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
-                }`}
-              />
-              {empSearchQuery && (
-                <button 
-                  onClick={() => setEmpSearchQuery('')}
-                  className="absolute right-3 top-2 text-xs font-extrabold text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Status Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold">
-              <button
-                onClick={() => setEmpStatusFilter('ALL')}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  empStatusFilter === 'ALL'
-                    ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
-                    : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-white text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterAll} ({employees.length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('checked_in')}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  empStatusFilter === 'checked_in'
-                    ? 'bg-emerald-600 text-white'
-                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                }`}
-              >
-                {T.filterWorking} ({employees.filter(e => e.status === 'checked_in').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('expected')}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  empStatusFilter === 'expected'
-                    ? 'bg-amber-600 text-white'
-                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-amber-900' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                }`}
-              >
-                {T.filterExpected} ({employees.filter(e => e.status === 'expected').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('completed')}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  empStatusFilter === 'completed'
-                    ? 'bg-blue-600 text-white'
-                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-blue-900' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                }`}
-              >
-                {T.filterDone} ({employees.filter(e => e.status === 'completed').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('absent')}
-                className={`rounded-lg px-3 py-1.5 transition ${
-                  empStatusFilter === 'absent'
-                    ? 'bg-red-600 text-white'
-                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-red-900' : 'bg-red-100 text-red-800 hover:bg-red-200'
-                }`}
-              >
-                {T.filterOff} ({employees.filter(e => e.status === 'absent').length})
-              </button>
-            </div>
-          </div>
-
-          {/* VIEW MODE 1: Clean Timesheet Table View */}
-          {viewMode === 'grid' && (
-            <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className={`font-extrabold uppercase tracking-wider border-b ${
-                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-300'
-                  }`}>
-                    <tr>
-                      <th className="px-4 py-3.5">{T.colNameRole}</th>
-                      <th className="px-4 py-3.5">{T.colShiftTarget}</th>
-                      <th className="px-4 py-3.5">{T.colArrival}</th>
-                      <th className="px-4 py-3.5">{T.colDeparture}</th>
-                      <th className="px-4 py-3.5 text-center">{T.colWorkedHrs}</th>
-                      <th className="px-4 py-3.5">{T.colShiftStatus}</th>
-                      <th className="px-4 py-3.5 text-right">{T.colActions}</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
-                    {filteredEmployees.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-5 py-8 text-center font-bold opacity-75">
-                          {T.noEmployeesFilter}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredEmployees.map((emp) => {
-                        const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
-                        const calculatedHrs = calculateExactHours(checkIn, checkOut);
-                        
-                        return (
-                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
-                            <td className="px-4 py-3 font-extrabold">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm">{emp.name}</span>
-                                {isLiveFromClockify && (
-                                  <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
-                                    ⏱️ CLOCKIFY
-                                  </span>
-                                )}
-                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
-                                  {emp.languages.join('/')}
-                                </span>
-                              </div>
-                              <div className="text-[0.7rem] font-medium opacity-75">{emp.role}</div>
-                            </td>
-                            <td className="px-4 py-3 font-mono font-bold text-amber-400">
-                              ⏰ {emp.expectedShift}
-                            </td>
-                            <td className="px-4 py-3 font-mono font-bold">
-                              {checkIn ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
-                                  🟢 {checkIn}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 font-normal">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 font-mono font-bold">
-                              {checkOut ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>
-                                  🔴 {checkOut}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 font-normal">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-400">
-                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '-'}
-                            </td>
-                            <td className="px-4 py-3 font-bold">
-                              {status === 'expected' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-800 border-amber-400'}`}>{T.statusExpectedBadge}</span>}
-                              {status === 'checked_in' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
-                              {status === 'completed' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
-                              {status === 'absent' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-red-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {status === 'expected' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
-                                    {T.arrivedBtn}
-                                  </button>
-                                )}
-                                {status === 'checked_in' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
-                                    {T.leftBtn}
-                                  </button>
-                                )}
-                                {status === 'completed' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition" title="Resume Shift">
-                                    ▶ Play
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleOpenEditShift(emp)}
-                                  className="rounded border border-slate-500 bg-slate-800 px-2.5 py-1 font-bold text-slate-200 hover:bg-slate-700 transition"
-                                  title="Modify entry/leave hours"
-                                >
-                                  {T.editTimesBtn}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* VIEW MODE 2: Cards Grid View */}
-          {viewMode === 'cards' && (
+          
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {filteredEmployees.length === 0 ? (
@@ -3078,7 +2611,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               })
           )}
           </div>
-          )}
         </div>
           </div>
         )}
@@ -3358,7 +2890,454 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             </div>
           </div>
 
-          {/* Date Range Selection */}
+          
+          {/* Quick Filters */}
+          <div className={`mt-5 rounded-xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold mr-2">📅 Quick Filters:</span>
+              {[
+                { label: 'Today', date: new Date().toISOString().split('T')[0] },
+                { label: 'Yesterday', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+                { label: 'Day Before Yesterday', date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+              ].map(filter => (
+                <button
+                  key={filter.label}
+                  onClick={() => {
+                    setSelectedDate(filter.date);
+                    setLogDate(filter.date);
+                    setViewMode('grid');
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold shadow transition ${
+                    selectedDate === filter.date
+                      ? 'bg-amber-600 text-white border-transparent'
+                      : isDark
+                      ? 'border border-white/20 bg-transparent hover:bg-white/10'
+                      : 'border border-slate-300 bg-slate-100 hover:bg-slate-200'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+              <div className="flex-1"></div>
+              <div className="flex items-center gap-2">
+                 <button
+                  onClick={() => setViewMode('grid')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    viewMode === 'grid'
+                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {T.dailyTimesheetBtn}
+                </button>
+                <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    viewMode === 'calendar'
+                      ? isDark ? 'bg-white text-slate-900 shadow' : 'bg-[#133137] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {T.monthlyCalendarBtn}
+                </button>
+              </div>
+            </div>
+          </div>
+
+{/* VIEW MODE 0: Interactive Monthly Calendar */}
+          {viewMode === 'calendar' && (
+            <div className={`mt-5 rounded-xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+              {/* Calendar Header Navigation */}
+              <div className="flex items-center justify-between border-b pb-4 mb-4 border-white/10">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-serif text-lg font-bold">
+                    📅 {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                    {T.clickDayHint}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const prev = new Date(calendarMonth);
+                      prev.setMonth(prev.getMonth() - 1);
+                      setCalendarMonth(prev);
+                    }}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                  >
+                    {T.prevMonth}
+                  </button>
+                  <button
+                    onClick={() => setCalendarMonth(new Date())}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
+                  >
+                    {T.todayBtn}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = new Date(calendarMonth);
+                      next.setMonth(next.getMonth() + 1);
+                      setCalendarMonth(next);
+                    }}
+                    className="rounded-lg border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
+                  >
+                    {T.nextMonth}
+                  </button>
+                </div>
+              </div>
+
+              {/* Days of Week */}
+              <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-xs uppercase text-slate-400 mb-2">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+              </div>
+
+              {/* Month Grid Cells */}
+              <div className="grid grid-cols-7 gap-2">
+                {getDaysInMonth(calendarMonth).map((dayObj, idx) => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const isToday = dayObj.dateStr === todayStr;
+                  const isSelected = selectedDate === dayObj.dateStr;
+
+                  // Logs for this specific day
+                  const dayLogs = logs.filter(l => l.date === dayObj.dateStr);
+                  const dayTotalHours = dayLogs.reduce((sum, l) => sum + l.hours, 0);
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setSelectedDate(dayObj.dateStr);
+                        setLogDate(dayObj.dateStr);
+                        setViewMode('grid');
+                      }}
+                      className={`min-h-[85px] rounded-xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
+                        !dayObj.isCurrentMonth
+                          ? 'opacity-40 border-transparent bg-transparent'
+                          : isToday
+                          ? 'border-emerald-500 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
+                          : isSelected
+                          ? 'border-amber-500 bg-amber-950/40 text-white'
+                          : isDark
+                          ? 'border-white/15 bg-black/50 hover:border-white/40 hover:bg-black/70'
+                          : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-extrabold text-sm ${isToday ? 'text-emerald-400 font-black' : ''}`}>
+                          {dayObj.dayNum}
+                        </span>
+                        {isToday && (
+                          <span className="text-[0.6rem] font-bold bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">
+                            {lang === 'ru' ? 'Сегодня' : 'Today'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 space-y-1 text-[0.65rem] font-bold">
+                        {dayTotalHours > 0 ? (
+                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-emerald-500/30 flex justify-between">
+                            <span>{T.workedLabel2}</span>
+                            <span className="font-mono">{dayTotalHours}h</span>
+                          </div>
+                        ) : (
+                          <div className="text-slate-500 font-normal italic">{T.noLogsLabel}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* REAL-TIME DASHBOARD WIDGETS */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Live Status Breakdown */}
+            <div className={`lg:col-span-2 rounded-2xl border-2 p-5 shadow-lg ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-extrabold text-lg flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  Live Team Status
+                </h3>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">⚡ Live Sync (LimassolTracker & Firestore)</span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {employees.map(emp => {
+                  const isOnline = emp.status === 'checked_in';
+                  return (
+                    <div key={emp.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isOnline 
+                        ? (isDark ? 'border-emerald-500/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-emerald-50')
+                        : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
+                          isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 animate-pulse' : 'bg-slate-700 text-slate-300'
+                        }`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-sm flex items-center gap-1.5">
+                            {emp.name}
+                            <span className="text-[0.65rem] font-bold opacity-60">({emp.role})</span>
+                          </div>
+                          <div className={`text-[0.65rem] font-bold ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            {isOnline ? `🟢 ONLINE (Arrived ${emp.checkInTime || 'recently'})` : '⚫ OFFLINE'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isOnline && (
+                        <div className="text-right">
+                          <span className="text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
+                            WORKING
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Metrics & Activity Feed */}
+            <div className="space-y-6">
+              <div className={`rounded-2xl border-2 p-5 shadow-lg flex flex-col justify-center items-center text-center ${isDark ? 'border-emerald-500/20 bg-gradient-to-b from-[#133137] to-[#0a191c] text-white' : 'border-emerald-200 bg-emerald-50 text-slate-800'}`}>
+                <div className="text-sm font-extrabold text-emerald-400 mb-2 uppercase tracking-widest">Active Now</div>
+                <div className="text-6xl font-black drop-shadow-md">{employees.filter(e => e.status === 'checked_in').length}</div>
+                <div className="text-xs font-bold mt-2 opacity-80">out of {employees.length} team members</div>
+              </div>
+
+              <div className={`rounded-2xl border-2 p-5 shadow-lg h-[250px] overflow-hidden flex flex-col ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
+                <h3 className="font-extrabold text-sm mb-4 border-b border-white/10 pb-2">Recent Activity Feed</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                  {Object.values(liveStatuses).length === 0 ? (
+                    <div className="text-xs text-center opacity-50 mt-10">No active timers right now.</div>
+                  ) : (
+                    Object.values(liveStatuses).map((status, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                        <div>
+                          <div className="text-xs font-bold">
+                            {employees.find(e => e.id === status.employeeId)?.name || 'Someone'} <span className="opacity-70 font-normal">started working on</span>
+                          </div>
+                          <div className="text-xs text-emerald-400 font-bold">&quot;{status.task}&quot;</div>
+                          <div className="text-[0.6rem] text-slate-500 mt-0.5">{status.startTime}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            
+          </div>
+
+          {/* Search & Status Filters Bar */}
+          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px]">
+              <input
+                type="text"
+                placeholder={T.searchPlaceholder}
+                value={empSearchQuery}
+                onChange={(e) => setEmpSearchQuery(e.target.value)}
+                className={`w-full rounded-lg border px-3.5 py-2 text-xs font-bold outline-none ${
+                  isDark ? 'border-white/30 bg-black/60 text-white placeholder-slate-400 focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
+                }`}
+              />
+              {empSearchQuery && (
+                <button 
+                  onClick={() => setEmpSearchQuery('')}
+                  className="absolute right-3 top-2 text-xs font-extrabold text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold">
+              <button
+                onClick={() => setEmpStatusFilter('ALL')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'ALL'
+                    ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
+                    : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {T.filterAll} ({employees.length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('checked_in')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'checked_in'
+                    ? 'bg-emerald-600 text-white'
+                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                }`}
+              >
+                {T.filterWorking} ({employees.filter(e => e.status === 'checked_in').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('expected')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'expected'
+                    ? 'bg-amber-600 text-white'
+                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-amber-900' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+              >
+                {T.filterExpected} ({employees.filter(e => e.status === 'expected').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('completed')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'completed'
+                    ? 'bg-blue-600 text-white'
+                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-blue-900' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                }`}
+              >
+                {T.filterDone} ({employees.filter(e => e.status === 'completed').length})
+              </button>
+              <button
+                onClick={() => setEmpStatusFilter('absent')}
+                className={`rounded-lg px-3 py-1.5 transition ${
+                  empStatusFilter === 'absent'
+                    ? 'bg-red-600 text-white'
+                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-red-900' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                }`}
+              >
+                {T.filterOff} ({employees.filter(e => e.status === 'absent').length})
+              </button>
+            </div>
+          </div>
+
+          
+{/* VIEW MODE 1: Clean Timesheet Table View */}
+          {viewMode === 'grid' && (
+            <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-300 bg-white text-black'}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className={`font-extrabold uppercase tracking-wider border-b ${
+                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-300'
+                  }`}>
+                    <tr>
+                      <th className="px-4 py-3.5">{T.colNameRole}</th>
+                      <th className="px-4 py-3.5">{T.colShiftTarget}</th>
+                      <th className="px-4 py-3.5">{T.colArrival}</th>
+                      <th className="px-4 py-3.5">{T.colDeparture}</th>
+                      <th className="px-4 py-3.5 text-center">{T.colWorkedHrs}</th>
+                      <th className="px-4 py-3.5">{T.colShiftStatus}</th>
+                      <th className="px-4 py-3.5 text-right">{T.colActions}</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
+                    {filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-5 py-8 text-center font-bold opacity-75">
+                          {T.noEmployeesFilter}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((emp) => {
+                        const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
+                        const calculatedHrs = calculateExactHours(checkIn, checkOut);
+                        
+                        return (
+                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                            <td className="px-4 py-3 font-extrabold">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{emp.name}</span>
+                                {isLiveFromClockify && (
+                                  <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
+                                    ⏱️ CLOCKIFY
+                                  </span>
+                                )}
+                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
+                                  {emp.languages.join('/')}
+                                </span>
+                              </div>
+                              <div className="text-[0.7rem] font-medium opacity-75">{emp.role}</div>
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-amber-400">
+                              ⏰ {emp.expectedShift}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              {checkIn ? (
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>
+                                  🟢 {checkIn}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-normal">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              {checkOut ? (
+                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>
+                                  🔴 {checkOut}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-normal">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-400">
+                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '-'}
+                            </td>
+                            <td className="px-4 py-3 font-bold">
+                              {status === 'expected' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-800 border-amber-400'}`}>{T.statusExpectedBadge}</span>}
+                              {status === 'checked_in' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
+                              {status === 'completed' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
+                              {status === 'absent' && <span className={`rounded-md px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-red-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {status === 'expected' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition">
+                                    {T.arrivedBtn}
+                                  </button>
+                                )}
+                                {status === 'checked_in' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white hover:bg-blue-500 transition">
+                                    {T.leftBtn}
+                                  </button>
+                                )}
+                                {status === 'completed' && (
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-500 transition" title="Resume Shift">
+                                    ▶ Play
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleOpenEditShift(emp)}
+                                  className="rounded border border-slate-500 bg-slate-800 px-2.5 py-1 font-bold text-slate-200 hover:bg-slate-700 transition"
+                                  title="Modify entry/leave hours"
+                                >
+                                  {T.editTimesBtn}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          
+{/* Date Range Selection */}
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-300 bg-slate-100'}`}>
             <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
               <div className="flex items-center gap-2">
