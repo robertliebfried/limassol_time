@@ -874,13 +874,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       return;
     }
 
-    // Employee check
-    const targetEmp = employees.find(e => 
+    // Employee check — only search in currently active (non-deleted) employees list
+    const targetEmp = employees.find(e =>
       (e.username && e.username.toLowerCase() === u) ||
-      e.name.toLowerCase() === u || e.name.toLowerCase().includes(u)
+      e.name.toLowerCase() === u
     );
 
     if (!targetEmp) {
+      // Could be a deleted employee trying old credentials — block with generic error
       setLoginError('Invalid Username or PIN.');
       return;
     }
@@ -2655,19 +2656,26 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     {employees.filter(e => e.status === 'checked_in').length === 0 ? (
                       <div className="text-xs text-center opacity-50 mt-10">No active team members right now.</div>
                     ) : (
-                      employees.filter(e => e.status === 'checked_in').map((emp, i) => {
-                        const { checkIn, isLiveFromAW, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
-                        return (
+                      employees
+                        .filter(e => e.status === 'checked_in')
+                        .map(emp => ({ emp, state: getMergedEmployeeState(emp) }))
+                        .sort((a, b) => {
+                          // AW-connected machines first
+                          const aAW = a.state.isLiveFromAW || a.state.isLiveFromClockify ? 1 : 0;
+                          const bAW = b.state.isLiveFromAW || b.state.isLiveFromClockify ? 1 : 0;
+                          return bAW - aAW;
+                        })
+                        .map(({ emp, state: { checkIn, isLiveFromAW, isLiveFromClockify, activeHrsDisplay } }, i) => (
                           <div key={i} className="flex gap-3 items-start">
-                            <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse"></div>
+                            <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 animate-pulse ${(isLiveFromAW || isLiveFromClockify) ? 'bg-emerald-400' : 'bg-blue-400'}`}></div>
                             <div>
                               <div className="text-xs font-bold flex items-center gap-1.5 flex-wrap">
-                                {emp.name} 
+                                {emp.name}
                                 <span className="opacity-70 font-normal">checked in</span>
                                 {(isLiveFromAW || isLiveFromClockify) ? (
-                                  <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm">💻 AW Tracker</span>
+                                  <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm">AW Active</span>
                                 ) : (
-                                  <span className="px-1 py-0.5 rounded text-[8px] border border-blue-500/40 bg-blue-500/20 text-blue-300 shadow-sm">🖥️ Web Manual</span>
+                                  <span className="px-1 py-0.5 rounded text-[8px] border border-blue-500/40 bg-blue-500/20 text-blue-300 shadow-sm">Web Manual</span>
                                 )}
                               </div>
                               <div className="text-[0.65rem] text-slate-500 mt-0.5">
@@ -2675,8 +2683,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               </div>
                             </div>
                           </div>
-                        );
-                      })
+                        ))
                     )}
                   </div>
                 </div>
