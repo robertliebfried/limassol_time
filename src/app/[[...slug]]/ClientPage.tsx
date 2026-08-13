@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee } from '@/lib/firebase';
+import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent } from '@/lib/firebase';
 
 const TRANSLATIONS = {
   en: {
@@ -268,11 +268,12 @@ interface TimeLog {
 
 interface ShiftEvent {
   id: string;
-  type: 'clock_in' | 'clock_out' | 'break_start' | 'break_end';
+  type: 'clock_in' | 'clock_out' | 'break_start' | 'break_end' | 'system' | 'absent';
   label: string;
   time: string;   // Cyprus display time e.g. "11:03 AM"
   timestamp: number; // unix ms for calculations
   breakType?: string;
+  source?: 'aw_auto' | 'manual_admin' | 'manual_agent';
 }
 
 const INITIAL_EMPLOYEES: Employee[] = [
@@ -474,6 +475,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     return new Date().toISOString().split('T')[0];
   });
   const [reportEndDate, setReportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    if (authRole === 'admin' && reportStartDate && reportEndDate) {
+      fetchFirestoreLogs(reportStartDate, reportEndDate).then(fetched => {
+        setLogs(fetched);
+      });
+    }
+  }, [authRole, reportStartDate, reportEndDate]);
   const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
 
 
@@ -573,6 +582,18 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     const updated = [...existing, newEvent];
     localStorage.setItem(key, JSON.stringify(updated));
     setShiftEvents(updated);
+    
+    // Save to Firestore asynchronously
+    saveFirestoreShiftEvent({
+      employeeId: empId,
+      type: event.type,
+      label: event.label,
+      time: event.time,
+      timestamp: event.timestamp,
+      date: todayStr,
+      source: event.source || (authRole === 'admin' ? 'manual_admin' : 'manual_agent')
+    }).catch(console.error);
+    
     return updated;
   };
 
@@ -1047,6 +1068,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       source: 'manual_agent',
     };
     saveLogs([autoLog, ...logs]);
+    saveFirestoreLog(autoLog).catch(console.error);
   };
 
   // Add Time Log Submit
@@ -1067,6 +1089,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     };
 
     saveLogs([newLog, ...logs]);
+    saveFirestoreLog(newLog).catch(console.error);
     setShowAddLogModal(false);
     setLogProjectTask('General Operations');
   };
@@ -1324,6 +1347,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         source: targetEmp.trackingClient === 'AW' ? 'aw_auto' : 'manual_admin',
       };
       saveLogs([autoLog, ...logs]);
+      saveFirestoreLog(autoLog).catch(console.error);
     }
   };
 

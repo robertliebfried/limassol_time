@@ -177,7 +177,18 @@ export async function purgeFirestoreEmployee(username: string) {
   }
 }
 
-export interface FirestoreShiftLog {
+export interface FirestoreTimeLog {
+  id?: string;
+  date: string;
+  employeeId: string;
+  employeeName: string;
+  hours: number;
+  projectTask: string;
+  timestamp: string;
+  source?: string;
+}
+
+export interface FirestoreShiftEvent {
   id?: string;
   employeeId: string;
   type: string;
@@ -188,11 +199,93 @@ export interface FirestoreShiftLog {
   source?: string;
 }
 
-export async function fetchFirestoreLogs(dateStr: string): Promise<FirestoreShiftLog[]> {
+export async function fetchFirestoreLogs(startDate: string, endDate: string): Promise<FirestoreTimeLog[]> {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
+  
+  // To keep it simple and avoid needing a composite index in Firestore initially,
+  // we can fetch logs where date >= startDate, and then filter endDate locally.
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'time_logs' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'date' },
+          op: 'GREATER_THAN_OR_EQUAL',
+          value: { stringValue: startDate }
+        }
+      },
+      orderBy: [
+        { field: { fieldPath: 'date' }, direction: 'ASCENDING' },
+        { field: { fieldPath: 'timestamp' }, direction: 'ASCENDING' }
+      ]
+    }
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results: FirestoreTimeLog[] = [];
+    for (const item of data) {
+      if (item.document && item.document.fields) {
+        const fields = item.document.fields;
+        const dateVal = fields.date?.stringValue || '';
+        if (dateVal > endDate) continue;
+        
+        results.push({
+          id: item.document.name.split('/').pop(),
+          employeeId: fields.employeeId?.stringValue || '',
+          employeeName: fields.employeeName?.stringValue || '',
+          date: fields.date?.stringValue || '',
+          hours: fields.hours?.doubleValue ? parseFloat(fields.hours.doubleValue) : (fields.hours?.integerValue ? parseInt(fields.hours.integerValue) : 0),
+          projectTask: fields.projectTask?.stringValue || '',
+          timestamp: fields.timestamp?.stringValue || '',
+          source: fields.source?.stringValue || ''
+        });
+      }
+    }
+    return results;
+  } catch (e) {
+    console.error('Fetch logs error:', e);
+    return [];
+  }
+}
+
+export async function saveFirestoreLog(log: FirestoreTimeLog) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/time_logs?key=${FIREBASE_API_KEY}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fields: Record<string, any> = {
+    employeeId: { stringValue: log.employeeId },
+    employeeName: { stringValue: log.employeeName },
+    date: { stringValue: log.date },
+    hours: { doubleValue: log.hours },
+    projectTask: { stringValue: log.projectTask },
+    timestamp: { stringValue: log.timestamp }
+  };
+  if (log.source) fields.source = { stringValue: log.source };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    });
+    const data = await res.json();
+    return data.name ? data.name.split('/').pop() : null;
+  } catch (e) {
+    console.error('Save log error:', e);
+    return null;
+  }
+}
+
+export async function fetchFirestoreShiftEvents(dateStr: string): Promise<FirestoreShiftEvent[]> {
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
   const query = {
     structuredQuery: {
-      from: [{ collectionId: 'shift_logs' }],
+      from: [{ collectionId: 'shift_events' }],
       where: {
         fieldFilter: {
           field: { fieldPath: 'date' },
@@ -211,7 +304,7 @@ export async function fetchFirestoreLogs(dateStr: string): Promise<FirestoreShif
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const results: FirestoreShiftLog[] = [];
+    const results: FirestoreShiftEvent[] = [];
     for (const item of data) {
       if (item.document && item.document.fields) {
         const fields = item.document.fields;
@@ -228,35 +321,31 @@ export async function fetchFirestoreLogs(dateStr: string): Promise<FirestoreShif
       }
     }
     return results;
-  } catch (e) {
-    console.error('Fetch logs error:', e);
+  } catch (_e) {
     return [];
   }
 }
 
-export async function saveFirestoreLog(log: FirestoreShiftLog) {
-  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/shift_logs?key=${FIREBASE_API_KEY}`;
+export async function saveFirestoreShiftEvent(event: FirestoreShiftEvent) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/shift_events?key=${FIREBASE_API_KEY}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fields: Record<string, any> = {
-    employeeId: { stringValue: log.employeeId },
-    type: { stringValue: log.type },
-    label: { stringValue: log.label },
-    time: { stringValue: log.time },
-    timestamp: { integerValue: String(log.timestamp) },
-    date: { stringValue: log.date }
+    employeeId: { stringValue: event.employeeId },
+    type: { stringValue: event.type },
+    label: { stringValue: event.label },
+    time: { stringValue: event.time },
+    timestamp: { integerValue: String(event.timestamp) },
+    date: { stringValue: event.date }
   };
-  if (log.source) fields.source = { stringValue: log.source };
+  if (event.source) fields.source = { stringValue: event.source };
 
   try {
-    const res = await fetch(url, {
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields })
     });
-    const data = await res.json();
-    return data.name ? data.name.split('/').pop() : null;
   } catch (e) {
-    console.error('Save log error:', e);
-    return null;
+    console.error('Save shift event error:', e);
   }
 }
