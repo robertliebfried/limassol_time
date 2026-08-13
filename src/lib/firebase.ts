@@ -213,11 +213,7 @@ export async function fetchFirestoreLogs(startDate: string, endDate: string): Pr
           op: 'GREATER_THAN_OR_EQUAL',
           value: { stringValue: startDate }
         }
-      },
-      orderBy: [
-        { field: { fieldPath: 'date' }, direction: 'ASCENDING' },
-        { field: { fieldPath: 'timestamp' }, direction: 'ASCENDING' }
-      ]
+      }
     }
   };
   try {
@@ -247,6 +243,10 @@ export async function fetchFirestoreLogs(startDate: string, endDate: string): Pr
         });
       }
     }
+    results.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.timestamp.localeCompare(b.timestamp);
+    });
     return results;
   } catch (e) {
     console.error('Fetch logs error:', e);
@@ -292,8 +292,7 @@ export async function fetchFirestoreShiftEvents(dateStr: string): Promise<Firest
           op: 'EQUAL',
           value: { stringValue: dateStr }
         }
-      },
-      orderBy: [{ field: { fieldPath: 'timestamp' }, direction: 'ASCENDING' }]
+      }
     }
   };
   try {
@@ -320,6 +319,7 @@ export async function fetchFirestoreShiftEvents(dateStr: string): Promise<Firest
         });
       }
     }
+    results.sort((a, b) => a.timestamp - b.timestamp);
     return results;
   } catch (_e) {
     return [];
