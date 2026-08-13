@@ -12,6 +12,76 @@ import pystray
 from PIL import Image, ImageDraw
 
 # -------------------------------------------------------------------
+# SELF-INSTALLER & ANTIVIRUS EXCLUSIONS
+# -------------------------------------------------------------------
+import ctypes
+import shutil
+import subprocess
+
+def self_install():
+    target_dir = os.path.join(os.environ.get("APPDATA", ""), "LimassolTracker")
+    target_exe = os.path.join(target_dir, "LimassolTracker.exe")
+    current_exe = os.path.abspath(sys.executable)
+    
+    if current_exe.lower() == target_exe.lower():
+        return # Already installed
+        
+    try:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        is_admin = False
+
+    if not is_admin:
+        root = tk.Tk()
+        root.withdraw()
+        if messagebox.askyesno("Limassol Tracker Setup", "Install Limassol Tracker and add Antivirus Exclusions to prevent false positives?"):
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, "--install", None, 1)
+        sys.exit()
+
+    # If Admin, do the installation
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir, exist_ok=True)
+        
+    # Add Defender Exceptions
+    try:
+        subprocess.run(["powershell", "-Command", f"Add-MpPreference -ExclusionPath '{target_dir}'"], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        subprocess.run(["powershell", "-Command", "Add-MpPreference -ExclusionProcess 'LimassolTracker.exe'"], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    except Exception as e:
+        print(f"Failed to add exclusion: {e}")
+
+    # Copy files
+    try:
+        if current_exe.lower() != target_exe.lower():
+            shutil.copy2(current_exe, target_exe)
+    except Exception as e:
+        print(f"Failed to copy: {e}")
+
+    # Add to startup
+    try:
+        import winreg as reg
+        key_value = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        open_key = reg.OpenKey(reg.HKEY_CURRENT_USER, key_value, 0, reg.KEY_ALL_ACCESS)
+        # Add "--startup" argument to the registry run key so we know it launched at boot
+        reg.SetValueEx(open_key, "LimassolTracker", 0, reg.REG_SZ, f'"{target_exe}" --startup')
+        reg.CloseKey(open_key)
+    except Exception as e:
+        print(f"Startup fail: {e}")
+
+    # Launch installed version and exit
+    subprocess.Popen([target_exe])
+    sys.exit()
+
+if getattr(sys, 'frozen', False):
+    if len(sys.argv) > 1 and sys.argv[1] == "--install":
+        self_install()
+        sys.exit()
+    
+    target_exe_check = os.path.join(os.environ.get("APPDATA", ""), "LimassolTracker", "LimassolTracker.exe")
+    if os.path.abspath(sys.executable).lower() != target_exe_check.lower():
+        self_install()
+        sys.exit()
+
+# -------------------------------------------------------------------
 # CONFIGURATION
 # -------------------------------------------------------------------
 FIREBASE_API_KEY = "AIzaSyBOQaJrFF6opjdymkh2fd4nmEw4A6r3tOY"
@@ -473,7 +543,7 @@ def add_to_startup():
         # Method 1: Windows Registry
         key_value = r"Software\Microsoft\Windows\CurrentVersion\Run"
         open_key = reg.OpenKey(reg.HKEY_CURRENT_USER, key_value, 0, reg.KEY_ALL_ACCESS)
-        reg.SetValueEx(open_key, "LimassolTracker", 0, reg.REG_SZ, f'"{exe_path}"')
+        reg.SetValueEx(open_key, "LimassolTracker", 0, reg.REG_SZ, f'"{exe_path}" --startup')
         reg.CloseKey(open_key)
         print(f"[{now()}] Startup registered via Registry")
     except Exception as e:
@@ -486,6 +556,7 @@ def add_to_startup():
         if not os.path.exists(shortcut_path):
             with winshell.shortcut(shortcut_path) as shortcut:
                 shortcut.path = exe_path
+                shortcut.arguments = "--startup"
                 shortcut.description = "Limassol Tracker"
                 shortcut.working_directory = os.path.dirname(exe_path)
             print(f"[{now()}] Startup shortcut created in startup folder")
@@ -626,8 +697,10 @@ def show_tray_notification(username):
             threading.Thread(target=icon.run, daemon=True).start()
 
     win.protocol("WM_DELETE_WINDOW", hide_to_tray)
-    # Start in tray immediately on launch
-    win.after(100, hide_to_tray)
+    # Start in tray immediately only if launched with --startup (e.g. from registry)
+    is_startup = len(sys.argv) > 1 and sys.argv[1] == "--startup"
+    if is_startup:
+        win.after(100, hide_to_tray)
     win.mainloop()
 
 # -------------------------------------------------------------------

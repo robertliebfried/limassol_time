@@ -3086,7 +3086,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {T.step2Text}
                     </p>
                     <a
-                      href="/downloads/LimassolTracker_v1.1.4.exe"
+                      href="/downloads/LimassolTracker_v1.1.5.zip"
                       download
                       className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >
@@ -3769,6 +3769,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       </td>
                     </tr>
                   ) : (
+                    filteredLogs.map((log) => (
                       <tr key={log.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${log.source === 'aw_auto' ? 'opacity-90' : ''}`}>
                         <td className="px-5 py-4 font-mono text-xs font-bold">{log.date}</td>
                         <td className="px-5 py-4 font-extrabold">
