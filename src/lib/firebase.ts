@@ -15,6 +15,12 @@ export interface FirestoreEmployeeDoc {
   sortOrder?: number;
   trackingClient?: string;
   lastSeen?: string;
+  // AW telemetry fields (pushed by tracker every heartbeat)
+  awActiveSecondsToday?: number;
+  awAfkSecondsToday?: number;
+  awCurrentApp?: string;
+  awCurrentTitle?: string;
+  awTopAppsJson?: string;
 }
 
 // Fetch all employees from Firestore REST API (0 dependencies)
@@ -51,6 +57,11 @@ export async function fetchFirestoreEmployees(): Promise<Record<string, Firestor
         sortOrder: fields.sortOrder?.integerValue ? parseInt(fields.sortOrder.integerValue) : undefined,
         trackingClient: fields.trackingClient?.stringValue,
         lastSeen: fields.lastSeen?.timestampValue,
+        awActiveSecondsToday: fields.awActiveSecondsToday?.integerValue ? parseInt(fields.awActiveSecondsToday.integerValue) : undefined,
+        awAfkSecondsToday: fields.awAfkSecondsToday?.integerValue ? parseInt(fields.awAfkSecondsToday.integerValue) : undefined,
+        awCurrentApp: fields.awCurrentApp?.stringValue,
+        awCurrentTitle: fields.awCurrentTitle?.stringValue,
+        awTopAppsJson: fields.awTopAppsJson?.stringValue,
       };
     }
     return result;
