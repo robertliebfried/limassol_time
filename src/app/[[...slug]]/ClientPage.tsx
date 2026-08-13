@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent } from '@/lib/firebase';
+import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent, fetchFirestoreShiftEvents } from '@/lib/firebase';
+import type { FirestoreTimeLog, FirestoreShiftEvent } from '@/lib/firebase';
 
 const TRANSLATIONS = {
   en: {
@@ -532,6 +533,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
   // Shift Event History (persisted per employee per day)
   const [shiftEvents, setShiftEvents] = useState<ShiftEvent[]>([]);
+  const [historicalShiftEvents, setHistoricalShiftEvents] = useState<FirestoreShiftEvent[]>([]);
 
   // ----------------------------------------------------
   // Break Auto-Switch Ticking Clock Effect
@@ -874,6 +876,24 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authRole, activeEmployee?.id]);
+
+  // Load historical shift events when viewing past dates in Reports
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const targetDate = reportStartDate || todayStr;
+      if (targetDate !== todayStr) {
+        fetchFirestoreShiftEvents(targetDate).then(events => {
+          setHistoricalShiftEvents(events || []);
+        }).catch(err => {
+          console.error("Failed to load historical events", err);
+          setHistoricalShiftEvents([]);
+        });
+      } else {
+        setHistoricalShiftEvents([]);
+      }
+    }
+  }, [activeTab, reportStartDate]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -3192,187 +3212,99 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         {activeTab === 'reports' && (
           <div className="space-y-6">
             {/* Reports & Payroll Center */}
-            <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-slate-300/30 bg-[#16363d] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-serif text-xl font-bold flex items-center gap-2">
-                {T.reportsAdvTitle}
-              </h2>
-              <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                {T.reportsAdvDesc}
-              </p>
-            </div>
-
-            {/* Export Actions */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button onClick={exportPayrollSummaryCSV} className={`rounded-2xl px-5 py-2.5 text-xs font-bold border transition-colors ${isDark ? 'border-white/30 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-100'} shadow`}>
-                📥 Export CSV
-              </button>
-              <button onClick={() => setShowClockifyModal(true)} className={`rounded-2xl px-5 py-2.5 text-xs font-bold transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'} shadow`}>
-                ☁️ Clockify Backup
-              </button>
-              {googleSheetUrl && (
-                <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" className={`rounded-2xl px-5 py-2.5 text-xs font-bold transition-colors ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'} shadow inline-block`}>
-                  📊 View in Google Sheets
-                </a>
-              )}
-              <button
-                onClick={() => setShowPrintReportModal(true)}
-                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
-              >
-                {T.printPdfBtn}
-              </button>
-            </div>
-          </div>
-
-          
-
-          {/* ── Rich Date Navigation Bar ── */}
-          {(() => {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const yesterStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-            // Parse selected date to build month dropdown
-            const selDate = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
-            const viewYear = selDate.getFullYear();
-            const viewMonth = selDate.getMonth();
-            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-            const monthDays: { label: string; date: string }[] = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-              const dt = new Date(viewYear, viewMonth, d);
-              const iso = dt.toISOString().split('T')[0];
-              const dayName = dt.toLocaleDateString('en-GB', { weekday: 'short' });
-              monthDays.push({ label: `${String(d).padStart(2,'0')} ${dayName}`, date: iso });
-            }
-            const monthLabel = selDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-            const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); };
-            const shiftDay = (delta: number) => {
-              const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
-              base.setDate(base.getDate() + delta);
-              goToDate(base.toISOString().split('T')[0]);
-            };
-            const shiftMonth = (delta: number) => {
-              const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
-              base.setMonth(base.getMonth() + delta);
-              const maxDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-              if (base.getDate() > maxDay) base.setDate(maxDay);
-              goToDate(base.toISOString().split('T')[0]);
-            };
-            const isTodaySelected = reportStartDate === todayStr && reportEndDate === todayStr;
-            // const isThisMonth = viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth();
-
-            return (
-              <div className={`mt-5 rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => goToDate(todayStr)}
-                    className={`rounded-2xl px-3 py-1.5 text-xs font-extrabold shadow transition ${
-                      isTodaySelected
-                        ? 'bg-slate-900 text-white'
-                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-200/60 bg-slate-100 hover:bg-slate-200 text-black'
-                    }`}
-                  >
-                    Today
-                  </button>
-
-                  {/* Yesterday chip */}
-                  <button
-                    onClick={() => goToDate(yesterStr)}
-                    className={`rounded-2xl px-3 py-1.5 text-xs font-extrabold shadow transition ${
-                      reportStartDate === yesterStr && reportEndDate === yesterStr
-                        ? 'bg-slate-900 text-white'
-                        : isDark ? 'border border-white/20 bg-transparent hover:bg-white/10 text-white' : 'border border-slate-200/60 bg-slate-100 hover:bg-slate-200 text-black'
-                    }`}
-                  >
-                    Yesterday
-                  </button>
-
-                  <div className="flex-1" />
-                </div>
-
-                {/* Row 2: Day navigator */}
-                <div className={`flex items-center gap-2 rounded-2xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
-                  {/* Prev month */}
-                  <button
-                    onClick={() => shiftMonth(-1)}
-                    title="Previous month"
-                    className={`rounded-2xl px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
-                  >
-                    «
-                  </button>
-
-                  {/* Prev day */}
-                  <button
-                    onClick={() => shiftDay(-1)}
-                    title="Previous day"
-                    className={`rounded-2xl px-2.5 py-1 text-sm font-black transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'}`}
-                  >
-                    ‹
-                  </button>
-
-                  {/* Month dropdown */}
-                  <div className="flex items-center gap-2 flex-1 justify-center">
-                    <span className={`text-xs font-extrabold opacity-60`}>{monthLabel}</span>
-                    <select
-                      value={reportStartDate || todayStr}
-                      onChange={e => goToDate(e.target.value)}
-                      className={`rounded-2xl border px-3 py-1.5 text-sm font-extrabold outline-none cursor-pointer transition ${
-                        isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
-                      }`}
-                    >
-                      {monthDays.map(d => (
-                        <option key={d.date} value={d.date}>
-                          {d.label}{d.date === todayStr ? ' — Today' : d.date === yesterStr ? ' — Yesterday' : ''}
-                        </option>
-                      ))}
-                    </select>
+            <div className={`rounded-3xl border p-6 shadow-md ${isDark ? 'border-white/10 bg-[#16363d]/80 text-white' : 'border-slate-200/80 bg-white text-black'}`}>
+              
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                
+                {/* Left: Title & Date Nav */}
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold flex items-center gap-2 tracking-tight">
+                      {T.reportsAdvTitle}
+                    </h2>
+                    <p className={`text-sm opacity-70 mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      {T.reportsAdvDesc}
+                    </p>
                   </div>
 
-                  {/* Next day */}
-                  <button
-                    onClick={() => shiftDay(1)}
-                    title="Next day"
-                    disabled={reportStartDate === todayStr || !reportStartDate}
-                    className={`rounded-2xl px-2.5 py-1 text-sm font-black transition ${
-                      (reportStartDate === todayStr || !reportStartDate)
-                        ? 'opacity-20 cursor-not-allowed'
-                        : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
-                    }`}
-                  >
-                    ›
-                  </button>
+                  {/* Unified Date Toolbar */}
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const yesterStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                    const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); };
+                    const shiftDay = (delta: number) => {
+                      const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
+                      base.setDate(base.getDate() + delta);
+                      goToDate(base.toISOString().split('T')[0]);
+                    };
+                    const isTodaySelected = reportStartDate === todayStr && reportEndDate === todayStr;
+                    const isYesterSelected = reportStartDate === yesterStr && reportEndDate === yesterStr;
 
-                  {/* Next month */}
-                  <button
-                    onClick={() => shiftMonth(1)}
-                    title="Next month"
-                    disabled={viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth()}
-                    className={`rounded-2xl px-2 py-1 text-xs font-black transition opacity-70 hover:opacity-100 ${
-                      (viewYear >= new Date().getFullYear() && viewMonth >= new Date().getMonth())
-                        ? 'opacity-20 cursor-not-allowed'
-                        : isDark ? 'hover:bg-white/10' : 'hover:bg-slate-200'
-                    }`}
-                  >
-                    »
-                  </button>
-
-                  {/* Native date picker */}
-                  <input
-                    type="date"
-                    max={todayStr}
-                    value={reportStartDate || todayStr}
-                    onChange={e => goToDate(e.target.value)}
-                    title="Pick any date"
-                    className={`rounded-2xl border px-2 py-1 text-xs font-bold outline-none cursor-pointer transition ${
-                      isDark ? 'border-white/20 bg-black/60 text-white' : 'border-slate-200/60 bg-white text-slate-900'
-                    }`}
-                  />
+                    return (
+                      <div className={`inline-flex items-center gap-1 rounded-2xl p-1 border shadow-inner ${isDark ? 'border-white/10 bg-black/30' : 'border-slate-200 bg-slate-50'}`}>
+                        <button
+                          onClick={() => goToDate(todayStr)}
+                          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${isTodaySelected ? 'bg-slate-900 text-white shadow-md' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'}`}
+                        >
+                          Today
+                        </button>
+                        <button
+                          onClick={() => goToDate(yesterStr)}
+                          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${isYesterSelected ? 'bg-slate-900 text-white shadow-md' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'}`}
+                        >
+                          Yesterday
+                        </button>
+                        
+                        <div className="w-px h-6 bg-current opacity-10 mx-2"></div>
+                        
+                        <button onClick={() => shiftDay(-1)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition opacity-60 hover:opacity-100">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        
+                        <input
+                          type="date"
+                          max={todayStr}
+                          value={reportStartDate || todayStr}
+                          onChange={e => goToDate(e.target.value)}
+                          className={`bg-transparent font-bold text-sm outline-none cursor-pointer px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10`}
+                        />
+                        
+                        <button onClick={() => shiftDay(1)} disabled={isTodaySelected} className={`p-2 rounded-xl transition ${isTodaySelected ? 'opacity-20 cursor-not-allowed' : 'opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10'}`}>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
+
+                {/* Right: Export Actions */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
+                    <button onClick={exportPayrollSummaryCSV} title="Export Payroll Summary CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
+                      📥 Summary
+                    </button>
+                    <button onClick={exportFilteredLogsCSV} title="Export Detailed Shift CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
+                      📥 Details
+                    </button>
+                  </div>
+                  
+                  <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
+                    <button onClick={() => setShowPrintReportModal(true)} title="Print / PDF Report" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
+                      🖨️ Print
+                    </button>
+                    <button onClick={() => setShowClockifyModal(true)} title="Sync to Clockify" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white">
+                      ☁️ Clockify
+                    </button>
+                    {googleSheetUrl && (
+                      <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" title="View in Google Sheets" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white inline-block">
+                        📊 Sheets
+                      </a>
+                    )}
+                  </div>
+                </div>
+
               </div>
-              </div>
-            );
-          })()}
+            </div>
 
 {/* VIEW MODE 0: Interactive Monthly Calendar */}
           {viewMode === 'calendar' && (
@@ -3592,7 +3524,35 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       </tr>
                     ) : (
                       filteredEmployees.map((emp) => {
-                        const { status, checkIn, checkOut, isLiveFromClockify, activeHrsDisplay } = getMergedEmployeeState(emp);
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const isHistorical = reportStartDate && reportStartDate !== todayStr;
+                        
+                        let status = emp.status;
+                        let checkIn = emp.checkInTime;
+                        let checkOut = emp.checkOutTime;
+                        let isLiveFromClockify = false;
+                        let activeHrsDisplay = '';
+
+                        if (isHistorical) {
+                          const empEvents = historicalShiftEvents.filter(ev => ev.employeeId === emp.id).sort((a,b) => a.timestamp - b.timestamp);
+                          const inEvents = empEvents.filter(ev => ev.type === 'clock_in' || ev.type === 'IN');
+                          const outEvents = empEvents.filter(ev => ev.type === 'clock_out' || ev.type === 'OUT');
+                          
+                          checkIn = inEvents.length > 0 ? inEvents[0].time : undefined;
+                          checkOut = outEvents.length > 0 ? outEvents[outEvents.length - 1].time : undefined;
+                          
+                          if (checkOut) status = 'completed';
+                          else if (checkIn) status = 'checked_in';
+                          else status = 'absent';
+                        } else {
+                          const liveState = getMergedEmployeeState(emp);
+                          status = liveState.status;
+                          checkIn = liveState.checkIn;
+                          checkOut = liveState.checkOut;
+                          isLiveFromClockify = liveState.isLiveFromClockify;
+                          activeHrsDisplay = liveState.activeHrsDisplay;
+                        }
+
                         const calculatedHrs = calculateExactHours(checkIn, checkOut);
                         
                         return (
