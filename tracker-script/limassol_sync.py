@@ -95,7 +95,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.5"
+CURRENT_VERSION = "1.1.6"
 
 def auto_update(manual=False):
     def _update():
@@ -124,7 +124,7 @@ def auto_update(manual=False):
                 vbs_content = f'''Set oShell = CreateObject("WScript.Shell")
 WScript.Sleep 2000
 oShell.Run "taskkill /pid {os.getpid()} /f", 0, True
-oShell.Run "cmd /c del /f \"LimassolTracker.exe\" && ren \"{new_exe}\" \"LimassolTracker.exe\" && start \"\" \"LimassolTracker.exe\"", 0, False
+oShell.Run "cmd /c del /f ""LimassolTracker.exe"" && ren ""{new_exe}"" ""LimassolTracker.exe"" && start """" ""LimassolTracker.exe""", 0, False
 '''
                 with open("update_run.vbs", "w") as f:
                     f.write(vbs_content)

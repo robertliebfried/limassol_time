@@ -176,3 +176,87 @@ export async function purgeFirestoreEmployee(username: string) {
     console.error(`Failed to permanently delete employee ${username}:`, error);
   }
 }
+
+export interface FirestoreShiftLog {
+  id?: string;
+  employeeId: string;
+  type: string;
+  label: string;
+  time: string;
+  timestamp: number;
+  date: string;
+  source?: string;
+}
+
+export async function fetchFirestoreLogs(dateStr: string): Promise<FirestoreShiftLog[]> {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'shift_logs' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'date' },
+          op: 'EQUAL',
+          value: { stringValue: dateStr }
+        }
+      },
+      orderBy: [{ field: { fieldPath: 'timestamp' }, direction: 'ASCENDING' }]
+    }
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results: FirestoreShiftLog[] = [];
+    for (const item of data) {
+      if (item.document && item.document.fields) {
+        const fields = item.document.fields;
+        results.push({
+          id: item.document.name.split('/').pop(),
+          employeeId: fields.employeeId?.stringValue || '',
+          type: fields.type?.stringValue || '',
+          label: fields.label?.stringValue || '',
+          time: fields.time?.stringValue || '',
+          timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
+          date: fields.date?.stringValue || '',
+          source: fields.source?.stringValue || ''
+        });
+      }
+    }
+    return results;
+  } catch (e) {
+    console.error('Fetch logs error:', e);
+    return [];
+  }
+}
+
+export async function saveFirestoreLog(log: FirestoreShiftLog) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/shift_logs?key=${FIREBASE_API_KEY}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fields: Record<string, any> = {
+    employeeId: { stringValue: log.employeeId },
+    type: { stringValue: log.type },
+    label: { stringValue: log.label },
+    time: { stringValue: log.time },
+    timestamp: { integerValue: String(log.timestamp) },
+    date: { stringValue: log.date }
+  };
+  if (log.source) fields.source = { stringValue: log.source };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    });
+    const data = await res.json();
+    return data.name ? data.name.split('/').pop() : null;
+  } catch (e) {
+    console.error('Save log error:', e);
+    return null;
+  }
+}
