@@ -1992,13 +1992,26 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     }
     return true;
   }).sort((a, b) => {
+    // AW-active machines always first (secondary sort applied after all primary sorts)
+    const awScore = (e: Employee) => {
+      const seenRecently = e.lastSeen
+        ? (Date.now() - new Date(e.lastSeen).getTime()) < 5 * 60 * 1000
+        : false;
+      return (e.trackingClient === 'AW' && seenRecently) ? 1 : 0;
+    };
+
     if (empSortOrder === 'name_desc') {
+      const awDiff = awScore(b) - awScore(a);
+      if (awDiff !== 0) return awDiff;
       return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' });
     }
     if (empSortOrder === 'last_online') {
       const statusWeight = (s: string) => (s === 'checked_in' ? 2 : s === 'on_break' ? 1 : 0);
       const weightDiff = statusWeight(b.status) - statusWeight(a.status);
       if (weightDiff !== 0) return weightDiff;
+      // Among same status: AW-active first
+      const awDiff = awScore(b) - awScore(a);
+      if (awDiff !== 0) return awDiff;
       const tsA = a.checkInTimestamp || 0;
       const tsB = b.checkInTimestamp || 0;
       return tsB - tsA;
@@ -2006,7 +2019,13 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     if (empSortOrder === 'last_registered') {
       return (b.sortOrder ?? 0) - (a.sortOrder ?? 0);
     }
-    // Default: name_asc (A - Z)
+    // Default: name_asc (A - Z) — AW machines bubble to top within each status group
+    const aOnline = a.status === 'checked_in' ? 1 : 0;
+    const bOnline = b.status === 'checked_in' ? 1 : 0;
+    const statusDiff = bOnline - aOnline;
+    if (statusDiff !== 0) return statusDiff;
+    const awDiff = awScore(b) - awScore(a);
+    if (awDiff !== 0) return awDiff;
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 

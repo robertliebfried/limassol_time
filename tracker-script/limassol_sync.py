@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.3"
+CURRENT_VERSION = "1.1.4"
 
 def auto_update(manual=False):
     def _update():
@@ -49,18 +49,18 @@ def auto_update(manual=False):
                     out_file.write(response.read())
 
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
-                bat_content = f'''@echo off
-timeout /t 2 /nobreak >nul
-taskkill /pid {os.getpid()} /f >nul 2>&1
-del /f LimassolTracker.exe
-ren {new_exe} LimassolTracker.exe
-start LimassolTracker.exe
-del /f update.bat
-'''
-                with open("update.bat", "w") as f:
-                    f.write(bat_content)
 
-                subprocess.Popen("update.bat", shell=True)
+                # Write a VBS launcher to avoid shell=True (reduces AV false positives)
+                vbs_content = f'''Set oShell = CreateObject("WScript.Shell")
+WScript.Sleep 2000
+oShell.Run "taskkill /pid {os.getpid()} /f", 0, True
+oShell.Run "cmd /c del /f \"LimassolTracker.exe\" && ren \"{new_exe}\" \"LimassolTracker.exe\" && start \"\" \"LimassolTracker.exe\"", 0, False
+'''
+                with open("update_run.vbs", "w") as f:
+                    f.write(vbs_content)
+
+                import subprocess
+                subprocess.Popen(["wscript.exe", "update_run.vbs"])
                 os._exit(0)
             else:
                 if manual:
@@ -238,7 +238,7 @@ def show_setup_window():
     result = {}
 
     win = tk.Tk()
-    win.title("Limassol Tracker Setup v1.1.2")
+    win.title(f"Limassol Tracker Setup v{CURRENT_VERSION}")
     win.geometry("380x280")
     win.resizable(False, False)
     win.attributes("-topmost", True)
@@ -416,7 +416,7 @@ def show_tray_notification(username):
         has_tray = False
 
     win = tk.Tk()
-    win.title(f"Limassol Tracker v1.1.2 — {username.capitalize()}")
+    win.title(f"Limassol Tracker v{CURRENT_VERSION} — {username.capitalize()}")
     win.geometry("360x170")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
@@ -489,6 +489,23 @@ def show_tray_notification(username):
     def show_window():
         win.after(0, lambda: (win.deiconify(), win.lift(), win.focus_force()))
 
+    def _confirm_quit():
+        """Show confirmation before quitting so agents can't accidentally stop tracking."""
+        win.after(0, lambda: _do_confirm_quit())
+
+    def _do_confirm_quit():
+        win.deiconify()
+        win.lift()
+        answer = messagebox.askyesno(
+            "Stop Tracking?",
+            "Are you sure you want to stop Limassol Tracker?\n\nYour activity will no longer be tracked until the app is restarted.",
+            icon="warning"
+        )
+        if answer:
+            quit_app()
+        else:
+            hide_to_tray()
+
     def quit_app():
         if tray_icon[0]:
             tray_icon[0].stop()
@@ -506,8 +523,8 @@ def show_tray_notification(username):
                 pystray.MenuItem("Show Tracker", lambda icon, item: show_window()),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Check for Updates", lambda icon, item: check_updates()),
-                pystray.MenuItem("Logout", lambda icon, item: logout()),
-                pystray.MenuItem("Quit", lambda icon, item: quit_app()),
+                pystray.MenuItem("Logout / Change Agent", lambda icon, item: logout()),
+                pystray.MenuItem("Quit (Stop Tracking)", lambda icon, item: _confirm_quit()),
             )
             icon = pystray.Icon(
                 "LimassolTracker",
