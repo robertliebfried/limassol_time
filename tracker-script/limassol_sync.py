@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.4"
+CURRENT_VERSION = "1.1.5"
 
 def auto_update(manual=False):
     def _update():
@@ -82,17 +82,16 @@ threading.Thread(target=update_loop, daemon=True).start()
 # -------------------------------------------------------------------
 # LimassolTime Firebase Firestore API (Primary)
 # -------------------------------------------------------------------
-def update_firestore_status(username, status):
+def update_firestore_status(username, status, aw_stats=None):
     doc_id = username.lower().strip().replace(" ", "")
     # Use updateMask so we only update our fields — never overwrite name/role/pin/languages/etc.
-    mask = "&".join([
-        "updateMask.fieldPaths=username",
-        "updateMask.fieldPaths=status",
-        "updateMask.fieldPaths=trackingClient",
-        "updateMask.fieldPaths=lastSeen",
-        "updateMask.fieldPaths=checkInTime",
-        "updateMask.fieldPaths=checkOutTime",
-    ])
+    mask_fields = [
+        "username", "status", "trackingClient", "lastSeen",
+        "checkInTime", "checkOutTime",
+        "awActiveSecondsToday", "awAfkSecondsToday",
+        "awCurrentApp", "awCurrentTitle", "awTopAppsJson",
+    ]
+    mask = "&".join(f"updateMask.fieldPaths={f}" for f in mask_fields)
     url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/employees/{doc_id}?key={FIREBASE_API_KEY}&{mask}"
     
     now_str = datetime.now().strftime("%I:%M %p")
@@ -106,6 +105,14 @@ def update_firestore_status(username, status):
         fields["checkInTime"] = {"stringValue": now_str}
     elif status == "completed":
         fields["checkOutTime"] = {"stringValue": now_str}
+
+    # Attach AW telemetry if provided
+    if aw_stats:
+        fields["awActiveSecondsToday"] = {"integerValue": str(aw_stats.get("active_seconds", 0))}
+        fields["awAfkSecondsToday"]    = {"integerValue": str(aw_stats.get("afk_seconds", 0))}
+        fields["awCurrentApp"]         = {"stringValue": aw_stats.get("current_app", "")}
+        fields["awCurrentTitle"]       = {"stringValue": aw_stats.get("current_title", "")}
+        fields["awTopAppsJson"]        = {"stringValue": aw_stats.get("top_apps_json", "[]")}
         
     try:
         r = requests.patch(url, json={"fields": fields}, timeout=10)
@@ -195,6 +202,17 @@ def get_afk_bucket():
         pass
     return None
 
+def get_window_bucket():
+    try:
+        r = requests.get(f"{AW_URL}/api/0/buckets", timeout=5)
+        if r.status_code == 200:
+            for bucket_id in r.json():
+                if bucket_id.startswith("aw-watcher-window_"):
+                    return bucket_id
+    except:
+        pass
+    return None
+
 def is_active(bucket_id):
     try:
         r = requests.get(
@@ -208,6 +226,76 @@ def is_active(bucket_id):
     except:
         pass
     return False
+
+def get_aw_stats_today():
+    """Returns dict with active_seconds, afk_seconds, current_app, current_title, top_apps_json.
+    Fetched fresh each heartbeat to give admin live machine intelligence."""
+    stats = {
+        "active_seconds": 0,
+        "afk_seconds": 0,
+        "current_app": "",
+        "current_title": "",
+        "top_apps_json": "[]",
+    }
+    try:
+        r = requests.get(f"{AW_URL}/api/0/buckets", timeout=5)
+        if r.status_code != 200:
+            return stats
+        buckets = r.json()
+        afk_bucket = next((b for b in buckets if b.startswith("aw-watcher-afk_")), None)
+        win_bucket = next((b for b in buckets if b.startswith("aw-watcher-window_")), None)
+
+        today_start = datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        # --- Active / AFK seconds today ---
+        if afk_bucket:
+            r2 = requests.get(
+                f"{AW_URL}/api/0/buckets/{afk_bucket}/events?start={today_start}&limit=2000",
+                timeout=10
+            )
+            if r2.status_code == 200:
+                for ev in r2.json():
+                    dur = ev.get("duration", 0)
+                    if ev.get("data", {}).get("status") == "not-afk":
+                        stats["active_seconds"] += int(dur)
+                    else:
+                        stats["afk_seconds"] += int(dur)
+
+        # --- Current window + top apps ---
+        if win_bucket:
+            # Latest event = current app
+            r3 = requests.get(
+                f"{AW_URL}/api/0/buckets/{win_bucket}/events?limit=1",
+                timeout=5
+            )
+            if r3.status_code == 200 and r3.json():
+                d = r3.json()[0].get("data", {})
+                stats["current_app"] = d.get("app", "")
+                # Truncate title to avoid Firestore limits; strip URL bars
+                title = d.get("title", "")
+                if " - " in title:
+                    title = title.split(" - ")[0].strip()
+                stats["current_title"] = title[:60]
+
+            # Today's window events → top apps
+            r4 = requests.get(
+                f"{AW_URL}/api/0/buckets/{win_bucket}/events?start={today_start}&limit=1000",
+                timeout=10
+            )
+            if r4.status_code == 200:
+                app_sec = {}
+                for ev in r4.json():
+                    app = ev.get("data", {}).get("app", "Unknown")
+                    app_sec[app] = app_sec.get(app, 0) + int(ev.get("duration", 0))
+                top = sorted(app_sec.items(), key=lambda x: x[1], reverse=True)[:5]
+                stats["top_apps_json"] = json.dumps(
+                    [{"app": a, "seconds": s} for a, s in top]
+                )
+    except Exception as e:
+        print(f"[{now()}] AW stats error: {e}")
+    return stats
 
 # -------------------------------------------------------------------
 # Helpers & Storage
@@ -356,7 +444,8 @@ def sync_loop(username, pin):
             # 1. Update LimassolTime Firebase (Primary)
             # Update on status change, OR every 2 minutes (4 iterations of 30s) as a heartbeat
             if current_status != last_status or int(time.time()) % 120 < 30:
-                update_firestore_status(username, current_status)
+                aw_stats = get_aw_stats_today() if active else None
+                update_firestore_status(username, current_status, aw_stats)
                 last_status = current_status
 
             # 2. Update Clockify (Secondary Backup)

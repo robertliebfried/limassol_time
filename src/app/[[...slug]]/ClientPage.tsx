@@ -247,6 +247,12 @@ interface Employee {
   team?: string;
   trackingClient?: string;
   lastSeen?: string;
+  // AW Telemetry (live, pushed by desktop tracker every 30s)
+  awActiveSecondsToday?: number;
+  awAfkSecondsToday?: number;
+  awCurrentApp?: string;
+  awCurrentTitle?: string;
+  awTopAppsJson?: string;
 }
 
 interface TimeLog {
@@ -257,6 +263,7 @@ interface TimeLog {
   hours: number;
   projectTask: string;
   timestamp: string;
+  source?: 'aw_auto' | 'manual_admin' | 'manual_agent';
 }
 
 interface ShiftEvent {
@@ -694,6 +701,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             team: doc.team || '',
             trackingClient: doc.trackingClient,
             lastSeen: doc.lastSeen,
+            awActiveSecondsToday: doc.awActiveSecondsToday,
+            awAfkSecondsToday: doc.awAfkSecondsToday,
+            awCurrentApp: doc.awCurrentApp,
+            awCurrentTitle: doc.awCurrentTitle,
+            awTopAppsJson: doc.awTopAppsJson,
           }));
           
           const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
@@ -777,12 +789,19 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             const updatedOut = data.checkOutTime !== undefined ? data.checkOutTime : emp.checkOutTime;
             const updatedLastSeen = data.lastSeen || emp.lastSeen;
             const updatedTrackingClient = data.trackingClient || emp.trackingClient;
+            const updatedAwActive = data.awActiveSecondsToday ?? emp.awActiveSecondsToday;
+            const updatedAwAfk = data.awAfkSecondsToday ?? emp.awAfkSecondsToday;
+            const updatedAwApp = data.awCurrentApp ?? emp.awCurrentApp;
+            const updatedAwTitle = data.awCurrentTitle ?? emp.awCurrentTitle;
+            const updatedAwTopApps = data.awTopAppsJson ?? emp.awTopAppsJson;
             if (
               updatedStatus !== emp.status ||
               updatedIn !== emp.checkInTime ||
               updatedOut !== emp.checkOutTime ||
               updatedLastSeen !== emp.lastSeen ||
-              updatedTrackingClient !== emp.trackingClient
+              updatedTrackingClient !== emp.trackingClient ||
+              updatedAwActive !== emp.awActiveSecondsToday ||
+              updatedAwApp !== emp.awCurrentApp
             ) {
               hasChanges = true;
               return {
@@ -792,6 +811,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 checkOutTime: updatedOut,
                 lastSeen: updatedLastSeen,
                 trackingClient: updatedTrackingClient,
+                awActiveSecondsToday: updatedAwActive,
+                awAfkSecondsToday: updatedAwAfk,
+                awCurrentApp: updatedAwApp,
+                awCurrentTitle: updatedAwTitle,
+                awTopAppsJson: updatedAwTopApps,
               };
             }
           }
@@ -1020,6 +1044,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       hours: finalHours,
       projectTask: `Shift Attendance (${activeEmployee.checkInTime || '11:00 AM'} - ${nowTime})`,
       timestamp: `${activeEmployee.checkInTime || '11:00 AM'} - ${nowTime}`,
+      source: 'manual_agent',
     };
     saveLogs([autoLog, ...logs]);
   };
@@ -1038,6 +1063,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       hours: Number(logHours),
       projectTask: logProjectTask.trim() || 'General Operations',
       timestamp: cyprusTime || '11:00 AM',
+      source: authRole === 'admin' ? 'manual_admin' : 'manual_agent',
     };
 
     saveLogs([newLog, ...logs]);
@@ -1295,6 +1321,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         hours: actualHours,
         projectTask: `Shift Attendance (${inTime} - ${outTime})`,
         timestamp: `${inTime} - ${outTime}`,
+        source: targetEmp.trackingClient === 'AW' ? 'aw_auto' : 'manual_admin',
       };
       saveLogs([autoLog, ...logs]);
     }
@@ -1980,6 +2007,20 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   });
 
   // Filtered employees for 30+ staff management
+  // ---- AW Telemetry Helpers ----
+  const formatAwSeconds = (sec: number): string => {
+    if (!sec || sec <= 0) return '0m';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const parseTopApps = (json?: string): { app: string; seconds: number }[] => {
+    if (!json) return [];
+    try { return JSON.parse(json).slice(0, 5); } catch { return []; }
+  };
+
   const filteredEmployees = employees.filter(emp => {
     if (empStatusFilter !== 'ALL' && emp.status !== empStatusFilter) return false;
     if (empSearchQuery.trim()) {
@@ -2306,7 +2347,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               ? isDark ? 'text-sky-400' : 'text-slate-700'
                               : isDark ? 'text-rose-400' : 'text-slate-700'
                           }`}>
-                            {isTrackerLive ? '⚡ AW TRACKER: CONNECTED' : '🔴 AW TRACKER: OFFLINE'}
+                            {isTrackerLive ? 'AW TRACKER: CONNECTED' : 'AW TRACKER: OFFLINE'}
                           </div>
                           {isLiveFromClockify && liveStatuses[activeEmployee.id] && (
                             <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
@@ -2314,8 +2355,53 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             </div>
                           )}
                           {isLiveFromAW && !isLiveFromClockify && (
-                            <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
+                            <div className={`text-xs font-bold mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
                               Tracking Activity (Desktop)
+                            </div>
+                          )}
+                          {/* AW Telemetry — Active time + current app */}
+                          {isLiveFromAW && activeEmployee.awActiveSecondsToday !== undefined && (
+                            <div className="mt-2 space-y-1.5">
+                              {(() => {
+                                const total = (activeEmployee.awActiveSecondsToday || 0) + (activeEmployee.awAfkSecondsToday || 0);
+                                const pct = total > 0 ? Math.round((activeEmployee.awActiveSecondsToday || 0) / total * 100) : 0;
+                                return (
+                                  <div>
+                                    <div className="flex items-center justify-between text-[0.65rem] font-bold mb-1">
+                                      <span className="text-emerald-400">Active today: {formatAwSeconds(activeEmployee.awActiveSecondsToday || 0)}</span>
+                                      <span className="text-slate-500">AFK: {formatAwSeconds(activeEmployee.awAfkSecondsToday || 0)}</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                      <div className="h-full rounded-full bg-emerald-500 transition-all duration-1000" style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              {activeEmployee.awCurrentApp && (
+                                <div className={`text-[0.65rem] font-bold truncate ${isDark ? 'text-sky-300' : 'text-sky-700'}`} title={activeEmployee.awCurrentTitle || activeEmployee.awCurrentApp}>
+                                  Now: {activeEmployee.awCurrentApp}{activeEmployee.awCurrentTitle ? ` — ${activeEmployee.awCurrentTitle.slice(0, 35)}` : ''}
+                                </div>
+                              )}
+                              {parseTopApps(activeEmployee.awTopAppsJson).length > 0 && (
+                                <div className="mt-1">
+                                  <div className="text-[0.55rem] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Top apps today</div>
+                                  <div className="space-y-0.5">
+                                    {parseTopApps(activeEmployee.awTopAppsJson).slice(0, 4).map((a, i) => {
+                                      const totalActive = activeEmployee.awActiveSecondsToday || 1;
+                                      const pct = Math.min(100, Math.round(a.seconds / totalActive * 100));
+                                      return (
+                                        <div key={i} className="flex items-center gap-2">
+                                          <span className="text-[0.6rem] text-slate-400 font-bold w-20 truncate">{a.app.split('.')[0].slice(0, 14)}</span>
+                                          <div className="flex-1 h-1 rounded-full bg-slate-700 overflow-hidden">
+                                            <div className="h-full rounded-full bg-sky-500/60" style={{ width: `${pct}%` }} />
+                                          </div>
+                                          <span className="text-[0.6rem] text-slate-500 font-bold w-10 text-right">{formatAwSeconds(a.seconds)}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2626,11 +2712,48 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                 </div>
                               </div>
                                 <span className={`text-[0.65rem] font-bold flex items-center gap-1.5 flex-wrap ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                                  <span>{isOnline ? `🟢 ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : '⚫ OFFLINE'}</span>
+                                  <span>{isOnline ? `ONLINE (${formatNiceDisplayTime(checkIn || '11:00 AM')}) ${activeHrsDisplay ? `• ${activeHrsDisplay}` : ''}` : 'OFFLINE'}</span>
                                   {(isLiveFromClockify || isLiveFromAW) && (
-                                    <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm" title={isLiveFromAW ? "Tracking via ActivityWatch (Desktop)" : "Tracking via Clockify"}>💻 AW</span>
+                                    <span className="px-1 py-0.5 rounded text-[8px] border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm" title="Tracking via ActivityWatch (Desktop)">AW</span>
                                   )}
                                 </span>
+                                {/* AW Telemetry Block */}
+                                {isLiveFromAW && emp.awActiveSecondsToday !== undefined && (
+                                  <div className="mt-1.5 space-y-1">
+                                    {/* Active/AFK time bar */}
+                                    {(() => {
+                                      const total = (emp.awActiveSecondsToday || 0) + (emp.awAfkSecondsToday || 0);
+                                      const pct = total > 0 ? Math.round((emp.awActiveSecondsToday || 0) / total * 100) : 0;
+                                      return (
+                                        <div>
+                                          <div className="flex items-center justify-between text-[0.6rem] font-bold mb-0.5">
+                                            <span className="text-emerald-400">Active: {formatAwSeconds(emp.awActiveSecondsToday || 0)}</span>
+                                            <span className="text-slate-500">AFK: {formatAwSeconds(emp.awAfkSecondsToday || 0)}</span>
+                                          </div>
+                                          <div className="h-1 rounded-full bg-slate-700 overflow-hidden">
+                                            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                    {/* Current app */}
+                                    {emp.awCurrentApp && (
+                                      <div className="text-[0.6rem] text-sky-400 font-bold truncate" title={emp.awCurrentTitle || emp.awCurrentApp}>
+                                        Now: {emp.awCurrentApp}{emp.awCurrentTitle ? ` — ${emp.awCurrentTitle.slice(0, 30)}` : ''}
+                                      </div>
+                                    )}
+                                    {/* Top apps */}
+                                    {parseTopApps(emp.awTopAppsJson).length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {parseTopApps(emp.awTopAppsJson).slice(0, 3).map((a, i) => (
+                                          <span key={i} className="text-[0.55rem] px-1 py-0.5 rounded bg-slate-700/60 text-slate-400 font-bold">
+                                            {a.app.split('.')[0].slice(0, 12)} {formatAwSeconds(a.seconds)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                             </div>
                           </div>
                           
@@ -3634,6 +3757,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     <th className="px-5 py-4">Project / Task</th>
                     <th className="px-5 py-4">Hours Logged</th>
                     <th className="px-5 py-4">Check-In Time</th>
+                    <th className="px-5 py-4">Source</th>
                     <th className="px-5 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -3645,8 +3769,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       </td>
                     </tr>
                   ) : (
-                    filteredLogs.map((log) => (
-                      <tr key={log.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                      <tr key={log.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${log.source === 'aw_auto' ? 'opacity-90' : ''}`}>
                         <td className="px-5 py-4 font-mono text-xs font-bold">{log.date}</td>
                         <td className="px-5 py-4 font-extrabold">
                           {log.employeeName}
@@ -3660,13 +3783,31 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                         <td className="px-5 py-4 font-mono text-xs font-bold">
                           {log.timestamp}
                         </td>
+                        <td className="px-5 py-4">
+                          {log.source === 'aw_auto' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">AW Auto</span>
+                          )}
+                          {log.source === 'manual_admin' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-sky-500/15 border border-sky-500/30 text-sky-400">Manual Admin</span>
+                          )}
+                          {log.source === 'manual_agent' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-violet-500/15 border border-violet-500/30 text-violet-400">Self-logged</span>
+                          )}
+                          {!log.source && (
+                            <span className="text-[0.65rem] text-slate-500">—</span>
+                          )}
+                        </td>
                         <td className="px-5 py-4 text-right">
-                          <button
-                            onClick={() => handleDeleteLog(log.id)}
-                            className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-slate-600 hover:text-red-800'}`}
-                          >
-                            Delete
-                          </button>
+                          {log.source !== 'aw_auto' ? (
+                            <button
+                              onClick={() => handleDeleteLog(log.id)}
+                              className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-slate-600 hover:text-red-800'}`}
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span className="text-[0.65rem] text-slate-600 italic">auto</span>
+                          )}
                         </td>
                       </tr>
                     ))
