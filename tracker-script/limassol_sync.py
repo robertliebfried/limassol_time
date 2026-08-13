@@ -95,7 +95,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.6"
+CURRENT_VERSION = "1.1.7"
 
 def auto_update(manual=False):
     def _update():
@@ -577,7 +577,7 @@ def show_tray_notification(username):
 
     win = tk.Tk()
     win.title(f"Limassol Tracker v{CURRENT_VERSION} — {username.capitalize()}")
-    win.geometry("360x170")
+    win.geometry("360x230")
     win.resizable(False, False)
     win.configure(bg="#0f172a")
 
@@ -617,6 +617,55 @@ def show_tray_notification(username):
 
     def check_updates():
         auto_update(manual=True)
+
+    kiosk_frame = tk.Frame(win, bg="#0f172a")
+    kiosk_frame.pack(pady=(5, 5))
+
+    def log_shift_event(user, event_type, label):
+        now_utc = datetime.now(timezone.utc)
+        date_str = now_utc.strftime("%Y-%m-%d")
+        time_str = now_utc.strftime("%H:%M")
+        timestamp = int(now_utc.timestamp() * 1000)
+        employee_id = user.lower().strip().replace(" ", "")
+        fields = {
+            "employeeId": {"stringValue": employee_id},
+            "type": {"stringValue": event_type},
+            "label": {"stringValue": label},
+            "time": {"stringValue": time_str},
+            "timestamp": {"integerValue": str(timestamp)},
+            "date": {"stringValue": date_str},
+            "source": {"stringValue": "Tracker App"}
+        }
+        url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/shift_events?key={FIREBASE_API_KEY}"
+        try:
+            requests.post(url, json={"fields": fields}, timeout=10)
+        except Exception:
+            pass
+
+    def on_clock_in():
+        threading.Thread(target=log_shift_event, args=(username, "check_in", "Check-in (App)")).start()
+        threading.Thread(target=update_firestore_status, args=(username, "checked_in")).start()
+        messagebox.showinfo("LimassolTime", "Clocked In successfully!")
+
+    def on_start_break():
+        threading.Thread(target=log_shift_event, args=(username, "break_start", "Break Start (App)")).start()
+        threading.Thread(target=update_firestore_status, args=(username, "on_break")).start()
+        messagebox.showinfo("LimassolTime", "Break Started!")
+
+    def on_end_break():
+        threading.Thread(target=log_shift_event, args=(username, "break_end", "Break End (App)")).start()
+        threading.Thread(target=update_firestore_status, args=(username, "checked_in")).start()
+        messagebox.showinfo("LimassolTime", "Break Ended!")
+
+    def on_clock_out():
+        threading.Thread(target=log_shift_event, args=(username, "check_out", "Check-out (App)")).start()
+        threading.Thread(target=update_firestore_status, args=(username, "completed")).start()
+        messagebox.showinfo("LimassolTime", "Clocked Out successfully!")
+
+    tk.Button(kiosk_frame, text="Clock In", command=on_clock_in, bg="#10b981", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=12).grid(row=0, column=0, padx=6, pady=4)
+    tk.Button(kiosk_frame, text="Start Break", command=on_start_break, bg="#f59e0b", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=12).grid(row=0, column=1, padx=6, pady=4)
+    tk.Button(kiosk_frame, text="End Break", command=on_end_break, bg="#3b82f6", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=12).grid(row=1, column=0, padx=6, pady=4)
+    tk.Button(kiosk_frame, text="Clock Out", command=on_clock_out, bg="#ef4444", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=12).grid(row=1, column=1, padx=6, pady=4)
 
     btn_frame = tk.Frame(win, bg="#0f172a")
     btn_frame.pack(pady=(12, 0))

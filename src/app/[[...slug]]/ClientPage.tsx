@@ -457,6 +457,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [clockifyConnectedUser, setClockifyConnectedUser] = useState<string>('');
   const [clockifyLastSynced, setClockifyLastSynced] = useState<string>('');
 
+  // Google Sheets Integration State
+  const [googleSheetUrl, setGoogleSheetUrl] = useState<string>('');
+
   // Real-Time Dashboard State
   type LiveStatus = { employeeId: string; employeeName?: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
   const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatus>>({});
@@ -644,6 +647,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
       const savedUser = localStorage.getItem('clockify_connected_user') || '';
       if (savedUser) setClockifyConnectedUser(savedUser);
+
+      const savedSheet = localStorage.getItem('google_sheet_url');
+      if (savedSheet) setGoogleSheetUrl(savedSheet);
     }
   }, []);
 
@@ -3152,6 +3158,34 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 </p>
               </div>
             </div>
+
+            {/* Google Sheets Integration */}
+            <div className={`mt-6 rounded-3xl border p-8 shadow-xl ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
+              <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2">
+                📊 Google Sheets Integration
+              </h2>
+              <p className="text-sm opacity-75 mb-6">
+                Paste the URL of your Google Sheet connected to LimassolTime. This adds a "View in Google Sheets" button on the Reports page.
+              </p>
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={googleSheetUrl}
+                  onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className={`flex-1 rounded-2xl border px-4 py-3 text-sm outline-none ${isDark ? 'border-white/20 bg-black/50' : 'border-slate-300 bg-white'}`}
+                />
+                <button
+                  onClick={() => {
+                    localStorage.setItem('google_sheet_url', googleSheetUrl);
+                    alert('Google Sheet URL saved!');
+                  }}
+                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-500 shadow-lg"
+                >
+                  💾 Save
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -3171,24 +3205,17 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
 
             {/* Export Actions */}
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={exportPayrollSummaryCSV}
-                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
-              >
-                {T.exportPayrollBtn}
+              <button onClick={exportPayrollSummaryCSV} className={`rounded-2xl px-5 py-2.5 text-xs font-bold border transition-colors ${isDark ? 'border-white/30 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-100'} shadow`}>
+                📥 Export CSV
               </button>
-              <button
-                onClick={exportFilteredLogsCSV}
-                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
-              >
-                {T.exportDetailedBtn}
+              <button onClick={() => setShowClockifyModal(true)} className={`rounded-2xl px-5 py-2.5 text-xs font-bold transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'} shadow`}>
+                ☁️ Clockify Backup
               </button>
-              <button
-                onClick={syncToClockify}
-                className="rounded-2xl bg-black dark:bg-white px-4 py-2.5 text-xs font-extrabold text-white dark:text-black shadow transition hover:opacity-80 flex items-center gap-1.5"
-              >
-                ⏱️ Sync to Clockify
-              </button>
+              {googleSheetUrl && (
+                <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" className={`rounded-2xl px-5 py-2.5 text-xs font-bold transition-colors ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'} shadow inline-block`}>
+                  📊 View in Google Sheets
+                </a>
+              )}
               <button
                 onClick={() => setShowPrintReportModal(true)}
                 className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-slate-800 flex items-center gap-1.5"
