@@ -25,7 +25,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.2"
+CURRENT_VERSION = "1.1.3"
 
 def auto_update(manual=False):
     def _update():
@@ -34,15 +34,15 @@ def auto_update(manual=False):
             import subprocess
             req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=10) as response:
-                latest_version = response.read().decode('utf-8').strip()
+                latest_version = response.read().decode('utf-8-sig').strip()
 
             if latest_version > CURRENT_VERSION:
                 if manual:
                     messagebox.showinfo("Update Found", f"New version {latest_version} found! Downloading and restarting...")
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {latest_version} found (current: {CURRENT_VERSION}). Downloading...")
-                # Download versioned file (e.g. LimassolTracker_v1.0.9.exe)
+                
                 exe_url = f"https://limassoltime.web.app/downloads/LimassolTracker_v{latest_version}.exe"
-                new_exe = "LimassolTracker_new.exe"
+                new_exe = f"LimassolTracker_v{latest_version}.exe"
 
                 req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe, 'wb') as out_file:
@@ -51,9 +51,9 @@ def auto_update(manual=False):
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
                 bat_content = f'''@echo off
 timeout /t 2 /nobreak >nul
-taskkill /f /im LimassolTracker.exe >nul 2>&1
+taskkill /pid {os.getpid()} /f >nul 2>&1
 del /f LimassolTracker.exe
-ren LimassolTracker_new.exe LimassolTracker.exe
+ren {new_exe} LimassolTracker.exe
 start LimassolTracker.exe
 del /f update.bat
 '''
@@ -84,7 +84,16 @@ threading.Thread(target=update_loop, daemon=True).start()
 # -------------------------------------------------------------------
 def update_firestore_status(username, status):
     doc_id = username.lower().strip().replace(" ", "")
-    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/employees/{doc_id}?key={FIREBASE_API_KEY}"
+    # Use updateMask so we only update our fields — never overwrite name/role/pin/languages/etc.
+    mask = "&".join([
+        "updateMask.fieldPaths=username",
+        "updateMask.fieldPaths=status",
+        "updateMask.fieldPaths=trackingClient",
+        "updateMask.fieldPaths=lastSeen",
+        "updateMask.fieldPaths=checkInTime",
+        "updateMask.fieldPaths=checkOutTime",
+    ])
+    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/employees/{doc_id}?key={FIREBASE_API_KEY}&{mask}"
     
     now_str = datetime.now().strftime("%I:%M %p")
     fields = {
@@ -100,6 +109,7 @@ def update_firestore_status(username, status):
         
     try:
         r = requests.patch(url, json={"fields": fields}, timeout=10)
+
         if r.status_code in [200, 201]:
             print(f"[{now()}] 🔥 LimassolTime status updated -> {status}")
             return True

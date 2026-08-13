@@ -68,7 +68,6 @@ export async function saveFirestoreEmployee(
   profile: Partial<FirestoreEmployeeDoc>
 ) {
   const docId = username.toLowerCase().trim().replace(/\s+/g, '');
-  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}`;
 
   const fields: Record<string, FieldValue> = {
     username: { stringValue: docId },
@@ -76,17 +75,23 @@ export async function saveFirestoreEmployee(
     isDeleted: { booleanValue: false },
     lastUpdated: { timestampValue: new Date().toISOString() },
   };
-  if (profile.name) fields.name = { stringValue: profile.name };
-  if (profile.pin) fields.pin = { stringValue: profile.pin };
-  if (profile.role) fields.role = { stringValue: profile.role };
-  if (profile.expectedShift) fields.expectedShift = { stringValue: profile.expectedShift };
-  if (profile.team !== undefined) fields.team = { stringValue: profile.team || '' };
+  const maskPaths = ['username', 'status', 'isDeleted', 'lastUpdated'];
+
+  if (profile.name) { fields.name = { stringValue: profile.name }; maskPaths.push('name'); }
+  if (profile.pin) { fields.pin = { stringValue: profile.pin }; maskPaths.push('pin'); }
+  if (profile.role) { fields.role = { stringValue: profile.role }; maskPaths.push('role'); }
+  if (profile.expectedShift) { fields.expectedShift = { stringValue: profile.expectedShift }; maskPaths.push('expectedShift'); }
+  if (profile.team !== undefined) { fields.team = { stringValue: profile.team || '' }; maskPaths.push('team'); }
   if (profile.languages && profile.languages.length > 0) {
     fields.languages = { arrayValue: { values: profile.languages.map(l => ({ stringValue: l })) } };
+    maskPaths.push('languages');
   }
-  if (profile.checkInTime) fields.checkInTime = { stringValue: profile.checkInTime };
-  if (profile.checkOutTime) fields.checkOutTime = { stringValue: profile.checkOutTime };
-  if (profile.sortOrder !== undefined) fields.sortOrder = { integerValue: String(profile.sortOrder) };
+  if (profile.checkInTime) { fields.checkInTime = { stringValue: profile.checkInTime }; maskPaths.push('checkInTime'); }
+  if (profile.checkOutTime) { fields.checkOutTime = { stringValue: profile.checkOutTime }; maskPaths.push('checkOutTime'); }
+  if (profile.sortOrder !== undefined) { fields.sortOrder = { integerValue: String(profile.sortOrder) }; maskPaths.push('sortOrder'); }
+
+  const maskQuery = maskPaths.map(p => `updateMask.fieldPaths=${p}`).join('&');
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}&${maskQuery}`;
 
   try {
     await fetch(url, {

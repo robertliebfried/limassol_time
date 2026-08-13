@@ -692,6 +692,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             checkOutTime: doc.checkOutTime,
             sortOrder: doc.sortOrder ?? idx,
             team: doc.team || '',
+            trackingClient: doc.trackingClient,
+            lastSeen: doc.lastSeen,
           }));
           
           const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
@@ -773,10 +775,14 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
             const updatedStatus = data.status || emp.status;
             const updatedIn = data.checkInTime !== undefined ? data.checkInTime : emp.checkInTime;
             const updatedOut = data.checkOutTime !== undefined ? data.checkOutTime : emp.checkOutTime;
+            const updatedLastSeen = data.lastSeen || emp.lastSeen;
+            const updatedTrackingClient = data.trackingClient || emp.trackingClient;
             if (
               updatedStatus !== emp.status ||
               updatedIn !== emp.checkInTime ||
-              updatedOut !== emp.checkOutTime
+              updatedOut !== emp.checkOutTime ||
+              updatedLastSeen !== emp.lastSeen ||
+              updatedTrackingClient !== emp.trackingClient
             ) {
               hasChanges = true;
               return {
@@ -784,6 +790,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 status: updatedStatus,
                 checkInTime: updatedIn,
                 checkOutTime: updatedOut,
+                lastSeen: updatedLastSeen,
+                trackingClient: updatedTrackingClient,
               };
             }
           }
@@ -795,6 +803,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         }
         return prevEmps;
       });
+
     };
 
     syncFirestore();
