@@ -69,7 +69,7 @@ const TRANSLATIONS = {
     past30: 'Past 30 Days',
     exportPayroll: 'Export Payroll Summary CSV',
     exportDetailed: 'Export Detailed Shift CSV',
-    printReport: '{T.printReport}',
+    printReport: 'Print / PDF Report',
     timeLogsTable: 'Time Logs Table',
     dateCol: 'Date',
     employeeCol: 'Employee',
@@ -90,14 +90,14 @@ const TRANSLATIONS = {
     checkOutLabel: 'Check-Out Time:',
     statusLabel: 'Status:',
     saveChanges: 'Save Changes',
-    logWorkTitle: '{T.logWorkTitle}',
-    selectEmpLabel: '{T.selectEmpLabel}',
+    logWorkTitle: 'Log Work',
+    selectEmpLabel: 'Select Employee:',
     selectEmpPlaceholder: '— Select employee —',
     dateLabel: 'Date:',
     hoursWorkedLabel: 'Hours Worked:',
     taskLabel: 'Task / Project Description:',
     submitLog: 'Submit Log',
-    clockifyTitle: '{T.clockifyTitle}',
+    clockifyTitle: 'Clockify Integration',
     clockifyDesc: 'Connect your Clockify.me workspace to automatically back up attendance logs and provide your employees with Clockify\'s mobile/web app for self-tracking.',
     clockifyKeyLabel: 'Clockify API Key:',
     clockifyWsLabel: 'Workspace ID (Optional):',
@@ -188,16 +188,16 @@ const TRANSLATIONS = {
     noLogsFilter: 'No logs yet for the selected filters.',
     totalHoursLabel: 'hrs total',
     // Kiosk
-    kioskBadge: '{T.kioskBadge}',
+    kioskBadge: 'Kiosk Mode',
     welcomeLabel: 'Welcome,',
     roleLabel: 'Role:',
     targetShiftLabel: 'Target Shift:',
-    billableTimerLabel: '{T.billableTimerLabel}',
-    selectBreakType: '{T.selectBreakType}',
-    smokBreak: '{T.smokBreak}',
-    lunchBreak: '{T.lunchBreak}',
-    coffeeBreak: '{T.coffeeBreak}',
-    shortBreak: '{T.shortBreak}',
+    billableTimerLabel: 'Billable Working Time',
+    selectBreakType: 'Select Break Type:',
+    smokBreak: 'Smoke Break',
+    lunchBreak: 'Lunch Break',
+    coffeeBreak: 'Coffee Break',
+    shortBreak: 'Short Break',
     clockInBtn: 'Clock In (Start Work)',
     pauseBreakBtn: 'Pause / Break...',
     clockOutBtn: 'Clock Out (Left Office)',
@@ -373,7 +373,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     expectedShift: '11:00 AM',
     status: 'expected',
   },
-  { id: 'emp-10', name: 'Lorenzo', username: 'lorenzo', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
+  { id: 'emp-10b', name: 'Lorenzo', username: 'lorenzo', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
   { id: 'emp-11', name: 'Dario', username: 'dario', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
   { id: 'emp-12', name: 'Tomas', username: 'tomas', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
   { id: 'emp-13', name: 'Dylan 2', username: 'dylan2', pin: '1234', languages: ['EN'], role: 'Employee', expectedShift: '09:00 AM', status: 'expected' },
@@ -2937,7 +2937,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       {T.step2Text}
                     </p>
                     <a
-                      href="/downloads/LimassolTracker_v1.1.2.exe"
+                      href="/downloads/LimassolTracker_v1.1.3.exe"
                       download
                       className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
                     >
