@@ -904,22 +904,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const saveEmployees = (updated: Employee[]) => {
     setEmployees(updated);
     localStorage.setItem('team_employees_v5', JSON.stringify(updated));
-    // Sync ALL employee data to Firestore (single source of truth)
-    updated.forEach((emp, idx) => {
-      const username = emp.username || emp.name.toLowerCase().replace(/\s+/g, '');
-      saveFirestoreEmployee(username, {
-        name: emp.name,
-        pin: emp.pin,
-        role: emp.role,
-        languages: emp.languages,
-        expectedShift: emp.expectedShift,
-        status: emp.status,
-        checkInTime: emp.checkInTime,
-        checkOutTime: emp.checkOutTime,
-        sortOrder: idx,
-        team: emp.team || '',
-      });
-    });
   };
 
   const saveLogs = (updated: TimeLog[]) => {
@@ -1006,6 +990,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       accumulatedSeconds: totalAccumulated,
     } : e);
 
+    const uname = activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, '');
+    saveFirestoreEmployee(uname, { status: 'on_break' });
+
     saveEmployees(updated);
     setActiveEmployee(prev => prev ? {
       ...prev,
@@ -1037,6 +1024,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       breakStartTimestamp: undefined,
       checkInTimestamp: nowTs,
     } : e);
+
+    const uname = activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, '');
+    saveFirestoreEmployee(uname, { status: 'checked_in' });
 
     saveEmployees(updated);
     setActiveEmployee(prev => prev ? {
@@ -1073,7 +1063,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       ...e,
       status: 'completed' as const,
       checkOutTime: nowTime,
+      accumulatedSeconds: finalSec,
     } : e);
+
+    const uname = activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, '');
+    saveFirestoreEmployee(uname, { status: 'completed', checkOutTime: nowTime });
 
     saveEmployees(updated);
     setActiveEmployee(prev => prev ? {
@@ -1432,6 +1426,8 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       }
       return emp;
     });
+    const target = employees.find(e => e.id === empId || e.username === empId);
+    if (target) saveFirestoreEmployee(target.username || target.name.toLowerCase().replace(/\s+/g, ''), { status: 'expected', checkInTime: undefined, checkOutTime: undefined });
     saveEmployees(updatedEmployees);
     setEditingTimesEmp(null);
   };
@@ -1457,7 +1453,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       ? editEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean)
       : [];
 
-    const newUsername = editEmpUsername.trim().toLowerCase() || editingEmp.username;
+    const newUsername = editEmpUsername.trim().toLowerCase() || (editingEmp.username || editingEmp.name.toLowerCase().replace(/\s+/g, ''));
     if (editingEmp.username && newUsername !== editingEmp.username) {
       deleteFirestoreEmployee(editingEmp.username);
     }
@@ -1478,6 +1474,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       return emp;
     });
 
+    saveFirestoreEmployee(newUsername, { name: editEmpName.trim() || editingEmp.name, pin: editEmpPin.trim() || editingEmp.pin || '1234', role: editEmpRole.trim() || 'Team Member', languages: langs, expectedShift: editEmpShift.trim(), team: editEmpTeam.trim() || editingEmp.team || '' });
     saveEmployees(updated);
 
     if (activeEmployee && (activeEmployee.id === editingEmp.id || activeEmployee.username === editingEmp.username)) {
@@ -1498,6 +1495,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
         checkInTime: undefined,
         checkOutTime: undefined,
       }));
+      resetList.forEach(emp => saveFirestoreEmployee(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''), { status: 'expected', checkInTime: undefined, checkOutTime: undefined }));
       saveEmployees(resetList);
     }
   };
@@ -1855,6 +1853,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
           const cTime = cyprusTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Nicosia' });
           const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: cTime } : e);
           
+          saveFirestoreEmployee(activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, ''), { status: 'checked_in', checkInTime: cTime });
           saveEmployees(updated);
         }
       }
@@ -2272,6 +2271,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                     const nowTime = cyprusTime || '11:00 AM';
                     const nowTs = Date.now();
                     const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : e);
+                    saveFirestoreEmployee(activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, ''), { status: 'checked_in', checkInTime: nowTime });
                     saveEmployees(updated);
                     setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
                     addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });

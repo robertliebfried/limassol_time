@@ -88,18 +88,33 @@ export async function saveFirestoreEmployee(
   };
   const maskPaths = ['username', 'status', 'isDeleted', 'lastUpdated'];
 
-  if (profile.name) { fields.name = { stringValue: profile.name }; maskPaths.push('name'); }
-  if (profile.pin) { fields.pin = { stringValue: profile.pin }; maskPaths.push('pin'); }
-  if (profile.role) { fields.role = { stringValue: profile.role }; maskPaths.push('role'); }
-  if (profile.expectedShift) { fields.expectedShift = { stringValue: profile.expectedShift }; maskPaths.push('expectedShift'); }
-  if (profile.team !== undefined) { fields.team = { stringValue: profile.team || '' }; maskPaths.push('team'); }
-  if (profile.languages && profile.languages.length > 0) {
-    fields.languages = { arrayValue: { values: profile.languages.map(l => ({ stringValue: l })) } };
+  if ('name' in profile) { if (profile.name) fields.name = { stringValue: profile.name }; maskPaths.push('name'); }
+  if ('pin' in profile) { if (profile.pin) fields.pin = { stringValue: profile.pin }; maskPaths.push('pin'); }
+  if ('role' in profile) { if (profile.role) fields.role = { stringValue: profile.role }; maskPaths.push('role'); }
+  if ('expectedShift' in profile) { if (profile.expectedShift) fields.expectedShift = { stringValue: profile.expectedShift }; maskPaths.push('expectedShift'); }
+  if ('team' in profile) { fields.team = { stringValue: profile.team || '' }; maskPaths.push('team'); }
+  
+  if ('languages' in profile) {
+    if (profile.languages && profile.languages.length > 0) {
+      fields.languages = { arrayValue: { values: profile.languages.map(l => ({ stringValue: l })) } };
+    } else {
+      fields.languages = { arrayValue: { values: [] } };
+    }
     maskPaths.push('languages');
   }
-  if (profile.checkInTime) { fields.checkInTime = { stringValue: profile.checkInTime }; maskPaths.push('checkInTime'); }
-  if (profile.checkOutTime) { fields.checkOutTime = { stringValue: profile.checkOutTime }; maskPaths.push('checkOutTime'); }
-  if (profile.sortOrder !== undefined) { fields.sortOrder = { integerValue: String(profile.sortOrder) }; maskPaths.push('sortOrder'); }
+
+  if ('checkInTime' in profile) { 
+    if (profile.checkInTime) fields.checkInTime = { stringValue: profile.checkInTime }; 
+    maskPaths.push('checkInTime'); 
+  }
+  if ('checkOutTime' in profile) { 
+    if (profile.checkOutTime) fields.checkOutTime = { stringValue: profile.checkOutTime }; 
+    maskPaths.push('checkOutTime'); 
+  }
+  if ('sortOrder' in profile) { 
+    if (profile.sortOrder !== undefined) fields.sortOrder = { integerValue: String(profile.sortOrder) }; 
+    maskPaths.push('sortOrder'); 
+  }
 
   const maskQuery = maskPaths.map(p => `updateMask.fieldPaths=${p}`).join('&');
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees/${docId}?key=${FIREBASE_API_KEY}&${maskQuery}`;
