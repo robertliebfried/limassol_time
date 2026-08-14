@@ -341,6 +341,51 @@ export async function fetchFirestoreShiftEvents(dateStr: string): Promise<Firest
   }
 }
 
+export async function fetchFirestoreShiftEventsForEmployee(employeeId: string): Promise<FirestoreShiftEvent[]> {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'shift_events' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'employeeId' },
+          op: 'EQUAL',
+          value: { stringValue: employeeId }
+        }
+      }
+    }
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results: FirestoreShiftEvent[] = [];
+    for (const item of data) {
+      if (item.document && item.document.fields) {
+        const fields = item.document.fields;
+        results.push({
+          id: item.document.name.split('/').pop(),
+          employeeId: fields.employeeId?.stringValue || '',
+          type: fields.type?.stringValue || '',
+          label: fields.label?.stringValue || '',
+          time: fields.time?.stringValue || '',
+          timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
+          date: fields.date?.stringValue || '',
+          source: fields.source?.stringValue || ''
+        });
+      }
+    }
+    results.sort((a, b) => a.timestamp - b.timestamp);
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function saveFirestoreShiftEvent(event: FirestoreShiftEvent) {
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/shift_events?key=${FIREBASE_API_KEY}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent, fetchFirestoreShiftEvents } from '@/lib/firebase';
-import type { FirestoreShiftEvent } from '@/lib/firebase';
+import { type FirestoreEmployeeDoc, type FirestoreTimeLog, type FirestoreShiftEvent } from '@/lib/firebase';
+import AgentProfileView from '@/components/AgentProfileView';
 
 const TRANSLATIONS = {
   en: {
@@ -227,7 +228,7 @@ const TRANSLATIONS = {
   },
 } as const;
 
-interface Employee {
+export interface Employee {
   id: string;
   name: string;
   username?: string;
@@ -496,7 +497,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   useEffect(() => {
     if (authRole === 'admin' && reportStartDate && reportEndDate) {
       fetchFirestoreLogs(reportStartDate, reportEndDate).then(fetched => {
-        setLogs(fetched as TimeLog[]);
+        setLogs((prev: TimeLog[]) => fetched as TimeLog[]);
       });
     }
   }, [authRole, reportStartDate, reportEndDate]);
@@ -753,7 +754,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
           const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
           activeOnly.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
           
-          setEmployees(activeOnly);
+          setEmployees((prev: Employee[]) => activeOnly);
           localStorage.setItem('team_employees_v5', JSON.stringify(activeOnly));
 
           // Restore session
@@ -781,7 +782,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         try {
           parsedEmployees = JSON.parse(savedEmployees);
           parsedEmployees = filterActiveEmps(parsedEmployees, currentDeleted);
-          setEmployees(parsedEmployees);
+          setEmployees((prev: Employee[]) => parsedEmployees);
         } catch {}
       }
       const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
@@ -804,7 +805,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
 
     const savedLogs = localStorage.getItem('team_logs_v5');
-    if (savedLogs) { try { setLogs(JSON.parse(savedLogs)); } catch {} }
+    if (savedLogs) { try { setLogs((prev: TimeLog[]) => JSON.parse(savedLogs)); } catch {} }
   }, []);
 
   // Firestore REST API Real-Time Sync (poll every 4 seconds)
@@ -915,12 +916,12 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   };
 
   const saveEmployees = (updated: Employee[]) => {
-    setEmployees(updated);
+    setEmployees((prev: Employee[]) => updated);
     localStorage.setItem('team_employees_v5', JSON.stringify(updated));
   };
 
   const saveLogs = (updated: TimeLog[]) => {
-    setLogs(updated);
+    setLogs((prev: TimeLog[]) => updated);
     localStorage.setItem('team_logs_v5', JSON.stringify(updated));
   };
 
@@ -2285,9 +2286,14 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                   onClick={() => {
                     const nowTime = cyprusTime || '11:00 AM';
                     const nowTs = Date.now();
-                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: nowTime, checkOutTime: undefined, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : e);
+                    const now = new Date().toISOString();
+                    const employeeId = activeEmployee.id;
+                    setEmployees((prev: Employee[]) =>
+                      prev.map((emp) =>
+                        emp.id === employeeId ? { ...emp, status: 'checked_in', checkInTime: nowTime, checkOutTime: undefined, lastSeen: now } : emp
+                      )
+                    );
                     saveFirestoreEmployee(activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, ''), { status: 'checked_in', checkInTime: nowTime, checkOutTime: undefined });
-                    saveEmployees(updated);
                     setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkOutTime: undefined, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
                     addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });
                   }}
@@ -4384,6 +4390,14 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
       )}
 
       {/* Clockify Integration Modal */}
+      {activeTab === 'agentProfile' && activeAgentUsername && (
+        <AgentProfileView
+          username={activeAgentUsername}
+          employees={employees}
+          isDark={isDark}
+          onBack={() => handleTabChange('employees', '/team')}
+        />
+      )}
       {showClockifyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
           <div className={`w-full max-w-xl rounded-2xl border p-6 shadow-2xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
