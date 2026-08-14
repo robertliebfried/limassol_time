@@ -15,12 +15,22 @@ export function generateStaticParams() {
 }
 
 export default function Page({ params }: { params: { slug?: string[] } }) {
-  let initialTab: 'timeTracker' | 'employees' | 'reports' | 'setup' = 'timeTracker';
+  let initialTab: 'timeTracker' | 'employees' | 'reports' | 'setup' | 'agentProfile' = 'timeTracker';
+  let initialAgentUsername: string | undefined = undefined;
+
   if (params.slug && params.slug.length > 0) {
     const slug = params.slug[0];
     if (slug === 'reports') initialTab = 'reports';
-    if (slug === 'employees' || slug === 'directory' || slug === 'team') initialTab = 'employees';
+    if (slug === 'employees' || slug === 'directory') initialTab = 'employees';
     if (slug === 'setup') initialTab = 'setup';
+    if (slug === 'team') {
+      if (params.slug.length > 1) {
+        initialTab = 'agentProfile';
+        initialAgentUsername = params.slug[1];
+      } else {
+        initialTab = 'employees';
+      }
+    }
   }
-  return <ClientPage initialTab={initialTab} />;
+  return <ClientPage initialTab={initialTab as any} initialAgentUsername={initialAgentUsername} />;
 }

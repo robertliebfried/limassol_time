@@ -404,7 +404,14 @@ const INITIAL_EMPLOYEES: Employee[] = [
 
 const INITIAL_LOGS: TimeLog[] = [];
 
-export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { initialTab?: 'timeTracker' | 'employees' | 'reports' | 'setup' }) {
+export type TabType = 'timeTracker' | 'employees' | 'reports' | 'setup' | 'agentProfile';
+
+interface ClientPageProps {
+  initialTab?: TabType;
+  initialAgentUsername?: string;
+}
+
+export default function ClientPage({ initialTab = 'timeTracker', initialAgentUsername }: ClientPageProps) {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
   // const [currentDomain, setCurrentDomain] = useState<string>('');
   
@@ -436,9 +443,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   const [filterLang, setFilterLang] = useState<string>('ALL');
 
   // Main Navigation Pages/Tabs: 'timeTracker' | 'employees' | 'reports'
-  const [activeTab, setActiveTab] = useState<'timeTracker' | 'employees' | 'reports' | 'setup'>(initialTab);
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [activeAgentUsername, setActiveAgentUsername] = useState<string | undefined>(initialAgentUsername);
 
-  const handleTabChange = (tab: 'timeTracker' | 'employees' | 'reports' | 'setup', url: string) => {
+  const handleTabChange = (tab: TabType, url: string) => {
     setActiveTab(tab);
     if (tab === 'reports') {
       const today = new Date().toISOString().split('T')[0];
@@ -448,6 +456,11 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
     if (typeof window !== 'undefined') {
       window.history.pushState(null, '', url);
     }
+  };
+
+  const goToAgentProfile = (username: string) => {
+    setActiveAgentUsername(username);
+    handleTabChange('agentProfile', `/team/${username}`);
   };
 
   // Clockify Backup Integration State
@@ -1022,11 +1035,12 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       status: 'checked_in' as const,
       breakType: undefined,
       breakStartTimestamp: undefined,
+      checkOutTime: undefined,
       checkInTimestamp: nowTs,
     } : e);
 
     const uname = activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, '');
-    saveFirestoreEmployee(uname, { status: 'checked_in' });
+    saveFirestoreEmployee(uname, { status: 'checked_in', checkOutTime: undefined });
 
     saveEmployees(updated);
     setActiveEmployee(prev => prev ? {
@@ -1034,6 +1048,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
       status: 'checked_in',
       breakType: undefined,
       breakStartTimestamp: undefined,
+      checkOutTime: undefined,
       checkInTimestamp: nowTs,
     } : null);
   };
@@ -2270,10 +2285,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                   onClick={() => {
                     const nowTime = cyprusTime || '11:00 AM';
                     const nowTs = Date.now();
-                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : e);
-                    saveFirestoreEmployee(activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, ''), { status: 'checked_in', checkInTime: nowTime });
+                    const updated = employees.map(e => e.id === activeEmployee.id ? { ...e, status: 'checked_in' as const, checkInTime: nowTime, checkOutTime: undefined, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : e);
+                    saveFirestoreEmployee(activeEmployee.username || activeEmployee.name.toLowerCase().replace(/\s+/g, ''), { status: 'checked_in', checkInTime: nowTime, checkOutTime: undefined });
                     saveEmployees(updated);
-                    setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
+                    setActiveEmployee(prev => prev ? { ...prev, status: 'checked_in', checkInTime: nowTime, checkOutTime: undefined, checkInTimestamp: nowTs, accumulatedSeconds: 0 } : null);
                     addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });
                   }}
                   className="rounded-2xl bg-slate-900 px-3 py-1.5 text-[0.75rem] font-extrabold text-white hover:bg-slate-800 transition shadow-sm"
@@ -2740,7 +2755,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                       const { status, checkIn, activeHrsDisplay, isLiveFromClockify, isLiveFromAW } = getMergedEmployeeState(emp);
                       const isOnline = status === 'checked_in';
                       return (
-                        <div key={emp.id} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                        <div
+                          key={emp.id}
+                          onClick={() => goToAgentProfile(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''))}
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer ${
                           isOnline 
                             ? (isDark ? 'border-slate-300/40 bg-emerald-950/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-emerald-300 bg-slate-50')
                             : (isDark ? 'border-white/5 bg-white/5 opacity-60' : 'border-slate-200 bg-slate-50 opacity-70')
@@ -2813,7 +2831,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                             {isOnline ? (
                               <button
-                                onClick={() => handleStatusChange(emp.id, 'completed')}
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(emp.id, 'completed'); }}
                                 className="rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-3 py-1 text-[0.75rem] font-extrabold shadow-sm transition active:scale-95 flex items-center justify-center"
                                 title="Manual override: Stop billing time (e.g. empty chair / YouTube open)"
                               >
@@ -2821,7 +2839,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               </button>
                             ) : (
                               <button
-                                onClick={() => handleStatusChange(emp.id, 'checked_in')}
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(emp.id, 'checked_in'); }}
                                 className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 text-[0.75rem] font-extrabold shadow-md transition active:scale-95 flex items-center justify-center"
                                 title="Manual override: Start billing time"
                               >
@@ -2860,7 +2878,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           return bAW - aAW;
                         })
                         .map(({ emp, state: { checkIn, isLiveFromAW, isLiveFromClockify, activeHrsDisplay } }, i) => (
-                          <div key={i} className="flex gap-3 items-start">
+                          <div key={i} className="flex gap-3 items-start cursor-pointer hover:bg-white/5 p-1 rounded" onClick={() => goToAgentProfile(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''))}>
                             <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 animate-pulse ${(isLiveFromAW || isLiveFromClockify) ? 'bg-emerald-400' : 'bg-blue-400'}`}></div>
                             <div>
                               <div className="text-xs font-bold flex items-center gap-1.5 flex-wrap">
@@ -2970,9 +2988,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                               const teamKey = emp.team?.trim() || '';
                               const badgeClass = teamKey ? (teamColors[teamKey] || defaultBadge) : '';
                               return (
-                                <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
+                                <tr key={emp.id} onClick={() => goToAgentProfile(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''))} className={`transition cursor-pointer ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
                                   <td className="px-4 py-2.5 font-mono font-bold text-slate-500">{idx + 1}</td>
-                                  <td className="px-4 py-2.5 font-extrabold">{emp.name}</td>
+                                  <td className="px-4 py-2.5 font-extrabold underline text-blue-500">{emp.name}</td>
                                   <td className="px-4 py-2.5 font-mono font-bold text-sky-400">{emp.username || emp.name.toLowerCase()}</td>
                                   <td className="px-4 py-2.5 font-mono font-extrabold text-amber-300">{emp.pin || '1234'}</td>
                                   <td className="px-4 py-2.5 opacity-80">{emp.role}</td>
@@ -2990,7 +3008,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                                       <span className="opacity-30 text-[0.65rem]">—</span>
                                     )}
                                   </td>
-                                  <td className="px-4 py-2.5 text-right">
+                                  <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                                     <div className="flex justify-end gap-1.5">
                                       <button
                                         onClick={() => handleOpenEditShift(emp)}
@@ -3059,7 +3077,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                             const daysLeft = Math.max(1, Math.ceil((7 * 86400 * 1000 - (Date.now() - archivedAt)) / (86400 * 1000)));
                             return (
                               <tr key={emp.id} className="opacity-80 hover:opacity-100 transition">
-                                <td className="p-3 font-extrabold">{emp.name}</td>
+                                <td className="p-4 font-bold cursor-pointer hover:underline text-blue-600 dark:text-blue-400" onClick={() => goToAgentProfile(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''))}>{emp.name}</td>
                                 <td className="p-3">{emp.role}</td>
                                 <td className="p-3">
                                   <span className="inline-flex items-center gap-1 rounded bg-slate-800/10 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/30">
@@ -3263,6 +3281,9 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         </button>
                         
+                        <span className="text-sm font-semibold opacity-70 ml-2 hidden sm:inline">
+                          {new Date((reportStartDate || todayStr) + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })},
+                        </span>
                         <input
                           type="date"
                           max={todayStr}

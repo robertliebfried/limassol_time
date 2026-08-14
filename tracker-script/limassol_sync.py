@@ -100,7 +100,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.8"
+CURRENT_VERSION = "1.1.9"
 
 def auto_update(manual=False):
     def _update():
@@ -178,8 +178,29 @@ def update_firestore_status(username, status, aw_stats=None):
     }
     if status == "checked_in":
         fields["checkInTime"] = {"stringValue": now_str}
+        create_shift_event(doc_id, "clock_in", "🟢 Clocked In (AW)", now_str)
     elif status == "completed":
         fields["checkOutTime"] = {"stringValue": now_str}
+        create_shift_event(doc_id, "clock_out", "🔴 Clocked Out (AW)", now_str)
+
+def create_shift_event(employee_id, ev_type, label, time_str):
+    now_ts = int(datetime.now().timestamp() * 1000)
+    event_id = f"ev-{now_ts}"
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/shift_events/{event_id}?key={FIREBASE_API_KEY}"
+    fields = {
+        "id": {"stringValue": event_id},
+        "employeeId": {"stringValue": employee_id},
+        "type": {"stringValue": ev_type},
+        "label": {"stringValue": label},
+        "time": {"stringValue": time_str},
+        "timestamp": {"integerValue": str(now_ts)},
+        "date": {"stringValue": date_str}
+    }
+    try:
+        requests.patch(url, json={"fields": fields}, timeout=5)
+    except Exception:
+        pass
 
     # Attach AW telemetry if provided
     if aw_stats:
