@@ -2697,7 +2697,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                       ⚡ Live Sync (LimassolTracker & Firestore)
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-400">ActivityWatch tracking active across {Object.keys(liveStatuses).length} agents</p>
+                  <p className="text-xs text-slate-400">ActivityWatch tracking active across {employees.filter(emp => getMergedEmployeeState(emp).isLiveFromAW).length} agents</p>
                 </div>
               </div>
 
