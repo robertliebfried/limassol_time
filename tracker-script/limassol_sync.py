@@ -52,6 +52,11 @@ def self_install():
     # Copy files
     try:
         if current_exe.lower() != target_exe.lower():
+            # Kill existing target_exe to free the file lock
+            target_exe_escaped = target_exe.replace('\\', '\\\\')
+            subprocess.run(["wmic", "process", "where", f"executablepath='{target_exe_escaped}'", "delete"], creationflags=subprocess.CREATE_NO_WINDOW)
+            import time
+            time.sleep(1)
             shutil.copy2(current_exe, target_exe)
     except Exception as e:
         print(f"Failed to copy: {e}")
@@ -95,7 +100,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.7"
+CURRENT_VERSION = "1.1.8"
 
 def auto_update(manual=False):
     def _update():
