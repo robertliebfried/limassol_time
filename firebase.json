@@ -2,6 +2,12 @@
   "hosting": {
     "target": "limassoltime",
     "public": "out",
-    "cleanUrls": true
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }
