@@ -3283,10 +3283,10 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 <div className="flex flex-wrap items-center gap-2">
                   <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
                     <button onClick={exportPayrollSummaryCSV} title="Export Payroll Summary CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                      📥 Summary
+                      📥 Export Summary CSV
                     </button>
                     <button onClick={exportFilteredLogsCSV} title="Export Detailed Shift CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                      📥 Details
+                      📥 Export Details CSV
                     </button>
                   </div>
                   
