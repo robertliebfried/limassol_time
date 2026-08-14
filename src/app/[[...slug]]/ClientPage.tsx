@@ -1264,6 +1264,23 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     let isLiveFromClockify = false;
     let isLiveFromAW = false;
 
+    // Fix: Clear stale data if the last check-in or interaction was from a previous day
+    const todayStr = new Date().toISOString().split('T')[0];
+    let isStale = false;
+    if (emp.checkInTimestamp) {
+      const checkInStr = new Date(emp.checkInTimestamp).toISOString().split('T')[0];
+      if (checkInStr !== todayStr) isStale = true;
+    } else if (emp.lastSeen) {
+      const lastSeenStr = new Date(emp.lastSeen).toISOString().split('T')[0];
+      if (lastSeenStr !== todayStr) isStale = true;
+    }
+
+    if (isStale && status !== 'expected') {
+      status = 'expected';
+      checkIn = undefined;
+      checkOut = undefined;
+    }
+
     if (liveStatuses[emp.id] && liveStatuses[emp.id].status === 'online') {
       status = 'checked_in';
       checkIn = liveStatuses[emp.id].startTime;
@@ -3236,104 +3253,110 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         )}
 
         {activeTab === 'reports' && (
-          <div className="space-y-6">
-            {/* Reports & Payroll Center */}
-            <div className={`rounded-3xl border p-6 shadow-md ${isDark ? 'border-white/10 bg-[#16363d]/80 text-white' : 'border-slate-200/80 bg-white text-black'}`}>
-              
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col lg:flex-row gap-6 mt-6">
+            {/* Left Sidebar: Date Selector */}
+            <div className="w-full lg:w-56 flex-shrink-0 flex flex-col gap-2">
+              <h3 className={`font-serif text-lg font-bold mb-2 pl-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Select Day</h3>
+              {(() => {
+                const today = new Date();
+                const buttons = [];
+                const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); setLogDate(iso); };
                 
-                {/* Left: Title & Date Nav */}
-                <div className="flex flex-col gap-4">
-                  <div>
+                for (let i = 0; i < 5; i++) {
+                  const d = new Date(today);
+                  d.setDate(today.getDate() - i);
+                  const iso = d.toISOString().split('T')[0];
+                  const isSelected = reportStartDate === iso;
+                  
+                  let label = '';
+                  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+                  const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+                  
+                  if (i === 0) label = `Today, ${weekday} ${dateStr}`;
+                  else if (i === 1) label = `Yesterday, ${weekday} ${dateStr}`;
+                  else label = `${weekday} ${dateStr}`;
+                  
+                  buttons.push(
+                    <button
+                      key={iso}
+                      onClick={() => goToDate(iso)}
+                      className={`text-left rounded-2xl px-4 py-3 text-sm font-bold transition-all border ${
+                        isSelected 
+                          ? 'bg-emerald-600 border-emerald-500 text-white shadow-md' 
+                          : isDark 
+                            ? 'bg-black/30 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20' 
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
+                
+                return (
+                  <div className="flex flex-col gap-2">
+                    {buttons}
+                    
+                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
+                      <label className={`text-xs font-bold uppercase tracking-wider mb-2 block pl-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Custom Date</label>
+                      <input
+                        type="date"
+                        max={today.toISOString().split('T')[0]}
+                        value={reportStartDate || today.toISOString().split('T')[0]}
+                        onChange={e => goToDate(e.target.value)}
+                        className={`w-full rounded-xl border px-4 py-2.5 text-sm font-bold outline-none cursor-pointer transition ${isDark ? 'bg-black/50 border-white/10 text-white focus:border-emerald-500' : 'bg-white border-slate-200 text-black focus:border-emerald-500'}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Right Side: Main Content */}
+            <div className="flex-1 space-y-6 min-w-0">
+              {/* Reports & Payroll Center Header */}
+              <div className={`rounded-3xl border p-6 shadow-md ${isDark ? 'border-white/10 bg-[#16363d]/80 text-white' : 'border-slate-200/80 bg-white text-black'}`}>
+                
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  
+                  {/* Title */}
+                  <div className="flex flex-col gap-2">
                     <h2 className="font-serif text-2xl font-bold flex items-center gap-2 tracking-tight">
                       {T.reportsAdvTitle}
                     </h2>
-                    <p className={`text-sm opacity-70 mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-sm opacity-70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                       {T.reportsAdvDesc}
                     </p>
                   </div>
 
-                  {/* Unified Date Toolbar */}
-                  {(() => {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    const yesterStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                    const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); };
-                    const shiftDay = (delta: number) => {
-                      const base = reportStartDate ? new Date(reportStartDate + 'T12:00:00') : new Date();
-                      base.setDate(base.getDate() + delta);
-                      goToDate(base.toISOString().split('T')[0]);
-                    };
-                    const isTodaySelected = reportStartDate === todayStr && reportEndDate === todayStr;
-                    const isYesterSelected = reportStartDate === yesterStr && reportEndDate === yesterStr;
-
-                    return (
-                      <div className={`inline-flex items-center gap-1 rounded-2xl p-1 border shadow-inner ${isDark ? 'border-white/10 bg-black/30' : 'border-slate-200 bg-slate-50'}`}>
-                        <button
-                          onClick={() => goToDate(todayStr)}
-                          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${isTodaySelected ? 'bg-slate-900 text-white shadow-md' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'}`}
-                        >
-                          Today
-                        </button>
-                        <button
-                          onClick={() => goToDate(yesterStr)}
-                          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${isYesterSelected ? 'bg-slate-900 text-white shadow-md' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'}`}
-                        >
-                          Yesterday
-                        </button>
-                        
-                        <div className="w-px h-6 bg-current opacity-10 mx-2"></div>
-                        
-                        <button onClick={() => shiftDay(-1)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition opacity-60 hover:opacity-100">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        </button>
-                        
-                        <span className="text-sm font-semibold opacity-70 ml-2 hidden sm:inline">
-                          {new Date((reportStartDate || todayStr) + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })},
-                        </span>
-                        <input
-                          type="date"
-                          max={todayStr}
-                          value={reportStartDate || todayStr}
-                          onChange={e => goToDate(e.target.value)}
-                          className={`bg-transparent font-bold text-sm outline-none cursor-pointer px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10`}
-                        />
-                        
-                        <button onClick={() => shiftDay(1)} disabled={isTodaySelected} className={`p-2 rounded-xl transition ${isTodaySelected ? 'opacity-20 cursor-not-allowed' : 'opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10'}`}>
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Right: Export Actions */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
-                    <button onClick={exportPayrollSummaryCSV} title="Export Payroll Summary CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                      📥 Export Summary CSV
-                    </button>
-                    <button onClick={exportFilteredLogsCSV} title="Export Detailed Shift CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                      📥 Export Details CSV
-                    </button>
+                  {/* Export Actions */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
+                      <button onClick={exportPayrollSummaryCSV} title="Export Payroll Summary CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
+                        📥 Export Summary CSV
+                      </button>
+                      <button onClick={exportFilteredLogsCSV} title="Export Detailed Shift CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
+                        📥 Export Details CSV
+                      </button>
+                    </div>
+                    
+                    <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
+                      <button onClick={() => setShowPrintReportModal(true)} title="Print / PDF Report" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
+                        🖨️ Print
+                      </button>
+                      <button onClick={() => setShowClockifyModal(true)} title="Sync to Clockify" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white">
+                        ☁️ Clockify
+                      </button>
+                      {googleSheetUrl && (
+                        <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" title="View in Google Sheets" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white inline-block">
+                          📊 Sheets
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  
-                  <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
-                    <button onClick={() => setShowPrintReportModal(true)} title="Print / PDF Report" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
-                      🖨️ Print
-                    </button>
-                    <button onClick={() => setShowClockifyModal(true)} title="Sync to Clockify" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white">
-                      ☁️ Clockify
-                    </button>
-                    {googleSheetUrl && (
-                      <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" title="View in Google Sheets" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white inline-block">
-                        📊 Sheets
-                      </a>
-                    )}
-                  </div>
-                </div>
 
+                </div>
               </div>
-            </div>
 
 {/* VIEW MODE 0: Interactive Monthly Calendar */}
           {viewMode === 'calendar' && (
@@ -3572,7 +3595,17 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                           
                           if (checkOut) status = 'completed';
                           else if (checkIn) status = 'checked_in';
-                          else status = 'absent';
+                          else {
+                            const oldLogs = logs.filter(l => l.employeeId === emp.id && l.date === reportStartDate);
+                            if (oldLogs.length > 0) {
+                              status = 'completed';
+                              // Approximate for old tracker data
+                              checkIn = '10:00 AM';
+                              checkOut = '06:00 PM';
+                            } else {
+                              status = 'absent';
+                            }
+                          }
                         } else {
                           const liveState = getMergedEmployeeState(emp);
                           status = liveState.status;
@@ -3857,7 +3890,8 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
             </div>
           </div>
         </div>
-          </div>
+        </div>
+        </div>
         )}
       </main>
 
