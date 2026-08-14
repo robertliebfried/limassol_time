@@ -100,7 +100,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.10"
+CURRENT_VERSION = "1.1.11"
 
 def auto_update(manual=False):
     def _update():
@@ -343,12 +343,13 @@ def get_aw_stats_today():
 
         today_start = datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
-        ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         # --- Active / AFK seconds today ---
         if afk_bucket:
             r2 = requests.get(
-                f"{AW_URL}/api/0/buckets/{afk_bucket}/events?start={today_start}&limit=2000",
+                f"{AW_URL}/api/0/buckets/{afk_bucket}/events",
+                params={"start": today_start, "limit": 2000},
                 timeout=10
             )
             if r2.status_code == 200:
@@ -377,7 +378,8 @@ def get_aw_stats_today():
 
             # Today's window events → top apps
             r4 = requests.get(
-                f"{AW_URL}/api/0/buckets/{win_bucket}/events?start={today_start}&limit=1000",
+                f"{AW_URL}/api/0/buckets/{win_bucket}/events",
+                params={"start": today_start, "limit": 1000},
                 timeout=10
             )
             if r4.status_code == 200:
