@@ -216,7 +216,7 @@ const TRANSLATIONS = {
     step1TrayNote: 'After installation, a tray icon will appear near the clock',
     step2Header: 'Download Limassol Tracker',
     step2Text: 'A small helper app that connects ActivityWatch with the time tracking system.',
-    step2DownloadBtn: 'Download LimassolTracker.exe',
+    step2DownloadBtn: 'Download LimassolTracker App for Windows 10/11',
     step2FolderNote: 'Place this executable file in any convenient folder on your Desktop',
     step3Header: 'Run & Select Your Name',
     step3Text: 'Launch LimassolTracker.exe — a window with a dropdown list will open. Select your name and click "Save and Run".',
