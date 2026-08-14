@@ -321,7 +321,7 @@ export async function fetchFirestoreShiftEvents(dateStr: string): Promise<Firest
     }
     results.sort((a, b) => a.timestamp - b.timestamp);
     return results;
-  } catch (_e) {
+  } catch {
     return [];
   }
 }

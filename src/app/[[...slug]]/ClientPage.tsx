@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent, fetchFirestoreShiftEvents } from '@/lib/firebase';
-import type { FirestoreTimeLog, FirestoreShiftEvent } from '@/lib/firebase';
+import type { FirestoreShiftEvent } from '@/lib/firebase';
 
 const TRANSLATIONS = {
   en: {
@@ -483,7 +483,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   useEffect(() => {
     if (authRole === 'admin' && reportStartDate && reportEndDate) {
       fetchFirestoreLogs(reportStartDate, reportEndDate).then(fetched => {
-        setLogs(fetched);
+        setLogs(fetched as TimeLog[]);
       });
     }
   }, [authRole, reportStartDate, reportEndDate]);
@@ -1587,22 +1587,23 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   };
 
   // Export Payroll Summary CSV per Employee
-  const syncToClockify = async () => {
-    const apiKey = clockifyApiKey || localStorage.getItem('clockify_api_key') || '';
-    const wsId = clockifyWorkspaceId || localStorage.getItem('clockify_workspace_id') || '';
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const syncToClockify = async (config: { apiKey: string; workspaceId: string }, logsToSync: TimeLog[], emps: Employee[]) => {
+    const apiKey = config.apiKey || localStorage.getItem('clockify_api_key') || '';
+    const wsId = config.workspaceId || localStorage.getItem('clockify_workspace_id') || '';
     
     if (!apiKey || !wsId) {
       alert('Please configure Clockify API Key and Workspace ID in Setup first.');
       return;
     }
 
-    if (!confirm('Are you sure you want to sync ' + filteredLogs.length + ' logs to Clockify?')) return;
+    if (!confirm('Are you sure you want to sync ' + logsToSync.length + ' logs to Clockify?')) return;
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const log of filteredLogs) {
-      const emp = employees.find(e => e.id === log.employeeId);
+    for (const log of logsToSync) {
+      const emp = emps.find(e => e.id === log.employeeId);
       if (!emp) continue;
 
       const [y, m, d] = log.date.split('-');
@@ -1670,6 +1671,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
   };
 
   // Clockify Integration Actions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSaveClockifyConfig = (key: string, ws: string) => {
     setClockifyApiKey(key);
     setClockifyWorkspaceId(ws);
@@ -3185,7 +3187,7 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
                 📊 Google Sheets Integration
               </h2>
               <p className="text-sm opacity-75 mb-6">
-                Paste the URL of your Google Sheet connected to LimassolTime. This adds a "View in Google Sheets" button on the Reports page.
+                Paste the URL of your Google Sheet connected to LimassolTime. This adds a &quot;View in Google Sheets&quot; button on the Reports page.
               </p>
               <div className="flex gap-4">
                 <input
@@ -3699,7 +3701,6 @@ export default function TeamTimeTrackerPage({ initialTab = 'timeTracker' }: { in
               </span>
             </div>
           </div>
-        </div>
 
         {/* Section 2: Time Log Table & Actions */}
         <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>

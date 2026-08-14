@@ -537,6 +537,21 @@ def sync_loop(username, pin):
 # -------------------------------------------------------------------
 # Entry Point
 # -------------------------------------------------------------------
+def create_desktop_shortcut():
+    exe_path = sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__)
+    try:
+        import winshell
+        desktop_folder = winshell.desktop()
+        shortcut_path = os.path.join(desktop_folder, "Limassol Tracker.lnk")
+        if not os.path.exists(shortcut_path):
+            with winshell.shortcut(shortcut_path) as shortcut:
+                shortcut.path = exe_path
+                shortcut.description = "Limassol Tracker"
+                shortcut.working_directory = os.path.dirname(exe_path)
+            print(f"[{now()}] Desktop shortcut created")
+    except Exception as e:
+        print(f"[{now()}] Failed to create desktop shortcut: {e}")
+
 def add_to_startup():
     exe_path = sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__)
     try:
@@ -563,6 +578,8 @@ def add_to_startup():
     except Exception:
         # winshell not available — Registry method is sufficient
         pass
+        
+    create_desktop_shortcut()
 
 def show_tray_notification(username):
     # -------------------------------------------------------------------
