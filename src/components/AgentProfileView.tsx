@@ -41,7 +41,7 @@ export default function AgentProfileView({ username, employees, isDark, onBack }
     if (emp.awTopAppsJson) {
       topApps = JSON.parse(emp.awTopAppsJson);
     }
-  } catch(e) {}
+  } catch {}
 
   // Format seconds to h m s
   const formatSecs = (s: number) => {

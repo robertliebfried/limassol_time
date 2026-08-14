@@ -100,7 +100,7 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.9"
+CURRENT_VERSION = "1.1.10"
 
 def auto_update(manual=False):
     def _update():
@@ -795,10 +795,30 @@ def show_tray_notification(username):
         win.after(100, hide_to_tray)
     win.mainloop()
 
+def create_shortcuts():
+    exe_path = sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__)
+    try:
+        import winshell
+        import os
+        desktop = winshell.desktop()
+        start_menu = winshell.programs()
+        
+        for folder in (desktop, start_menu):
+            shortcut_path = os.path.join(folder, "Limassol Tracker.lnk")
+            if not os.path.exists(shortcut_path):
+                with winshell.shortcut(shortcut_path) as shortcut:
+                    shortcut.path = exe_path
+                    shortcut.description = "Limassol Time Tracker"
+                    shortcut.working_directory = os.path.dirname(exe_path)
+                print(f"[{now()}] Created shortcut at {shortcut_path}")
+    except Exception as e:
+        print(f"[{now()}] Failed to create shortcuts: {e}")
+
 # -------------------------------------------------------------------
 # Entry Point
 # -------------------------------------------------------------------
 def main():
+    create_shortcuts()
     add_to_startup()
     user_data = load_user()
 

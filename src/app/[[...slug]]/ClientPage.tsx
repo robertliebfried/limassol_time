@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent, fetchFirestoreShiftEvents } from '@/lib/firebase';
-import { type FirestoreEmployeeDoc, type FirestoreTimeLog, type FirestoreShiftEvent } from '@/lib/firebase';
+import { type FirestoreShiftEvent } from '@/lib/firebase';
 import AgentProfileView from '@/components/AgentProfileView';
 
 const TRANSLATIONS = {
@@ -497,7 +497,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   useEffect(() => {
     if (authRole === 'admin' && reportStartDate && reportEndDate) {
       fetchFirestoreLogs(reportStartDate, reportEndDate).then(fetched => {
-        setLogs((prev: TimeLog[]) => fetched as TimeLog[]);
+        setLogs(fetched as TimeLog[]);
       });
     }
   }, [authRole, reportStartDate, reportEndDate]);
@@ -754,7 +754,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
           const activeOnly = filterActiveEmps(fsEmps, currentDeleted);
           activeOnly.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
           
-          setEmployees((prev: Employee[]) => activeOnly);
+          setEmployees(activeOnly);
           localStorage.setItem('team_employees_v5', JSON.stringify(activeOnly));
 
           // Restore session
@@ -782,7 +782,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         try {
           parsedEmployees = JSON.parse(savedEmployees);
           parsedEmployees = filterActiveEmps(parsedEmployees, currentDeleted);
-          setEmployees((prev: Employee[]) => parsedEmployees);
+          setEmployees(parsedEmployees);
         } catch {}
       }
       const savedPinAuth = sessionStorage.getItem('team_tracker_auth');
@@ -805,7 +805,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
 
     const savedLogs = localStorage.getItem('team_logs_v5');
-    if (savedLogs) { try { setLogs((prev: TimeLog[]) => JSON.parse(savedLogs)); } catch {} }
+    if (savedLogs) { try { setLogs(JSON.parse(savedLogs)); } catch {} }
   }, []);
 
   // Firestore REST API Real-Time Sync (poll every 4 seconds)
@@ -916,12 +916,12 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   };
 
   const saveEmployees = (updated: Employee[]) => {
-    setEmployees((prev: Employee[]) => updated);
+    setEmployees(updated);
     localStorage.setItem('team_employees_v5', JSON.stringify(updated));
   };
 
   const saveLogs = (updated: TimeLog[]) => {
-    setLogs((prev: TimeLog[]) => updated);
+    setLogs(updated);
     localStorage.setItem('team_logs_v5', JSON.stringify(updated));
   };
 

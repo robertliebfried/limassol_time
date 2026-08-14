@@ -32,5 +32,5 @@ export default function Page({ params }: { params: { slug?: string[] } }) {
       }
     }
   }
-  return <ClientPage initialTab={initialTab as any} initialAgentUsername={initialAgentUsername} />;
+  return <ClientPage initialTab={initialTab as "timeTracker" | "employees" | "reports" | "setup" | "agentProfile"} initialAgentUsername={initialAgentUsername} />;
 }
