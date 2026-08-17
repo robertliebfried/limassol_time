@@ -23,6 +23,9 @@ export interface Employee {
   awActiveSecondsToday?: number;
   awIdleSecondsToday?: number;
   awProductivityScore?: number;
+  awActiveApp?: string;
+  awActiveTitle?: string;
+  awTopAppsJson?: string;
   isDeleted?: boolean;
 }
 

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { Employee, TimeLog } from '../types';
-import { FirestoreShiftEvent } from '@/lib/firebase';
-import { ReportsTimeline } from './ReportsTimeline';
 
 interface ReportsScheduleProps {
   isDark: boolean;
   employees: Employee[];
   logs: TimeLog[];
   reportStartDate: string;
-  historicalShiftEvents?: FirestoreShiftEvent[];
+  onSelectDay?: (dateIso: string) => void;
+  onWeekChange?: (newWeekStart: Date) => void;
+  currentWeekStart?: Date;
   isAbsenceOnly?: boolean;
 }
 
-function getWeekDates(startDateStr: string) {
-  const baseDate = startDateStr ? new Date(startDateStr) : new Date();
+function getWeekDates(startDateStr: string | Date) {
+  const baseDate = typeof startDateStr === 'string' ? (startDateStr ? new Date(startDateStr) : new Date()) : new Date(startDateStr);
   const day = baseDate.getDay();
   const diff = baseDate.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(baseDate.setDate(diff));
@@ -32,11 +32,45 @@ export function ReportsSchedule({
   employees, 
   logs, 
   reportStartDate, 
-  historicalShiftEvents = [],
+  onSelectDay,
+  onWeekChange,
+  currentWeekStart,
   isAbsenceOnly: initialAbsenceOnly = false 
 }: ReportsScheduleProps) {
-  const weekDates = getWeekDates(reportStartDate);
+  const [internalWeekStart, setInternalWeekStart] = useState<Date>(() => {
+    if (currentWeekStart) return currentWeekStart;
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  });
+
+  const activeWeekStart = currentWeekStart || internalWeekStart;
+  const weekDates = getWeekDates(activeWeekStart);
   const [filterMode, setFilterMode] = useState<'all' | 'present' | 'absence'>(initialAbsenceOnly ? 'absence' : 'all');
+
+  const handlePrevWeek = () => {
+    const d = new Date(activeWeekStart);
+    d.setDate(d.getDate() - 7);
+    if (onWeekChange) onWeekChange(d);
+    else setInternalWeekStart(d);
+  };
+
+  const handleNextWeek = () => {
+    const d = new Date(activeWeekStart);
+    d.setDate(d.getDate() + 7);
+    if (onWeekChange) onWeekChange(d);
+    else setInternalWeekStart(d);
+  };
+
+  const handleThisWeek = () => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(d.setDate(diff));
+    if (onWeekChange) onWeekChange(mon);
+    else setInternalWeekStart(mon);
+  };
 
   // Normalize key helper
   const normKey = (idOrUnameOrName?: string) => {
@@ -61,42 +95,68 @@ export function ReportsSchedule({
   const activeEmployees = employees.filter(emp => emp.role !== 'admin' && emp.name !== 'Admin' && !emp.isDeleted);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* ── 1. UNIFIED WEEKLY CALENDAR (SCHEDULE + ABSENCE) ── */}
+      {/* ── CALENDAR HERO / CONTROLS ── */}
       <div className={`overflow-hidden rounded-3xl border shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
         
         {/* Header Toolbar */}
-        <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-6 border-b border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
-            <h3 className="font-serif text-xl font-bold flex items-center gap-2.5">
-              📅 Weekly Schedule & Absence Matrix
+            <h3 className="font-serif text-2xl font-bold flex items-center gap-2.5">
+              📅 Team Schedule & Absence Calendar
             </h3>
-            <p className="text-xs opacity-75 mt-0.5">
-              Full overview of agent shifts and out-of-office status. The active selected day is highlighted in green.
+            <p className="text-xs opacity-75 mt-1">
+              Click on any day column or cell to inspect the <strong className="text-emerald-400">⏳ Daily Timeline</strong> in Reports for that day.
             </p>
           </div>
 
-          {/* Filter Mode Switcher */}
-          <div className={`flex items-center p-1 rounded-2xl border text-xs font-bold ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
-            <button
-              onClick={() => setFilterMode('all')}
-              className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'all' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
-            >
-              Unified (All)
-            </button>
-            <button
-              onClick={() => setFilterMode('present')}
-              className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'present' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
-            >
-              📅 Schedules Only
-            </button>
-            <button
-              onClick={() => setFilterMode('absence')}
-              className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'absence' ? (isDark ? 'bg-amber-600 text-white shadow' : 'bg-white text-amber-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
-            >
-              ⛱️ Absence Only
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Week Switcher */}
+            <div className={`flex items-center gap-1.5 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+              <button 
+                onClick={handlePrevWeek}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                title="Previous Week"
+              >
+                ◀
+              </button>
+              <button
+                onClick={handleThisWeek}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-white shadow-sm text-slate-900'}`}
+              >
+                {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </button>
+              <button 
+                onClick={handleNextWeek}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                title="Next Week"
+              >
+                ▶
+              </button>
+            </div>
+
+            {/* Filter Mode Switcher */}
+            <div className={`flex items-center p-1 rounded-2xl border text-xs font-bold ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+              <button
+                onClick={() => setFilterMode('all')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'all' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                Unified (All)
+              </button>
+              <button
+                onClick={() => setFilterMode('present')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'present' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                📅 Work Schedules
+              </button>
+              <button
+                onClick={() => setFilterMode('absence')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'absence' ? (isDark ? 'bg-amber-600 text-white shadow' : 'bg-white text-amber-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                ⛱️ Absence Calendar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -114,20 +174,24 @@ export function ReportsSchedule({
                   return (
                     <th 
                       key={i} 
-                      className={`px-3 py-4 text-center min-w-[130px] border-r border-white/10 last:border-0 transition-all ${
+                      onClick={() => onSelectDay && onSelectDay(dateIso)}
+                      className={`px-3 py-4 text-center min-w-[130px] border-r border-white/10 last:border-0 cursor-pointer transition-all hover:bg-emerald-500/10 ${
                         isSelected 
                           ? (isDark ? 'bg-emerald-950/70 text-emerald-300 ring-2 ring-emerald-500 border-emerald-500 shadow-inner' : 'bg-emerald-100/90 text-emerald-900 ring-2 ring-emerald-600 font-black') 
                           : isWeekend 
                             ? 'text-red-400 opacity-60' 
                             : ''
                       }`}
+                      title="Click to view Daily Timeline in Reports"
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span className="text-[0.75rem] font-black">{date.toLocaleDateString('en-US', { weekday: 'short' })}, {date.getDate()}</span>
-                        {isSelected && (
+                        {isSelected ? (
                           <span className="text-[0.6rem] font-extrabold uppercase tracking-wider px-2 py-0.2 rounded-full bg-emerald-500 text-black shadow">
                             Active Day
                           </span>
+                        ) : (
+                          <span className="text-[0.6rem] font-medium opacity-50">View Timeline ↗</span>
                         )}
                       </div>
                     </th>
@@ -200,10 +264,11 @@ export function ReportsSchedule({
                       return (
                         <td 
                           key={i} 
-                          className={`px-2.5 py-2.5 border-r border-white/10 last:border-0 align-top transition-all ${
+                          onClick={() => onSelectDay && onSelectDay(dateIso)}
+                          className={`px-2.5 py-2.5 border-r border-white/10 last:border-0 align-top cursor-pointer transition-all ${
                             isSelected 
                               ? (isDark ? 'bg-emerald-950/30 border-x-2 border-emerald-500/40' : 'bg-emerald-50/70 border-x-2 border-emerald-600/40') 
-                              : ''
+                              : 'hover:bg-emerald-500/5'
                           }`}
                         >
                           {filterMode === 'absence' ? (
@@ -233,7 +298,7 @@ export function ReportsSchedule({
                               )
                             )
                           ) : (
-                            /* Unified Mode (shows both clearly) */
+                            /* Unified Mode */
                             isAbsent ? (
                               <div className="h-full w-full rounded-xl p-2 bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 shadow-sm">
                                 <div className="font-black text-[0.7rem]">🏖️ Out of Office</div>
@@ -262,14 +327,6 @@ export function ReportsSchedule({
           </table>
         </div>
       </div>
-
-      {/* ── 2. DAILY VISUAL TIMELINE FOR SELECTED DAY ── */}
-      <ReportsTimeline
-        isDark={isDark}
-        employees={employees}
-        historicalShiftEvents={historicalShiftEvents}
-        reportStartDate={reportStartDate}
-      />
 
     </div>
   );

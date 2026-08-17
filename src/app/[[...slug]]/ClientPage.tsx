@@ -5,8 +5,11 @@ import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee
 import { type FirestoreShiftEvent } from '@/lib/firebase';
 import AgentProfileView from '@/components/AgentProfileView';
 import { ReportsOverview } from '@/components/ReportsOverview';
+import { ReportsTimeline } from '@/components/ReportsTimeline';
 import { ReportsSchedule } from '@/components/ReportsSchedule';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import { downloadPdfReport } from '@/lib/pdfExport';
+import { downloadCsvReport } from '@/lib/csvExport';
 
 const TRANSLATIONS = {
   en: {
@@ -257,6 +260,8 @@ export interface Employee {
   awAfkSecondsToday?: number;
   awCurrentApp?: string;
   awCurrentTitle?: string;
+  awActiveApp?: string;
+  awActiveTitle?: string;
   awTopAppsJson?: string;
   isDeleted?: boolean;
 }
@@ -409,14 +414,14 @@ const INITIAL_EMPLOYEES: Employee[] = [
 
 const INITIAL_LOGS: TimeLog[] = [];
 
-export type TabType = 'timeTracker' | 'employees' | 'reports' | 'setup' | 'agentProfile';
+export type TabType = 'dashboard' | 'calendar' | 'reports' | 'team' | 'setup' | 'agentProfile' | 'timeTracker' | 'employees';
 
 interface ClientPageProps {
   initialTab?: TabType;
   initialAgentUsername?: string;
 }
 
-export default function ClientPage({ initialTab = 'timeTracker', initialAgentUsername }: ClientPageProps) {
+export default function ClientPage({ initialTab = 'dashboard', initialAgentUsername }: ClientPageProps) {
   const [isAllowedDomain, setIsAllowedDomain] = useState<boolean | null>(null);
   // const [currentDomain, setCurrentDomain] = useState<string>('');
   
@@ -484,14 +489,12 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   const [liveStatuses, setLiveStatuses] = useState<Record<string, LiveStatus>>({});
 
 
-  // View mode & Shift Editing State
-  const [viewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
-  const [reportsTab, setReportsTab] = useState<'overview' | 'calendar' | 'grid' | 'logs'>('overview');
+  // Shift Editing State
+  const [reportsTab, setReportsTab] = useState<'overview' | 'timeline' | 'grid' | 'logs'>('overview');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
   const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
   const [editTimesCheckOut, setEditTimesCheckOut] = useState<string>('');
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
   // Handle Initial Deep Linking for SPA
   useEffect(() => {
@@ -501,18 +504,20 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         const username = path.substring(6);
         setActiveTab('agentProfile');
         setActiveAgentUsername(username);
-      } else if (path === '/team') {
-        setActiveTab('employees');
+      } else if (path === '/team' || path === '/employees' || path === '/directory') {
+        setActiveTab('team');
+      } else if (path === '/calendar' || path === '/schedule') {
+        setActiveTab('calendar');
       } else if (path === '/reports' || path.startsWith('/reports/')) {
         setActiveTab('reports');
-        if (path === '/reports/calendar') setReportsTab('calendar');
+        if (path === '/reports/timeline') setReportsTab('timeline');
         else if (path === '/reports/members' || path === '/reports/grid') setReportsTab('grid');
         else if (path === '/reports/logs' || path === '/reports/time-logs') setReportsTab('logs');
         else setReportsTab('overview');
       } else if (path === '/setup') {
         setActiveTab('setup');
       } else if (path === '/' || path === '/dashboard') {
-        setActiveTab('timeTracker');
+        setActiveTab('dashboard');
       }
     }
   }, []);
@@ -1468,46 +1473,6 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     return { status, checkIn, checkOut, liveDurationStr, isLiveFromClockify, isLiveFromAW, activeHrsDisplay };
   };
 
-  // Calendar Helpers
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    
-    let startingDay = firstDay.getDay() - 1;
-    if (startingDay < 0) startingDay = 6;
-
-    const days: { dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = [];
-    
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = startingDay - 1; i >= 0; i--) {
-      const pDate = new Date(year, month - 1, prevMonthLastDay - i);
-      const yyyy = pDate.getFullYear();
-      const mm = String(pDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(prevMonthLastDay - i).padStart(2, '0');
-      days.push({
-        dateStr: `${yyyy}-${mm}-${dd}`,
-        dayNum: prevMonthLastDay - i,
-        isCurrentMonth: false,
-      });
-    }
-
-    for (let i = 1; i <= daysInMonth; i++) {
-      const yyyy = year;
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(i).padStart(2, '0');
-      days.push({
-        dateStr: `${yyyy}-${mm}-${dd}`,
-        dayNum: i,
-        isCurrentMonth: true,
-      });
-    }
-
-    return days;
-  };
-
   // Shift Status Handler with Auto-Log Creation on Departure
   const handleStatusChange = (id: string, newStatus: Employee['status'], customCheckIn?: string, customCheckOut?: string) => {
     const nowCyprus = cyprusTime || new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Nicosia', hour: '2-digit', minute: '2-digit', hour12: true });
@@ -2252,13 +2217,13 @@ saveFirestoreEmployee(username, restored);
               </span>
             </div>
 
-            {/* Navigation (Admin) */}
+            {/* Navigation (Admin - 5 Main Pages) */}
             {authRole === 'admin' && (
               <div className="flex flex-wrap items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
                 <button
-                  onClick={() => handleTabChange('timeTracker', '/dashboard')}
+                  onClick={() => handleTabChange('dashboard', '/dashboard')}
                   className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
-                    activeTab === 'timeTracker'
+                    activeTab === 'dashboard' || activeTab === 'timeTracker'
                       ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
                       : 'opacity-70 hover:opacity-100'
                   }`}
@@ -2266,17 +2231,17 @@ saveFirestoreEmployee(username, restored);
                   <span>⏱️</span> Dashboard
                 </button>
                 <button
-                  onClick={() => handleTabChange('employees', '/team')}
+                  onClick={() => handleTabChange('calendar', '/calendar')}
                   className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
-                    activeTab === 'employees'
+                    activeTab === 'calendar'
                       ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
                       : 'opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <span>👥</span> Team
+                  <span>📅</span> Calendar
                 </button>
                 <button
-                  onClick={() => window.location.href = '/reports'}
+                  onClick={() => handleTabChange('reports', '/reports')}
                   className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
                     activeTab === 'reports'
                       ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
@@ -2286,14 +2251,24 @@ saveFirestoreEmployee(username, restored);
                   <span>📊</span> Reports
                 </button>
                 <button
-                  onClick={() => window.location.href = '/setup'}
+                  onClick={() => handleTabChange('team', '/team')}
+                  className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
+                    activeTab === 'team' || activeTab === 'employees'
+                      ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <span>👥</span> Team
+                </button>
+                <button
+                  onClick={() => handleTabChange('setup', '/setup')}
                   className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-[0.75rem] font-bold transition ${
                     activeTab === 'setup'
                       ? isDark ? 'bg-white/20 text-white shadow-sm' : 'bg-white text-black shadow-sm'
                       : 'opacity-70 hover:opacity-100'
                   }`}
                 >
-                  ⚙️ Setup
+                  <span>⚙️</span> Setup
                 </button>
               </div>
             )}
@@ -2832,9 +2807,111 @@ saveFirestoreEmployee(username, restored);
         )}
 
         {/* Admin / Manager Combined Command Center */}
-        {authRole === 'admin' && activeTab === 'timeTracker' && (
+        {authRole === 'admin' && (activeTab === 'dashboard' || activeTab === 'timeTracker') && (
           <div className="space-y-6">
             
+            {/* TOP WIDGET: ActivityWatch Live Telemetry Stream */}
+            {(() => {
+              const awLiveAgents = employees.filter(emp => {
+                const state = getMergedEmployeeState(emp);
+                const seenRecently = emp.lastSeen ? (10 * 60 * 1000) > (Date.now() - new Date(emp.lastSeen).getTime()) : false;
+                return state.isLiveFromAW || (emp.trackingClient === 'AW' && (seenRecently || emp.status === 'checked_in'));
+              });
+
+              return (
+                <div className={`rounded-3xl border-2 p-6 shadow-xl relative overflow-hidden ${
+                  isDark ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-[#133137] to-black/80 text-white' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 text-black'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="relative flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 shadow-[0_0_12px_#10b981]"></span>
+                      </span>
+                      <div>
+                        <h3 className="font-serif text-lg font-black tracking-tight flex items-center gap-2">
+                          ⚡ Active AW Telemetry Stream
+                          <span className="text-[0.65rem] font-mono font-bold bg-emerald-500 text-black px-2 py-0.5 rounded-full uppercase">
+                            Live Desktop Activity
+                          </span>
+                        </h3>
+                        <p className="text-xs opacity-75">
+                          Agents currently transmitting active windows, application usage, and desk engagement
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-2xl px-3 py-1.5 text-xs font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                        🟢 {awLiveAgents.length} Agents Connected
+                      </span>
+                    </div>
+                  </div>
+
+                  {awLiveAgents.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-center text-xs opacity-70">
+                      🛰️ All 39 registered team members ready. Waiting for incoming ActivityWatch telemetry signals...
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {awLiveAgents.map(emp => {
+                        const topApps = parseTopApps(emp.awTopAppsJson);
+                        return (
+                          <div 
+                            key={emp.id}
+                            onClick={() => goToAgentProfile(emp.username || emp.name.toLowerCase().replace(/\s+/g, ''))}
+                            className="p-3.5 rounded-2xl border border-emerald-500/30 bg-black/30 hover:bg-black/50 transition cursor-pointer flex flex-col justify-between gap-2 shadow-sm group"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs text-white shadow-md">
+                                  {emp.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-black text-xs truncate group-hover:text-emerald-400 transition">{emp.name}</div>
+                                  <div className="text-[0.65rem] opacity-60 truncate">{emp.role}</div>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
+                                Live
+                              </span>
+                            </div>
+
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5 space-y-1">
+                              <div className="flex items-center justify-between text-[0.65rem]">
+                                <span className="opacity-60">Active Window:</span>
+                                <span className="font-extrabold text-emerald-300 truncate max-w-[140px]">
+                                  {emp.awCurrentApp || emp.awActiveApp || 'Desktop Active'}
+                                </span>
+                              </div>
+                              {emp.awActiveSecondsToday !== undefined && (
+                                <div className="flex items-center justify-between text-[0.65rem]">
+                                  <span className="opacity-60">Today Tracked:</span>
+                                  <span className="font-mono font-bold text-white">
+                                    {formatAwSeconds(emp.awActiveSecondsToday)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {topApps.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {topApps.slice(0, 3).map((app, idx) => (
+                                  <span key={idx} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 border border-white/10 opacity-75 font-mono">
+                                    {app.app} ({formatAwSeconds(app.seconds)})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Top Toolbar Actions */}
             <div className={`rounded-2xl border-2 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-white text-slate-800'}`}>
               <div className="flex items-center gap-3">
@@ -2844,7 +2921,7 @@ saveFirestoreEmployee(username, restored);
                 </span>
                 <div>
                   <h2 className="font-serif text-lg font-bold flex items-center gap-2">
-                    Live Team Status
+                    Live Team Operations
                     <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-slate-300/30 px-2.5 py-0.5 rounded-full">
                       ⚡ Live Sync (LimassolTracker & Firestore)
                     </span>
@@ -2854,7 +2931,6 @@ saveFirestoreEmployee(username, restored);
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-
                 <button
                   onClick={() => setShowAddEmpModal(true)}
                   className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-extrabold shadow transition ${
@@ -3064,8 +3140,8 @@ saveFirestoreEmployee(username, restored);
           </div>
         )}
 
-        {/* Page Tab 2: Employees Directory Page */}
-        {activeTab === 'employees' && (
+        {/* Page Tab 4: Team Directory Page */}
+        {(activeTab === 'team' || activeTab === 'employees') && (
           <div className="space-y-6">
             <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3085,13 +3161,66 @@ saveFirestoreEmployee(username, restored);
                 </button>
               </div>
 
-              {/* Toolbar with Sort Options */}
-              <div className="mt-4 flex flex-wrap gap-2 items-center justify-between border-t border-b py-2.5 my-2 border-white/10">
-                <div className="text-xs font-bold text-slate-400">
-                  Showing {filteredEmployees.length} of {employees.length} team members
+              {/* Search & Status Filters Bar for Team Directory */}
+              <div className="mt-4 flex flex-wrap gap-3 items-center justify-between border-t border-b py-3 my-2 border-white/10">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[220px]">
+                  <input
+                    type="text"
+                    placeholder="Search employee by name, role, username..."
+                    value={empSearchQuery}
+                    onChange={(e) => setEmpSearchQuery(e.target.value)}
+                    className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
+                      isDark ? 'border-white/20 bg-black/50 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-600'
+                    }`}
+                  />
+                  {empSearchQuery && (
+                    <button 
+                      onClick={() => setEmpSearchQuery('')}
+                      className="absolute right-3 top-2 text-xs font-extrabold text-slate-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
+
+                {/* Status Filter Pills */}
+                <div className="flex flex-wrap items-center gap-1 text-xs font-extrabold">
+                  <button
+                    onClick={() => setEmpStatusFilter('ALL')}
+                    className={`rounded-xl px-2.5 py-1.5 transition ${
+                      empStatusFilter === 'ALL'
+                        ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
+                        : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({employees.length})
+                  </button>
+                  <button
+                    onClick={() => setEmpStatusFilter('checked_in')}
+                    className={`rounded-xl px-2.5 py-1.5 transition ${
+                      empStatusFilter === 'checked_in'
+                        ? 'bg-emerald-600 text-white'
+                        : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-black' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    }`}
+                  >
+                    🟢 Working ({employees.filter(e => e.status === 'checked_in').length})
+                  </button>
+                  <button
+                    onClick={() => setEmpStatusFilter('absent')}
+                    className={`rounded-xl px-2.5 py-1.5 transition ${
+                      empStatusFilter === 'absent'
+                        ? 'bg-amber-600 text-white'
+                        : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-black' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    🏖️ Off ({employees.filter(e => e.status === 'absent').length})
+                  </button>
+                </div>
+
+                {/* Sort */}
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="font-bold text-slate-400">Sort by:</span>
+                  <span className="font-bold text-slate-400">Sort:</span>
                   <select
                     value={empSortOrder}
                     onChange={(e) => setEmpSortOrder(e.target.value as 'name_asc' | 'name_desc' | 'last_online' | 'last_registered')}
@@ -3387,158 +3516,41 @@ saveFirestoreEmployee(username, restored);
           </div>
         )}
 
+        {/* Calendar Page (Separate full-width Schedule & Absence Hub) */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-6 mt-4">
+            <ReportsSchedule
+              isDark={isDark}
+              employees={employees}
+              logs={logs}
+              reportStartDate={reportStartDate}
+              currentWeekStart={currentWeekStart}
+              onWeekChange={(newWeek) => setCurrentWeekStart(newWeek)}
+              onSelectDay={(dateIso) => {
+                setReportStartDate(dateIso);
+                setReportEndDate(dateIso);
+                setReportsTab('timeline');
+                handleTabChange('reports', '/reports');
+              }}
+            />
+          </div>
+        )}
+
         {activeTab === 'reports' && (
           <div className="flex flex-col lg:flex-row gap-6 mt-6">
-            {/* Left Sidebar: Date & Timeframe Presets */}
-            <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
-              
-              {/* Quick Timeframe Presets */}
-              <div className={`rounded-3xl border p-5 shadow-sm ${isDark ? 'border-white/10 bg-[#16363d]/70 text-white' : 'border-slate-200 bg-white text-black'}`}>
-                <h4 className="text-[0.7rem] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
-                  ⚡ Quick Timeframes
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setTimeframePreset('this_week')}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
-                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    📌 This Week
-                  </button>
-                  <button
-                    onClick={() => setTimeframePreset('last_week')}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
-                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    ⏪ Last Week
-                  </button>
-                  <button
-                    onClick={() => setTimeframePreset('this_month')}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
-                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    📅 This Month
-                  </button>
-                  <button
-                    onClick={() => setTimeframePreset('last_month')}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
-                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    ⏮️ Last Month
-                  </button>
-                </div>
-              </div>
-
-              {/* Day Navigator */}
-              <div className={`rounded-3xl border p-5 shadow-sm ${isDark ? 'border-white/10 bg-[#16363d]/70 text-white' : 'border-slate-200 bg-white text-black'}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-[0.7rem] font-extrabold uppercase tracking-widest text-slate-400">
-                    📆 Select Day
-                  </h4>
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => {
-                        const d = new Date(currentWeekStart);
-                        d.setDate(d.getDate() - 7);
-                        setCurrentWeekStart(d);
-                      }}
-                      className={`p-1.5 rounded-lg border transition ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'}`}
-                      title="Previous Week"
-                    >
-                      ◀
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const d = new Date(currentWeekStart);
-                        d.setDate(d.getDate() + 7);
-                        setCurrentWeekStart(d);
-                      }}
-                      className={`p-1.5 rounded-lg border transition ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'}`}
-                      title="Next Week"
-                    >
-                      ▶
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-xs font-bold opacity-60 mb-3 px-1">
-                  {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(new Date(currentWeekStart).setDate(currentWeekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-
-                {(() => {
-                  const buttons = [];
-                  const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); setLogDate(iso); };
-                  const todayIso = new Date().toISOString().split('T')[0];
-                  
-                  for (let i = 0; i < 7; i++) {
-                    const d = new Date(currentWeekStart);
-                    d.setDate(currentWeekStart.getDate() + i);
-                    const iso = d.toISOString().split('T')[0];
-                    const isSelected = reportStartDate === iso;
-                    const isToday = todayIso === iso;
-                    
-                    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
-                    const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
-                    const label = isToday ? `Today (${weekday.slice(0, 3)}) ${dateStr}` : `${weekday} ${dateStr}`;
-                    
-                    buttons.push(
-                      <button
-                        key={iso}
-                        onClick={() => goToDate(iso)}
-                        className={`w-full text-left rounded-xl px-3.5 py-2.5 text-xs font-extrabold transition-all border flex items-center justify-between ${
-                          isSelected 
-                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/50' 
-                            : isDark 
-                              ? (isToday ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-black/20 border-white/5 text-slate-300 hover:bg-white/10')
-                              : (isToday ? 'bg-slate-200 border-slate-300 text-slate-900 hover:bg-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')
-                        }`}
-                      >
-                        <span>{label}</span>
-                        {isSelected && <span className="text-[10px]">🟢</span>}
-                      </button>
-                    );
-                  }
-                  
-                  return <div className="flex flex-col gap-1.5">{buttons}</div>;
-                })()}
-
-                {/* Custom Date Range */}
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/10 space-y-2">
-                  <label className="text-[0.65rem] font-extrabold uppercase tracking-widest text-slate-400 block">
-                    Custom Date Range
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-[10px] opacity-60 block mb-0.5">From</span>
-                      <input
-                        type="date"
-                        value={reportStartDate}
-                        onChange={e => setReportStartDate(e.target.value)}
-                        className={`w-full rounded-xl border px-2 py-1.5 text-[0.7rem] font-bold outline-none ${
-                          isDark ? 'bg-black/50 border-white/10 text-white' : 'bg-white border-slate-200 text-black'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[10px] opacity-60 block mb-0.5">To</span>
-                      <input
-                        type="date"
-                        value={reportEndDate}
-                        onChange={e => setReportEndDate(e.target.value)}
-                        className={`w-full rounded-xl border px-2 py-1.5 text-[0.7rem] font-bold outline-none ${
-                          isDark ? 'bg-black/50 border-white/10 text-white' : 'bg-white border-slate-200 text-black'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
+            {/* Left Sidebar: Interactive Range Calendar (AirBNB / Facebook Ads style) */}
+            <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
+              <DateRangePicker
+                isDark={isDark}
+                startDate={reportStartDate}
+                endDate={reportEndDate}
+                onChange={(start, end) => {
+                  setReportStartDate(start);
+                  setReportEndDate(end);
+                  setLogDate(start);
+                }}
+                onPresetSelect={setTimeframePreset}
+              />
             </div>
 
             {/* Right Side: Main Content */}
@@ -3581,6 +3593,21 @@ saveFirestoreEmployee(username, restored);
                       📥 Download PDF Report
                     </button>
                     
+                    <button 
+                      onClick={() => {
+                        downloadCsvReport({
+                          employees,
+                          logs,
+                          startDate: reportStartDate,
+                          endDate: reportEndDate,
+                        });
+                      }} 
+                      title="Export CSV / Excel spreadsheet" 
+                      className="rounded-2xl px-4 py-3 text-xs font-black transition bg-slate-800 hover:bg-slate-700 text-white border border-white/10 shadow flex items-center gap-2 active:scale-95 cursor-pointer"
+                    >
+                      📊 Export CSV
+                    </button>
+                    
                     <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
                       <button onClick={() => setShowPrintReportModal(true)} title="Print Preview" className="rounded-xl px-3.5 py-2 text-xs font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
                         🖨️ Print
@@ -3600,17 +3627,17 @@ saveFirestoreEmployee(username, restored);
               </div>
 
               {/* Sub-Tabs for Reports */}
-              <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1">
+              <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {[
-                  { id: 'overview', label: '📊 Overview' },
-                  { id: 'calendar', label: '📅 Calendar & Timeline' },
+                  { id: 'overview', label: '📊 Reports Overview' },
+                  { id: 'timeline', label: '⏳ Daily Timeline' },
                   { id: 'grid', label: '👥 Compare by members' },
-                  { id: 'logs', label: '📋 Detailed Time Logs' }
+                  { id: 'logs', label: '📋 Time Logs' }
                 ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => {
-                      setReportsTab(tab.id as 'overview' | 'calendar' | 'grid' | 'logs');
+                      setReportsTab(tab.id as 'overview' | 'timeline' | 'grid' | 'logs');
                       if (typeof window !== 'undefined') {
                         window.history.pushState(null, '', tab.id === 'overview' ? '/reports' : `/reports/${tab.id}`);
                       }
@@ -3629,198 +3656,7 @@ saveFirestoreEmployee(username, restored);
                 ))}
               </div>
 
-{/* VIEW MODE 0: Interactive Monthly Calendar */}
-          {viewMode === 'calendar' && (
-            <div className={`mt-5 rounded-2xl border p-5 ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
-              {/* Calendar Header Navigation */}
-              <div className="flex items-center justify-between border-b pb-4 mb-4 border-white/10">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-serif text-lg font-bold">
-                    📅 {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-                  </h3>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-slate-300/40">
-                    {T.clickDayHint}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const prev = new Date(calendarMonth);
-                      prev.setMonth(prev.getMonth() - 1);
-                      setCalendarMonth(prev);
-                    }}
-                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
-                  >
-                    {T.prevMonth}
-                  </button>
-                  <button
-                    onClick={() => setCalendarMonth(new Date())}
-                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold bg-white/20 transition hover:bg-white/30"
-                  >
-                    {T.todayBtn}
-                  </button>
-                  <button
-                    onClick={() => {
-                      const next = new Date(calendarMonth);
-                      next.setMonth(next.getMonth() + 1);
-                      setCalendarMonth(next);
-                    }}
-                    className="rounded-2xl border px-3 py-1 text-xs font-extrabold transition hover:bg-white/10"
-                  >
-                    {T.nextMonth}
-                  </button>
-                </div>
-              </div>
-
-              {/* Days of Week */}
-              <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-xs uppercase text-slate-400 mb-2">
-                <div>Mon</div>
-                <div>Tue</div>
-                <div>Wed</div>
-                <div>Thu</div>
-                <div>Fri</div>
-                <div>Sat</div>
-                <div>Sun</div>
-              </div>
-
-              {/* Month Grid Cells */}
-              <div className="grid grid-cols-7 gap-2">
-                {getDaysInMonth(calendarMonth).map((dayObj, idx) => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const isToday = dayObj.dateStr === todayStr;
-                  const isSelected = reportStartDate === dayObj.dateStr;
-
-                  // Logs for this specific day
-                  const dayLogs = logs.filter(l => l.date === dayObj.dateStr);
-                  const dayTotalHours = dayLogs.reduce((sum, l) => sum + l.hours, 0);
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setReportStartDate(dayObj.dateStr);
-                        setReportEndDate(dayObj.dateStr);
-                        setLogDate(dayObj.dateStr);
-                      }}
-                      className={`min-h-[85px] rounded-2xl border p-2.5 flex flex-col justify-between cursor-pointer transition active:scale-95 ${
-                        !dayObj.isCurrentMonth
-                          ? 'opacity-40 border-transparent bg-transparent'
-                          : isToday
-                          ? 'border-slate-300 bg-emerald-950/40 text-white shadow-lg ring-2 ring-emerald-500'
-                          : isSelected
-                          ? 'border-amber-500 bg-amber-950/40 text-white'
-                          : isDark
-                          ? 'border-white/15 bg-black/50 hover:border-white/40 hover:bg-black/70'
-                          : 'border-slate-200/60 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`font-extrabold text-sm ${isToday ? 'text-emerald-400 font-black' : ''}`}>
-                          {dayObj.dayNum}
-                        </span>
-                        {isToday && (
-                          <span className="text-[0.6rem] font-bold bg-slate-800 text-slate-950 px-1.5 py-0.2 rounded uppercase">
-                            {'Today'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-2 space-y-1 text-[0.65rem] font-bold">
-                        {dayTotalHours > 0 ? (
-                          <div className="rounded bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-slate-300/30 flex justify-between">
-                            <span>{T.workedLabel2}</span>
-                            <span className="font-mono">{dayTotalHours}h</span>
-                          </div>
-                        ) : (
-                          <div className="text-slate-500 font-normal italic">{T.noLogsLabel}</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Search & Status Filters Bar */}
-          <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px]">
-              <input
-                type="text"
-                placeholder={T.searchPlaceholder}
-                value={empSearchQuery}
-                onChange={(e) => setEmpSearchQuery(e.target.value)}
-                className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
-                  isDark ? 'border-white/30 bg-black/60 text-white placeholder-slate-400 focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
-                }`}
-              />
-              {empSearchQuery && (
-                <button 
-                  onClick={() => setEmpSearchQuery('')}
-                  className="absolute right-3 top-2 text-xs font-extrabold text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Status Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold">
-              <button
-                onClick={() => setEmpStatusFilter('ALL')}
-                className={`rounded-2xl px-3 py-1.5 transition ${
-                  empStatusFilter === 'ALL'
-                    ? isDark ? 'bg-white text-slate-900' : 'bg-[#133137] text-white'
-                    : isDark ? 'bg-black/40 text-slate-300 hover:bg-white/10' : 'bg-white text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterAll} ({employees.length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('checked_in')}
-                className={`rounded-2xl px-3 py-1.5 transition ${
-                  empStatusFilter === 'checked_in'
-                    ? 'bg-slate-900 text-white'
-                    : isDark ? 'bg-emerald-950/60 text-emerald-300 hover:bg-black' : 'bg-slate-100 text-emerald-800 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterWorking} ({employees.filter(e => e.status === 'checked_in').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('expected')}
-                className={`rounded-2xl px-3 py-1.5 transition ${
-                  empStatusFilter === 'expected'
-                    ? 'bg-slate-900 text-white'
-                    : isDark ? 'bg-amber-950/60 text-amber-300 hover:bg-black' : 'bg-slate-100 text-amber-800 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterExpected} ({employees.filter(e => e.status === 'expected').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('completed')}
-                className={`rounded-2xl px-3 py-1.5 transition ${
-                  empStatusFilter === 'completed'
-                    ? 'bg-slate-900 text-white'
-                    : isDark ? 'bg-blue-950/60 text-blue-300 hover:bg-black' : 'bg-slate-100 text-blue-800 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterDone} ({employees.filter(e => e.status === 'completed').length})
-              </button>
-              <button
-                onClick={() => setEmpStatusFilter('absent')}
-                className={`rounded-2xl px-3 py-1.5 transition ${
-                  empStatusFilter === 'absent'
-                    ? 'bg-slate-900 text-white'
-                    : isDark ? 'bg-red-950/60 text-red-300 hover:bg-black' : 'bg-slate-100 text-red-800 hover:bg-slate-200'
-                }`}
-              >
-                {T.filterOff} ({employees.filter(e => e.status === 'absent').length})
-              </button>
-            </div>
-          </div>
-
-          
+          {/* Sub-Tab 1: Reports Overview */}
           {reportsTab === 'overview' && (
             <ReportsOverview
               isDark={isDark}
@@ -3831,37 +3667,104 @@ saveFirestoreEmployee(username, restored);
             />
           )}
 
-          {reportsTab === 'calendar' && (
-            <ReportsSchedule
+          {/* Sub-Tab 2: Daily Visual Timeline */}
+          {reportsTab === 'timeline' && (
+            <ReportsTimeline
               isDark={isDark}
-              employees={employees}
-              logs={logs}
-              reportStartDate={reportStartDate}
+              employees={filteredEmployees}
               historicalShiftEvents={historicalShiftEvents}
+              reportStartDate={reportStartDate}
             />
           )}
 
-{/* VIEW MODE 1: Clean Timesheet Table View */}
+          {/* VIEW MODE 1: Clean Timesheet Table View */}
           {reportsTab === 'grid' && (
-            <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
+            <div className={`mt-5 overflow-hidden rounded-3xl border shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
+              
+              {/* Table Toolbar & Search */}
+              <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <input
+                    type="text"
+                    placeholder="Search employee by name, role or shift..."
+                    value={empSearchQuery}
+                    onChange={(e) => setEmpSearchQuery(e.target.value)}
+                    className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
+                      isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-slate-50 text-black focus:border-emerald-600'
+                    }`}
+                  />
+                  {empSearchQuery && (
+                    <button 
+                      onClick={() => setEmpSearchQuery('')}
+                      className="absolute right-3 top-2 text-xs opacity-60 hover:opacity-100"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                  <button
+                    onClick={() => setEmpStatusFilter('ALL')}
+                    className={`rounded-xl px-3 py-1.5 transition ${
+                      empStatusFilter === 'ALL'
+                        ? isDark ? 'bg-white text-black font-extrabold shadow' : 'bg-[#133137] text-white font-extrabold shadow'
+                        : isDark ? 'bg-black/30 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({employees.length})
+                  </button>
+                  <button
+                    onClick={() => setEmpStatusFilter('checked_in')}
+                    className={`rounded-xl px-3 py-1.5 transition ${
+                      empStatusFilter === 'checked_in'
+                        ? 'bg-emerald-600 text-white font-extrabold shadow'
+                        : isDark ? 'bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950/70' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    }`}
+                  >
+                    🟢 Working ({employees.filter(e => e.status === 'checked_in').length})
+                  </button>
+                  <button
+                    onClick={() => setEmpStatusFilter('completed')}
+                    className={`rounded-xl px-3 py-1.5 transition ${
+                      empStatusFilter === 'completed'
+                        ? 'bg-blue-600 text-white font-extrabold shadow'
+                        : isDark ? 'bg-blue-950/40 text-blue-300 hover:bg-blue-950/70' : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                    }`}
+                  >
+                    🔵 Done ({employees.filter(e => e.status === 'completed').length})
+                  </button>
+                  <button
+                    onClick={() => setEmpStatusFilter('absent')}
+                    className={`rounded-xl px-3 py-1.5 transition ${
+                      empStatusFilter === 'absent'
+                        ? 'bg-amber-600 text-white font-extrabold shadow'
+                        : isDark ? 'bg-amber-950/40 text-amber-300 hover:bg-amber-950/70' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    🏖️ Off ({employees.filter(e => e.status === 'absent').length})
+                  </button>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead className={`font-extrabold uppercase tracking-wider border-b ${
-                    isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-200/60'
+                    isDark ? 'bg-black/60 text-slate-300 border-white/10' : 'bg-slate-100 text-slate-700 border-slate-200'
                   }`}>
                     <tr>
-                      <th className="px-4 py-3.5">{T.colNameRole}</th>
-                      <th className="px-4 py-3.5">{T.colArrival}</th>
-                      <th className="px-4 py-3.5">{T.colDeparture}</th>
-                      <th className="px-4 py-3.5 text-center">{T.colWorkedHrs}</th>
-                      <th className="px-4 py-3.5">{T.colShiftStatus}</th>
-                      <th className="px-4 py-3.5 text-right">{T.colActions}</th>
+                      <th className="px-5 py-3.5 min-w-[200px]">{T.colNameRole}</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colArrival}</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colDeparture}</th>
+                      <th className="px-4 py-3.5 text-center whitespace-nowrap">{T.colWorkedHrs}</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colShiftStatus}</th>
+                      <th className="px-5 py-3.5 text-right whitespace-nowrap">{T.colActions}</th>
                     </tr>
                   </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
+                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
                     {filteredEmployees.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-5 py-8 text-center font-bold opacity-75">
+                        <td colSpan={6} className="px-5 py-8 text-center font-bold opacity-75">
                           {T.noEmployeesFilter}
                         </td>
                       </tr>
@@ -3900,16 +3803,9 @@ saveFirestoreEmployee(username, restored);
                               const firstLog = oldLogs[0];
                               if (firstLog.hours > 0) {
                                 status = 'completed';
-                                if (firstLog.timestamp && firstLog.timestamp.includes(' - ')) {
-                                  const [inT, outT] = firstLog.timestamp.split(' - ');
-                                  checkIn = inT.trim();
-                                  checkOut = outT.trim();
-                                } else {
-                                  checkIn = '10:00 AM';
-                                  checkOut = '06:00 PM';
-                                }
-                              } else {
-                                status = 'absent';
+                                checkIn = '09:00 AM';
+                                const outHr = Math.min(23, 9 + Math.round(firstLog.hours));
+                                checkOut = `${outHr > 12 ? outHr - 12 : outHr}:00 ${outHr >= 12 ? 'PM' : 'AM'}`;
                               }
                             } else {
                               status = 'absent';
@@ -3927,66 +3823,106 @@ saveFirestoreEmployee(username, restored);
                         const calculatedHrs = calculateExactHours(checkIn, checkOut);
                         
                         return (
-                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
-                            <td className="px-4 py-3 font-extrabold">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm">{emp.name}</span>
-                                {isLiveFromClockify && (
-                                  <span className="animate-pulse rounded bg-slate-800/20 border border-indigo-500/50 px-1 py-0.5 text-[0.6rem] font-bold text-indigo-400" title="Clockify Timer Active">
-                                    ⏱️ CLOCKIFY
-                                  </span>
-                                )}
-                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold border ${isDark ? 'bg-white/20 text-white border-white/30' : 'bg-slate-200 text-black border-slate-400'}`}>
-                                  {emp.languages.join('/')}
-                                </span>
+                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                  {emp.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-extrabold text-sm">{emp.name}</span>
+                                    {emp.languages?.[0] && (
+                                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${isDark ? 'bg-white/10 text-white border-white/20' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                                        {emp.languages[0]}
+                                      </span>
+                                    )}
+                                    {isLiveFromClockify && (
+                                      <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/40 px-1 py-0.2 text-[9px] font-bold text-indigo-400">
+                                        CLOCKIFY
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[0.7rem] opacity-60">{emp.role}</div>
+                                </div>
                               </div>
-                              <div className="text-[0.7rem] font-medium opacity-75">{emp.role}</div>
                             </td>
-                            <td className="px-4 py-3 font-mono font-bold">
+                            
+                            {/* Arrival */}
+                            <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap">
                               {checkIn ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/40' : 'bg-slate-100 text-emerald-800 border-emerald-400'}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold border ${
+                                  isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                }`}>
                                   🟢 {formatNiceDisplayTime(checkIn)}
                                 </span>
                               ) : (
-                                <span className="text-slate-500 font-normal">-</span>
+                                <span className="opacity-40 font-mono">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 font-mono font-bold">
+
+                            {/* Departure */}
+                            <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap">
                               {checkOut ? (
-                                <span className={`rounded px-2 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/40' : 'bg-slate-100 text-blue-800 border-blue-400'}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold border ${
+                                  isDark ? 'bg-blue-950/60 text-blue-300 border-blue-500/30' : 'bg-blue-50 text-blue-800 border-blue-200'
+                                }`}>
                                   🔴 {formatNiceDisplayTime(checkOut)}
                                 </span>
                               ) : (
-                                <span className="text-slate-500 font-normal">-</span>
+                                <span className="opacity-40 font-mono">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-400">
-                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '-'}
+
+                            {/* Worked Hours */}
+                            <td className="px-4 py-3.5 text-center font-mono font-black text-sm text-emerald-500 dark:text-emerald-300 whitespace-nowrap">
+                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '0.0 hrs'}
                             </td>
-                            <td className="px-4 py-3 font-bold">
-                              {status === 'expected' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/40' : 'bg-slate-100 text-amber-800 border-slate-300'}`}>{T.statusExpectedBadge}</span>}
-                              {status === 'checked_in' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/40' : 'bg-slate-100 text-emerald-800 border-emerald-400'}`}>{T.statusWorkingBadge}</span>}
-                              {status === 'completed' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/40' : 'bg-slate-100 text-blue-800 border-blue-400'}`}>{T.statusDoneBadge}</span>}
-                              {status === 'absent' && <span className={`rounded-xl px-2.5 py-1 border ${isDark ? 'bg-red-950/80 text-red-300 border-red-500/40' : 'bg-slate-100 text-red-800 border-red-400'}`}>{T.statusAbsentBadge}</span>}
+
+                            {/* Shift Status */}
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              {status === 'expected' && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 dark:text-amber-300 border border-amber-500/30">
+                                  🕒 Expected
+                                </span>
+                              )}
+                              {status === 'checked_in' && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 animate-pulse">
+                                  🟢 In Office
+                                </span>
+                              )}
+                              {status === 'completed' && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30">
+                                  🔵 Shift Done
+                                </span>
+                              )}
+                              {status === 'absent' && (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                                  🏖️ Out of Office
+                                </span>
+                              )}
                             </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {status !== 'checked_in' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 transition">
+
+                            {/* Actions */}
+                            <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-2">
+                                {status !== 'checked_in' ? (
+                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition shadow-sm">
                                     In
                                   </button>
-                                )}
-                                {status === 'checked_in' && (
-                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 transition">
+                                ) : (
+                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-black transition shadow-sm">
                                     Out
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleOpenEditTimes(emp)}
-                                  className="rounded border border-slate-500 bg-slate-800 px-2.5 py-1 font-bold text-slate-200 hover:bg-slate-700 transition"
-                                  title="Modify entry/leave hours"
+                                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-sm ${
+                                    isDark ? 'border-white/15 bg-black/40 text-slate-300 hover:bg-white/10' : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                  }`}
+                                  title="Modify shift entry and exit hours"
                                 >
-                                  {T.editTimesBtn}
+                                  Edit Times
                                 </button>
                               </div>
                             </td>

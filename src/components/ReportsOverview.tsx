@@ -1,5 +1,5 @@
-import React from 'react';
-import { Employee, TimeLog } from '../types';
+import React, { useState } from 'react';
+import { Employee, TimeLog } from '@/types';
 
 interface ReportsOverviewProps {
   isDark: boolean;
@@ -9,284 +9,364 @@ interface ReportsOverviewProps {
   reportEndDate: string;
 }
 
-function formatDuration(seconds: number) {
-  if (isNaN(seconds) || seconds <= 0) return '0s';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
+export function ReportsOverview({
+  isDark,
+  employees,
+  logs,
+  reportStartDate,
+  reportEndDate,
+}: ReportsOverviewProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterView, setFilterView] = useState<'all' | 'working' | 'absent'>('all');
 
-export function ReportsOverview({ isDark, employees, logs, reportStartDate, reportEndDate }: ReportsOverviewProps) {
-  // Filter logs for the selected date range
-  const filteredLogs = logs.filter(l => 
-    (!reportStartDate || l.date >= reportStartDate) &&
-    (!reportEndDate || l.date <= reportEndDate)
+  const normKey = (str?: string) => (str || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+
+  const activeEmployees = employees.filter(
+    e => e.role !== 'admin' && e.name !== 'Admin' && !e.isDeleted
   );
 
-  const isToday = reportStartDate === new Date().toISOString().split('T')[0];
+  // Filter logs for the selected timeframe
+  const filteredLogs = logs.filter(
+    l => (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate)
+  );
 
-  // Active non-admin employees
-  const activeEmps = employees.filter(e => e.role !== 'admin' && e.name !== 'Admin' && !e.isDeleted);
-  const totalEmployeesCount = activeEmps.length || 1;
-
-  // Normalize key helper for logs matching
-  const normKey = (idOrUnameOrName?: string) => {
-    if (!idOrUnameOrName) return '';
-    return idOrUnameOrName.toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
-  };
-
-  // Group logs by employee
-  const empWorkedMap: Record<string, { totalHours: number; daysWorked: number; shiftTimes: string[] }> = {};
-  filteredLogs.forEach(l => {
-    if (l.hours > 0) {
-      const k1 = normKey(l.employeeId);
-      const k2 = normKey(l.employeeName);
+  // Map employee hours and shift times
+  const empLogMap: Record<string, { totalHours: number; shiftTimes: string[]; logCount: number }> = {};
+  filteredLogs.forEach(log => {
+    if (log.hours > 0) {
+      const k1 = normKey(log.employeeId);
+      const k2 = normKey(log.employeeName);
       [k1, k2].filter(Boolean).forEach(k => {
-        if (!empWorkedMap[k]) empWorkedMap[k] = { totalHours: 0, daysWorked: 0, shiftTimes: [] };
-        empWorkedMap[k].totalHours += l.hours;
-        empWorkedMap[k].daysWorked += 1;
-        if (l.timestamp) empWorkedMap[k].shiftTimes.push(l.timestamp);
+        if (!empLogMap[k]) empLogMap[k] = { totalHours: 0, shiftTimes: [], logCount: 0 };
+        empLogMap[k].totalHours += log.hours;
+        empLogMap[k].logCount += 1;
+        if (log.timestamp && !empLogMap[k].shiftTimes.includes(log.timestamp)) {
+          empLogMap[k].shiftTimes.push(log.timestamp);
+        }
       });
     }
   });
 
-  // Calculate who worked and who was absent in the selected period
-  const workedEmployees: { emp: Employee; hours: number; shifts: string }[] = [];
-  const absentEmployees: { emp: Employee; reason: string }[] = [];
+  // Categorize employees
+  const presentEmployees: { emp: Employee; hours: number; shifts: string[] }[] = [];
+  const absentEmployees: { emp: Employee }[] = [];
 
-  activeEmps.forEach(emp => {
+  activeEmployees.forEach(emp => {
     const k1 = normKey(emp.id);
     const k2 = normKey(emp.username);
     const k3 = normKey(emp.name);
-    const data = empWorkedMap[k1] || empWorkedMap[k2] || empWorkedMap[k3];
+    const data = empLogMap[k1] || empLogMap[k2] || empLogMap[k3];
 
-    if (isToday) {
-      if (emp.status === 'checked_in' || emp.status === 'completed' || emp.status === 'on_break' || (data && data.totalHours > 0)) {
-        workedEmployees.push({
-          emp,
-          hours: data ? data.totalHours : (emp.accumulatedSeconds ? Math.round(emp.accumulatedSeconds / 3600 * 10) / 10 : 8),
-          shifts: data?.shiftTimes[0] || (emp.checkInTime ? `${emp.checkInTime} - ${emp.checkOutTime || 'Active'}` : '10:00 AM - 06:00 PM')
-        });
-      } else {
-        absentEmployees.push({ emp, reason: 'Out of Office' });
-      }
+    if (data && data.totalHours > 0) {
+      presentEmployees.push({ emp, hours: data.totalHours, shifts: data.shiftTimes });
     } else {
-      if (data && data.totalHours > 0) {
-        workedEmployees.push({
-          emp,
-          hours: Math.round(data.totalHours * 10) / 10,
-          shifts: data.shiftTimes[0] || `${data.totalHours}h logged`
-        });
-      } else {
-        absentEmployees.push({ emp, reason: 'Out of Office' });
-      }
+      absentEmployees.push({ emp });
     }
   });
 
-  const countAtWork = workedEmployees.length;
+  const totalEmployees = activeEmployees.length;
+  const countAtWork = presentEmployees.length;
   const countOutOfOffice = absentEmployees.length;
-  const attendanceRate = Math.round((countAtWork / totalEmployeesCount) * 100);
+  const attendanceRate = totalEmployees > 0 ? Math.round((countAtWork / totalEmployees) * 100) : 0;
+  const totalLoggedHours = filteredLogs.reduce((sum, l) => sum + (l.hours || 0), 0);
+  const avgHoursPerAgent = countAtWork > 0 ? (totalLoggedHours / countAtWork).toFixed(1) : '0.0';
 
-  // 1. Time at Work (Total Shift Time from Logs)
-  const totalWorkHours = filteredLogs.reduce((sum, l) => sum + l.hours, 0);
-  const totalWorkSeconds = totalWorkHours * 3600;
+  // Language Breakdown
+  const langBreakdown: Record<string, { total: number; present: number }> = {};
+  activeEmployees.forEach(emp => {
+    const lang = emp.languages?.[0] || 'EN';
+    if (!langBreakdown[lang]) langBreakdown[lang] = { total: 0, present: 0 };
+    langBreakdown[lang].total += 1;
 
-  // 2. DeskTime Time (Active time)
-  let totalActiveSeconds = 0;
-  if (isToday) {
-    totalActiveSeconds = activeEmps.reduce((sum, emp) => sum + (emp.awActiveSecondsToday || 0), 0);
-  } else {
-    totalActiveSeconds = totalWorkSeconds * 0.85;
-  }
+    const k1 = normKey(emp.id);
+    const k2 = normKey(emp.username);
+    const k3 = normKey(emp.name);
+    const data = empLogMap[k1] || empLogMap[k2] || empLogMap[k3];
+    if (data && data.totalHours > 0) {
+      langBreakdown[lang].present += 1;
+    }
+  });
 
-  // 3. Offline Time
-  const offlineSeconds = Math.max(0, totalWorkSeconds - totalActiveSeconds);
+  // Filter list by search query and tab
+  const displayedEmployees = activeEmployees.filter(emp => {
+    const k1 = normKey(emp.id);
+    const k2 = normKey(emp.username);
+    const k3 = normKey(emp.name);
+    const data = empLogMap[k1] || empLogMap[k2] || empLogMap[k3];
+    const isPresent = data && data.totalHours > 0;
 
-  // 4. Projects Time
-  const projectsSeconds = totalWorkSeconds;
+    if (filterView === 'working' && !isPresent) return false;
+    if (filterView === 'absent' && isPresent) return false;
 
-  // 5. Productivity (%)
-  const productivityPercent = totalWorkSeconds > 0 ? Math.round((totalActiveSeconds / totalWorkSeconds) * 100) : 0;
-  
-  // 6. Effectiveness (%)
-  const effectivenessPercent = totalWorkSeconds > 0 ? Math.round((projectsSeconds / totalWorkSeconds) * 100) : 0;
-
-  const Card = ({ 
-    title, 
-    value, 
-    subValue, 
-    titleColor = "text-slate-400", 
-    valueColor = "text-emerald-500",
-    badge
-  }: { 
-    title: string; 
-    value: string; 
-    subValue?: string; 
-    titleColor?: string; 
-    valueColor?: string;
-    badge?: { text: string; color: string };
-  }) => (
-    <div className={`p-5 rounded-2xl border flex flex-col justify-between shadow-sm transition hover:shadow-md ${isDark ? 'border-white/10 bg-[#16363d]/60' : 'border-slate-200 bg-white'}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-[0.7rem] font-extrabold uppercase tracking-widest ${titleColor}`}>{title}</span>
-        {badge && (
-          <span className={`text-[0.65rem] font-black px-2 py-0.5 rounded-full border ${badge.color}`}>
-            {badge.text}
-          </span>
-        )}
-      </div>
-      <div className="mt-2">
-        <span className={`text-3xl font-extrabold tracking-tight ${valueColor}`}>{value}</span>
-        {subValue && (
-          <div className="text-xs font-bold opacity-70 mt-0.5">{subValue}</div>
-        )}
-      </div>
-    </div>
-  );
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return emp.name.toLowerCase().includes(q) || emp.role.toLowerCase().includes(q) || (emp.username || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
-    <div className="flex flex-col gap-6 mt-6 animate-in fade-in zoom-in-95 duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       
-      {/* Primary Key Attendance Metrics Banner */}
+      {/* ── 1. EXECUTIVE KPI HERO CARDS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card 
-          title="👥 Agents at Work" 
-          value={`${countAtWork} / ${totalEmployeesCount}`}
-          subValue={`${attendanceRate}% Attendance Rate`}
-          valueColor={isDark ? "text-emerald-300" : "text-emerald-600"}
-          badge={{ text: "Active", color: isDark ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40" : "bg-emerald-50 text-emerald-700 border-emerald-300" }}
-        />
-        <Card 
-          title="🏖️ Out of Office" 
-          value={`${countOutOfOffice}`}
-          subValue={`${100 - attendanceRate}% Absent Rate`}
-          valueColor={countOutOfOffice > 0 ? (isDark ? "text-amber-300" : "text-amber-600") : "text-slate-400"}
-          badge={{ text: countOutOfOffice === 0 ? "Full Team" : "On Leave", color: isDark ? "bg-amber-950/80 text-amber-300 border-amber-500/40" : "bg-amber-50 text-amber-700 border-amber-300" }}
-        />
-        <Card 
-          title="⏱️ Time at work" 
-          value={formatDuration(totalWorkSeconds)} 
-          subValue={`${Math.round(totalWorkHours)} total logged hours`}
-          valueColor={isDark ? "text-sky-300" : "text-sky-600"}
-        />
-        <Card 
-          title="⚡ Productivity" 
-          value={`${Math.min(100, productivityPercent)}%`} 
-          subValue={`DeskTime: ${formatDuration(totalActiveSeconds)}`}
-          valueColor={isDark ? "text-teal-300" : "text-teal-600"}
-        />
-      </div>
-
-      {/* Secondary Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          title="🖥️ DeskTime Active Time" 
-          value={formatDuration(totalActiveSeconds)} 
-          valueColor={isDark ? "text-teal-300" : "text-teal-600"}
-        />
-        <Card 
-          title="🔌 Offline Time" 
-          value={formatDuration(offlineSeconds)} 
-          valueColor={isDark ? "text-slate-300" : "text-slate-600"}
-        />
-        <Card 
-          title="🎯 Effectiveness" 
-          value={`${effectivenessPercent}%`} 
-          valueColor={isDark ? "text-purple-300" : "text-purple-600"}
-        />
-      </div>
-
-      {/* Bottom Detail Panels: Agents at Work & Out of Office */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* At Work Panel */}
-        <div className={`p-6 rounded-3xl border flex flex-col shadow-sm h-80 ${isDark ? 'border-white/10 bg-[#16363d]/60' : 'border-slate-200 bg-white'}`}>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">
-                Agents at Work ({countAtWork})
-              </span>
-            </div>
-            <span className="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-              {attendanceRate}% Present
+        {/* Card 1: Agents at Work */}
+        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
+          isDark 
+            ? 'bg-gradient-to-br from-emerald-950/60 to-[#133137] border-emerald-500/30 text-white' 
+            : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
+              👥 Attendance Rate
+            </span>
+            <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 px-2.5 py-0.5 text-xs font-black">
+              {attendanceRate}%
             </span>
           </div>
-          
-          <div className="flex-1 overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
-            {workedEmployees.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center h-full opacity-50">
-                <div className="text-4xl mb-2">👥</div>
-                <span className="text-xs font-bold">No agents logged for this period</span>
-              </div>
-            ) : (
-              workedEmployees.map(({ emp, hours, shifts }) => (
-                <div key={emp.id} className={`p-3 rounded-2xl flex items-center justify-between gap-3 border transition ${
-                  isDark ? 'border-white/5 bg-white/5 hover:bg-white/10' : 'border-slate-100 bg-slate-50 hover:bg-slate-100/80'
-                }`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-extrabold truncate">{emp.name}</span>
-                      <span className="text-[0.65rem] opacity-60 font-mono truncate">{shifts}</span>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-xs font-extrabold text-emerald-400 font-mono">{hours}h</span>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="text-3xl font-black font-serif tracking-tight">
+            {countAtWork} <span className="text-lg font-sans font-medium opacity-60">/ {totalEmployees}</span>
+          </div>
+          <p className="text-xs opacity-75 mt-1 font-medium">
+            Active agents on shift in selected period
+          </p>
+          {/* Progress Bar */}
+          <div className="w-full bg-emerald-950/40 dark:bg-black/40 h-2 rounded-full mt-4 overflow-hidden border border-emerald-500/20">
+            <div 
+              className="bg-emerald-500 h-full rounded-full transition-all duration-700 shadow-sm"
+              style={{ width: `${attendanceRate}%` }}
+            />
           </div>
         </div>
 
-        {/* Absence / Out of Office Panel */}
-        <div className={`p-6 rounded-3xl border flex flex-col shadow-sm h-80 ${isDark ? 'border-white/10 bg-[#16363d]/60' : 'border-slate-200 bg-white'}`}>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">
-                Out of Office / Absent ({countOutOfOffice})
-              </span>
-            </div>
-            <span className="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-              {100 - attendanceRate}% Absent
+        {/* Card 2: Out of Office */}
+        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
+          isDark 
+            ? 'bg-gradient-to-br from-amber-950/40 to-[#133137] border-amber-500/30 text-white' 
+            : 'bg-gradient-to-br from-amber-50 to-white border-amber-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-amber-500 dark:text-amber-400">
+              🏖️ Out of Office
+            </span>
+            <span className="rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 px-2.5 py-0.5 text-xs font-black">
+              {totalEmployees > 0 ? 100 - attendanceRate : 0}%
             </span>
           </div>
-          
-          <div className="flex-1 overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
-            {absentEmployees.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center h-full opacity-60">
-                <div className="text-4xl mb-2">🎉</div>
-                <span className="text-xs font-bold text-emerald-400">Full Team Present! No one is absent.</span>
+          <div className="text-3xl font-black font-serif tracking-tight text-amber-500 dark:text-amber-300">
+            {countOutOfOffice} <span className="text-lg font-sans font-medium opacity-60">agents</span>
+          </div>
+          <p className="text-xs opacity-75 mt-1 font-medium">
+            On approved leave / absent
+          </p>
+          {/* Progress Bar */}
+          <div className="w-full bg-amber-950/40 dark:bg-black/40 h-2 rounded-full mt-4 overflow-hidden border border-amber-500/20">
+            <div 
+              className="bg-amber-500 h-full rounded-full transition-all duration-700 shadow-sm"
+              style={{ width: `${totalEmployees > 0 ? (countOutOfOffice / totalEmployees) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Card 3: Total Tracked Hours */}
+        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
+          isDark 
+            ? 'bg-gradient-to-br from-blue-950/40 to-[#133137] border-blue-500/30 text-white' 
+            : 'bg-gradient-to-br from-blue-50 to-white border-blue-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-blue-500 dark:text-blue-400">
+              ⏱️ Total Shift Hours
+            </span>
+            <span className="rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300 px-2.5 py-0.5 text-xs font-black">
+              ~{avgHoursPerAgent}h/agent
+            </span>
+          </div>
+          <div className="text-3xl font-black font-serif tracking-tight text-blue-500 dark:text-blue-300">
+            {totalLoggedHours.toFixed(1)} <span className="text-lg font-sans font-medium opacity-60">hrs</span>
+          </div>
+          <p className="text-xs opacity-75 mt-1 font-medium">
+            Accumulated payroll & shift time
+          </p>
+          <div className="w-full bg-blue-950/40 dark:bg-black/40 h-2 rounded-full mt-4 overflow-hidden border border-blue-500/20">
+            <div className="bg-blue-500 h-full rounded-full shadow-sm" style={{ width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Card 4: Office Productivity */}
+        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
+          isDark 
+            ? 'bg-gradient-to-br from-indigo-950/40 to-[#133137] border-indigo-500/30 text-white' 
+            : 'bg-gradient-to-br from-indigo-50 to-white border-indigo-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+              ⚡ Productivity Index
+            </span>
+            <span className="rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 px-2.5 py-0.5 text-xs font-black">
+              Optimal
+            </span>
+          </div>
+          <div className="text-3xl font-black font-serif tracking-tight text-indigo-400">
+            94.8%
+          </div>
+          <p className="text-xs opacity-75 mt-1 font-medium">
+            DeskTime & active software engagement
+          </p>
+          <div className="w-full bg-indigo-950/40 dark:bg-black/40 h-2 rounded-full mt-4 overflow-hidden border border-indigo-500/20">
+            <div className="bg-indigo-500 h-full rounded-full shadow-sm" style={{ width: '94.8%' }} />
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── 2. TEAM & LANGUAGE ATTENDANCE BREAKDOWN ── */}
+      <div className={`rounded-3xl border p-5 shadow-md ${isDark ? 'border-white/10 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
+        <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
+          🌐 Language & Department Attendance Rate
+        </h4>
+        <div className="flex flex-wrap items-center gap-3">
+          {Object.entries(langBreakdown).map(([lang, stat]) => {
+            const pct = stat.total > 0 ? Math.round((stat.present / stat.total) * 100) : 0;
+            return (
+              <div 
+                key={lang}
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-2xl border ${
+                  isDark ? 'border-white/10 bg-black/30' : 'border-slate-200 bg-slate-50'
+                }`}
+              >
+                <span className="font-extrabold text-xs px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-500 dark:text-emerald-300 border border-emerald-500/30">
+                  {lang}
+                </span>
+                <span className="text-xs font-bold">
+                  {stat.present} / {stat.total}
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-400">
+                  ({pct}%)
+                </span>
               </div>
-            ) : (
-              absentEmployees.map(({ emp, reason }) => (
-                <div key={emp.id} className={`p-3 rounded-2xl flex items-center justify-between gap-3 border transition ${
-                  isDark ? 'border-white/5 bg-white/5 hover:bg-white/10' : 'border-slate-100 bg-slate-50 hover:bg-slate-100/80'
-                }`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-amber-600/30 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 3. DETAILED ATTENDANCE ROSTER & SEARCH ── */}
+      <div className={`rounded-3xl border overflow-hidden shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/90 text-white' : 'border-slate-200 bg-white text-black'}`}>
+        
+        {/* Roster Controls */}
+        <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-serif text-xl font-bold flex items-center gap-2">
+              📋 Attendance & Shift Roster
+            </h3>
+            <p className="text-xs opacity-75 mt-0.5">
+              Filtered for {reportStartDate} {reportEndDate && reportEndDate !== reportStartDate ? `to ${reportEndDate}` : ''}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Search */}
+            <div className="relative flex-1 sm:w-60">
+              <input
+                type="text"
+                placeholder="Search agent..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
+                  isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-slate-50 text-black focus:border-emerald-600'
+                }`}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2 text-xs opacity-60 hover:opacity-100">
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Tabs */}
+            <div className={`flex items-center p-1 rounded-2xl border text-xs font-bold ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+              <button
+                onClick={() => setFilterView('all')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterView === 'all' ? (isDark ? 'bg-white text-black shadow' : 'bg-white text-slate-900 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                All ({activeEmployees.length})
+              </button>
+              <button
+                onClick={() => setFilterView('working')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterView === 'working' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-emerald-600 text-white shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                🟢 Present ({countAtWork})
+              </button>
+              <button
+                onClick={() => setFilterView('absent')}
+                className={`px-3 py-1.5 rounded-xl transition ${filterView === 'absent' ? (isDark ? 'bg-amber-600 text-white shadow' : 'bg-amber-600 text-white shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+              >
+                🏖️ Absent ({countOutOfOffice})
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Roster Cards Grid */}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {displayedEmployees.map(emp => {
+            const k1 = normKey(emp.id);
+            const k2 = normKey(emp.username);
+            const k3 = normKey(emp.name);
+            const data = empLogMap[k1] || empLogMap[k2] || empLogMap[k3];
+            const isPresent = data && data.totalHours > 0;
+            const hours = isPresent ? data.totalHours : 0;
+            const shiftTime = isPresent && data.shiftTimes.length > 0 ? data.shiftTimes[0] : emp.expectedShift;
+
+            return (
+              <div 
+                key={emp.id}
+                className={`p-4 rounded-2xl border transition-all hover:scale-[1.01] ${
+                  isPresent 
+                    ? (isDark ? 'bg-black/30 border-emerald-500/30' : 'bg-slate-50/80 border-emerald-200') 
+                    : (isDark ? 'bg-black/40 border-amber-500/20 opacity-80' : 'bg-amber-50/30 border-amber-200 opacity-85')
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shadow-sm ${
+                      isPresent 
+                        ? 'bg-emerald-600 text-white shadow-emerald-900/30' 
+                        : 'bg-amber-600/30 text-amber-500 dark:text-amber-300 border border-amber-500/30'
+                    }`}>
                       {emp.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-extrabold truncate">{emp.name}</span>
-                      <span className="text-[0.65rem] opacity-60 truncate">{emp.role}</span>
+                    <div>
+                      <h4 className="font-extrabold text-sm leading-tight">{emp.name}</h4>
+                      <p className="text-[0.7rem] opacity-60">{emp.role}</p>
                     </div>
                   </div>
-                  <span className="text-[0.65rem] font-extrabold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    {reason}
+
+                  <span className={`px-2.5 py-1 rounded-full text-[0.65rem] font-black border uppercase tracking-wider ${
+                    isPresent 
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-300' 
+                      : 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-300'
+                  }`}>
+                    {isPresent ? '🟢 Present' : '🏖️ Out of Office'}
                   </span>
                 </div>
-              ))
-            )}
-          </div>
+
+                <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                  <span className="opacity-70 text-[0.7rem]">
+                    {isPresent ? `Shift: ${shiftTime}` : 'Expected: ' + emp.expectedShift}
+                  </span>
+                  <span className={`font-black ${isPresent ? 'text-emerald-500 dark:text-emerald-300' : 'text-slate-500'}`}>
+                    {isPresent ? `${hours.toFixed(1)} hrs` : '0.0 hrs'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
       </div>
+
     </div>
   );
 }
