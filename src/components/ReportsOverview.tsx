@@ -356,7 +356,7 @@ export function ReportsOverview({
 
                 <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
                   <span className="opacity-70 text-[0.7rem] truncate max-w-[130px]">
-                    {isPresent ? `Shift: ${shiftTime}` : 'Expected: ' + (emp.expectedShift || '09:00 - 17:00')}
+                    {isPresent ? `Shift: ${shiftTime}` : 'Expected: ' + (emp.expectedShift || '11:00 - 20:00')}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className={`font-black ${isPresent ? 'text-emerald-500 dark:text-emerald-300' : 'text-slate-500'}`}>

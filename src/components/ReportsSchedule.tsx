@@ -96,9 +96,9 @@ export function ReportsSchedule({
     isAbsent: boolean;
   } | null>(null);
 
-  const [shiftIn24, setShiftIn24] = useState('09:00');
-  const [shiftOut24, setShiftOut24] = useState('17:00');
-  const [shiftHours, setShiftHours] = useState(8.0);
+  const [shiftIn24, setShiftIn24] = useState('11:00');
+  const [shiftOut24, setShiftOut24] = useState('20:00');
+  const [shiftHours, setShiftHours] = useState(9.0);
   const [shiftNote, setShiftNote] = useState('');
   const [shiftIsAbsent, setShiftIsAbsent] = useState(false);
   const [applyToWholeWeek, setApplyToWholeWeek] = useState(false);
@@ -233,15 +233,15 @@ export function ReportsSchedule({
     setApplyToWholeWeek(false);
 
     if (totalHrs > 0) {
-      setShiftIn24('09:00');
-      setShiftOut24('17:00');
+      setShiftIn24('11:00');
+      setShiftOut24('20:00');
       setShiftHours(Math.round(totalHrs * 10) / 10);
       setShiftNote(dayLogs[0]?.projectTask || 'Shift Attendance');
       setShiftIsAbsent(false);
     } else {
-      setShiftIn24('09:00');
-      setShiftOut24('17:00');
-      setShiftHours(isAbsent ? 0 : 8.0);
+      setShiftIn24('11:00');
+      setShiftOut24('20:00');
+      setShiftHours(isAbsent ? 0 : 9.0);
       setShiftNote(isAbsent ? 'Out of Office / Vacation' : 'Shift Attendance');
       setShiftIsAbsent(isAbsent);
     }
@@ -734,8 +734,8 @@ export function ReportsSchedule({
                   type="button"
                   onClick={() => {
                     setShiftIsAbsent(false);
-                    if (shiftHours === 0) setShiftHours(8.0);
-                    setShiftNote('Shift Attendance');
+                    if (shiftHours === 0) setShiftHours(9.0);
+                    setShiftNote('Shift Attendance (11:00 AM - 08:00 PM)');
                   }}
                   className={`p-3 rounded-2xl border text-center font-extrabold text-xs transition flex items-center justify-center gap-2 ${
                     !shiftIsAbsent
@@ -743,7 +743,7 @@ export function ReportsSchedule({
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10 opacity-70' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 opacity-70'
                   }`}
                 >
-                  🟢 Present (Working Shift)
+                  🟢 Present (11:00 - 20:00)
                 </button>
 
                 <button
@@ -772,58 +772,58 @@ export function ReportsSchedule({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('09:00', '17:00', 8.0, false)}
+                  onClick={() => handleApplyPreset('11:00', '20:00', 9.0, false)}
                   className={`p-2 rounded-xl border text-left font-bold transition ${
-                    shiftIn24 === '09:00' && shiftOut24 === '17:00' && !shiftIsAbsent
+                    shiftIn24 === '11:00' && shiftOut24 === '20:00' && !shiftIsAbsent
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'
                   }`}
                 >
-                  09:00 - 17:00 (8h)
+                  ⭐ 11:00 - 20:00 (Standard)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('10:00', '18:00', 8.0, false)}
+                  onClick={() => handleApplyPreset('10:00', '19:00', 9.0, false)}
                   className={`p-2 rounded-xl border text-left font-bold transition ${
-                    shiftIn24 === '10:00' && shiftOut24 === '18:00' && !shiftIsAbsent
+                    shiftIn24 === '10:00' && shiftOut24 === '19:00' && !shiftIsAbsent
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'
                   }`}
                 >
-                  10:00 - 18:00 (8h)
+                  10:00 - 19:00 (9h)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('11:00', '19:00', 8.0, false)}
+                  onClick={() => handleApplyPreset('12:00', '21:00', 9.0, false)}
                   className={`p-2 rounded-xl border text-left font-bold transition ${
-                    shiftIn24 === '11:00' && shiftOut24 === '19:00' && !shiftIsAbsent
+                    shiftIn24 === '12:00' && shiftOut24 === '21:00' && !shiftIsAbsent
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'
                   }`}
                 >
-                  11:00 - 19:00 (8h)
+                  12:00 - 21:00 (9h)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('12:00', '20:00', 8.0, false)}
+                  onClick={() => handleApplyPreset('09:00', '18:00', 9.0, false)}
                   className={`p-2 rounded-xl border text-left font-bold transition ${
-                    shiftIn24 === '12:00' && shiftOut24 === '20:00' && !shiftIsAbsent
+                    shiftIn24 === '09:00' && shiftOut24 === '18:00' && !shiftIsAbsent
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'
                   }`}
                 >
-                  12:00 - 20:00 (8h)
+                  09:00 - 18:00 (9h)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('08:00', '16:00', 8.0, false)}
+                  onClick={() => handleApplyPreset('08:00', '17:00', 9.0, false)}
                   className={`p-2 rounded-xl border text-left font-bold transition ${
-                    shiftIn24 === '08:00' && shiftOut24 === '16:00' && !shiftIsAbsent
+                    shiftIn24 === '08:00' && shiftOut24 === '17:00' && !shiftIsAbsent
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                       : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'
                   }`}
                 >
-                  08:00 - 16:00 (8h)
+                  08:00 - 17:00 (9h)
                 </button>
                 <button
                   type="button"
