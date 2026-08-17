@@ -12,6 +12,7 @@ export interface FirestoreEmployeeDoc {
   status: 'expected' | 'checked_in' | 'on_break' | 'completed' | 'absent';
   checkInTime?: string;
   checkOutTime?: string;
+  checkInTimestamp?: number;
   sortOrder?: number;
   trackingClient?: string;
   lastSeen?: string;
@@ -110,6 +111,10 @@ export async function saveFirestoreEmployee(
   if ('checkOutTime' in profile) { 
     if (profile.checkOutTime) fields.checkOutTime = { stringValue: profile.checkOutTime }; 
     maskPaths.push('checkOutTime'); 
+  }
+  if ('checkInTimestamp' in profile) { 
+    if (profile.checkInTimestamp) fields.checkInTimestamp = { integerValue: String(profile.checkInTimestamp) }; 
+    maskPaths.push('checkInTimestamp'); 
   }
   if ('sortOrder' in profile) { 
     if (profile.sortOrder !== undefined) fields.sortOrder = { integerValue: String(profile.sortOrder) }; 

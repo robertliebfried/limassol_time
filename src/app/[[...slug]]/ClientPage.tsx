@@ -1416,18 +1416,15 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
     let isLiveFromClockify = false;
     let isLiveFromAW = false;
 
-    // Fix: Clear stale data if the last check-in or interaction was from a previous day
+    // Fix: Clear stale data only if checkInTimestamp was explicitly on a previous date
     const todayStr = new Date().toISOString().split('T')[0];
     let isStale = false;
     if (emp.checkInTimestamp) {
       const checkInStr = new Date(emp.checkInTimestamp).toISOString().split('T')[0];
       if (checkInStr !== todayStr) isStale = true;
-    } else if (emp.lastSeen) {
-      const lastSeenStr = new Date(emp.lastSeen).toISOString().split('T')[0];
-      if (lastSeenStr !== todayStr) isStale = true;
     }
 
-    if (isStale && status !== 'expected') {
+    if (isStale && status === 'checked_in') {
       status = 'expected';
       checkIn = undefined;
       checkOut = undefined;
@@ -1473,14 +1470,16 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
     return { status, checkIn, checkOut, liveDurationStr, isLiveFromClockify, isLiveFromAW, activeHrsDisplay };
   };
 
-  // Shift Status Handler with Auto-Log Creation on Departure
+  // Shift Status Handler with Immediate Firestore Sync & Auto-Log Creation
   const handleStatusChange = (id: string, newStatus: Employee['status'], customCheckIn?: string, customCheckOut?: string) => {
     const nowCyprus = cyprusTime || new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Nicosia', hour: '2-digit', minute: '2-digit', hour12: true });
+    const nowTs = Date.now();
+    const nowIso = new Date().toISOString();
     
     const targetEmp = employees.find(e => e.id === id);
     if (!targetEmp) return;
 
-    const inTime = customCheckIn || targetEmp.checkInTime || nowCyprus;
+    const inTime = customCheckIn || (newStatus === 'checked_in' ? nowCyprus : targetEmp.checkInTime) || nowCyprus;
     const outTime = customCheckOut || (newStatus === 'completed' ? nowCyprus : targetEmp.checkOutTime);
 
     const updated = employees.map(emp => {
@@ -1490,12 +1489,50 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
           status: newStatus,
           checkInTime: newStatus === 'checked_in' || newStatus === 'completed' ? inTime : undefined,
           checkOutTime: newStatus === 'completed' ? outTime : undefined,
+          checkInTimestamp: newStatus === 'checked_in' ? nowTs : emp.checkInTimestamp,
+          lastSeen: nowIso,
         };
       }
       return emp;
     });
 
     saveEmployees(updated);
+
+    // PERSIST TO FIRESTORE IMMEDIATELY SO STATE NEVER RESETS OR REVERTS
+    const usernameKey = targetEmp.username || targetEmp.name.toLowerCase().replace(/[\s-_.]/g, '');
+    saveFirestoreEmployee(usernameKey, {
+      status: newStatus,
+      checkInTime: newStatus === 'checked_in' || newStatus === 'completed' ? inTime : undefined,
+      checkOutTime: newStatus === 'completed' ? outTime : undefined,
+      checkInTimestamp: newStatus === 'checked_in' ? nowTs : targetEmp.checkInTimestamp,
+      lastSeen: nowIso,
+    }).catch(console.error);
+
+    // Save Shift Event
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (newStatus === 'checked_in') {
+      saveFirestoreShiftEvent({
+        id: `shift_in_${targetEmp.id}_${nowTs}`,
+        employeeId: targetEmp.id,
+        date: todayStr,
+        type: 'clock_in',
+        label: '🟢 Clocked In (Admin Manual)',
+        time: inTime,
+        timestamp: nowTs,
+        source: 'manual_admin'
+      }).catch(console.error);
+    } else if (newStatus === 'completed') {
+      saveFirestoreShiftEvent({
+        id: `shift_out_${targetEmp.id}_${nowTs}`,
+        employeeId: targetEmp.id,
+        date: todayStr,
+        type: 'clock_out',
+        label: '🔴 Clocked Out (Admin Manual)',
+        time: outTime || nowCyprus,
+        timestamp: nowTs,
+        source: 'manual_admin'
+      }).catch(console.error);
+    }
 
     // Auto-create log entry when shift is completed with exact calculated hours
     if (newStatus === 'completed') {
