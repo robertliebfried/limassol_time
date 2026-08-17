@@ -301,6 +301,17 @@ export async function saveFirestoreLog(log: FirestoreTimeLog) {
   }
 }
 
+export async function deleteFirestoreLog(logId: string) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/time_logs/${logId}?key=${FIREBASE_API_KEY}`;
+  try {
+    await fetch(url, { method: 'DELETE' });
+    return true;
+  } catch (e) {
+    console.error('Delete log error:', e);
+    return false;
+  }
+}
+
 export async function fetchFirestoreShiftEvents(dateStr: string): Promise<FirestoreShiftEvent[]> {
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
   const query = {
