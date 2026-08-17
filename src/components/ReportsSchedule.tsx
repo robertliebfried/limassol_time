@@ -535,12 +535,16 @@ export function ReportsSchedule({
                         <div className="w-8 h-8 rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
                           {emp.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-extrabold text-sm truncate">{emp.name}</span>
                             {emp.team && (
-                              <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-white/10 border border-white/15">
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/10 border border-white/15">
                                 {emp.team}
+                              </span>
+                            )}
+                            {emp.languages && emp.languages.length > 0 && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-500/15 text-blue-500 dark:text-blue-300 border border-blue-500/20 uppercase font-mono">
+                                🌐 {emp.languages.join('/')}
                               </span>
                             )}
                           </div>

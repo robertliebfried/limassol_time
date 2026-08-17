@@ -290,7 +290,14 @@ export function ReportsTimeline({
                         {emp.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-extrabold text-xs truncate">{emp.name}</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="font-extrabold text-xs truncate">{emp.name}</span>
+                          {emp.languages && emp.languages.length > 0 && (
+                            <span className="px-1 py-0.2 rounded text-[8px] font-extrabold bg-blue-500/15 text-blue-400 border border-blue-500/20 uppercase font-mono">
+                              {emp.languages.join('/')}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] opacity-60 font-mono">
                           {isAbsent ? '🏖️ Out of Office' : totalHrs > 0 ? `${totalHrs.toFixed(1)} hrs` : 'No shift'}
                         </span>
