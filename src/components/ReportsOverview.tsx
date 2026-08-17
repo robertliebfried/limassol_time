@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Employee, TimeLog } from '@/types';
 import { downloadWeeklyPdfReport, downloadPdfReport } from '@/lib/pdfExport';
+import { generateAiWeeklyAudit } from '@/lib/gemini';
 
 interface ReportsOverviewProps {
   isDark: boolean;
@@ -21,6 +22,8 @@ export function ReportsOverview({
 }: ReportsOverviewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterView, setFilterView] = useState<'all' | 'working' | 'absent'>('all');
+  const [aiAuditText, setAiAuditText] = useState<string>('');
+  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
 
   const normKey = (str?: string) => (str || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
 
@@ -274,16 +277,68 @@ export function ReportsOverview({
 
         </div>
       </div>
-      
-      {/* ── 1. EXECUTIVE KPI HERO CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Card 1: Agents at Work */}
-        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
-          isDark 
-            ? 'bg-gradient-to-br from-emerald-950/60 to-[#133137] border-emerald-500/30 text-white' 
-            : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 text-slate-900'
-        }`}>
+
+      {/* ── 0.5. GEMINI AI EXECUTIVE AUDIT & BRIEFING ── */}
+      <div className={`p-6 rounded-3xl border shadow-md transition-all ${
+        isDark ? 'bg-gradient-to-br from-[#102a30] to-[#133137] border-emerald-500/25 text-white' : 'bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border-emerald-200 text-slate-900'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl flex-shrink-0">
+              ✨
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-serif font-black text-lg">
+                  Gemini AI Executive Attendance Audit
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  Google AI
+                </span>
+              </div>
+              <p className="text-xs opacity-75 mt-0.5">
+                Instant smart executive summary of attendance, logged hours, and recommendations for management.
+              </p>
+            </div>
+          </div>
+
+          <button
+            disabled={isAiLoading}
+            onClick={async () => {
+              setIsAiLoading(true);
+              try {
+                const audit = await generateAiWeeklyAudit({
+                  employees,
+                  logs,
+                  weekStartDate: reportStartDate,
+                  weekEndDate: reportEndDate,
+                  weekLabel: `${reportStartDate} to ${reportEndDate}`
+                });
+                setAiAuditText(audit);
+              } catch (err) {
+                console.error(err);
+              } finally {
+                setIsAiLoading(false);
+              }
+            }}
+            className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto"
+          >
+            {isAiLoading ? (
+              <>⏳ Analyzing shifts with Gemini...</>
+            ) : (
+              <>✨ Generate AI Summary</>
+            )}
+          </button>
+        </div>
+
+        {aiAuditText && (
+          <div className={`mt-4 p-5 rounded-2xl border text-xs leading-relaxed whitespace-pre-line animate-in fade-in duration-300 font-sans ${
+            isDark ? 'bg-black/40 border-white/10 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+          }`}>
+            {aiAuditText}
+          </div>
+        )}
+      </div>
           <div className="flex items-center justify-between mb-3">
             <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
               👥 Attendance Rate

@@ -483,6 +483,7 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
 
   // Google Sheets Integration State
   const [googleSheetUrl, setGoogleSheetUrl] = useState<string>('');
+  const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
 
   // Real-Time Dashboard State
   type LiveStatus = { employeeId: string; employeeName?: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
