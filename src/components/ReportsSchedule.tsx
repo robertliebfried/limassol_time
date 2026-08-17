@@ -471,6 +471,7 @@ export function ReportsSchedule({
                       const dateIso = date.toISOString().split('T')[0];
                       const dayLogs = getDayLogs(dateIso);
                       const hours = dayLogs.reduce((sum, l) => sum + l.hours, 0);
+                      const displayHours = Math.round(hours * 10) / 10;
                       const isSelected = reportStartDate === dateIso;
                       const isToday = dateIso === new Date().toISOString().split('T')[0];
                       const isWeekend = i >= 5;
@@ -481,11 +482,11 @@ export function ReportsSchedule({
                       if (isToday) {
                         if (emp.status === 'absent') isAbsent = true;
                         else if (emp.status === 'checked_in' || emp.status === 'completed' || emp.status === 'on_break' || hours > 0) {
-                           shiftTime = hours > 0 ? `${hours}h` : 'Active';
+                           shiftTime = hours > 0 ? `${displayHours}h` : 'Active';
                         }
                       } else if (date < new Date()) {
                         if (hours > 0) {
-                           shiftTime = `${hours}h`;
+                           shiftTime = `${displayHours}h`;
                         } else if (!isWeekend) {
                            isAbsent = true;
                         }
@@ -546,7 +547,7 @@ export function ReportsSchedule({
                             ) : hours > 0 ? (
                               <div className="h-full w-full rounded-xl p-2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-sm group-hover:scale-[1.02] transition">
                                 <div className="font-black text-[0.7rem]">🟢 Present</div>
-                                <div className="opacity-75 text-[0.65rem] font-mono font-bold">{hours}h logged</div>
+                                <div className="opacity-75 text-[0.65rem] font-mono font-bold">{displayHours}h logged</div>
                               </div>
                             ) : (
                               isWeekend ? (
@@ -583,12 +584,32 @@ export function ReportsSchedule({
                   {activeSlot.emp.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="font-serif text-xl font-bold leading-tight">
+                  <h3 className="font-serif text-xl font-bold leading-tight flex items-center gap-2">
                     {activeSlot.emp.name}
+                    {activeSlot.emp.team && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 border border-white/20">
+                        {activeSlot.emp.team}
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-xs opacity-70">
-                    {activeSlot.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs opacity-70">
+                      {activeSlot.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    {onSelectDay && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSelectDay(activeSlot.dateIso);
+                          setActiveSlot(null);
+                        }}
+                        className="text-[10px] font-extrabold text-emerald-400 hover:underline flex items-center gap-0.5"
+                        title="Jump to 24h timeline view"
+                      >
+                        ⏳ Timeline ↗
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -598,6 +619,66 @@ export function ReportsSchedule({
               >
                 ✕
               </button>
+            </div>
+
+            {/* Existing Logs List (if any) */}
+            {activeSlot.existingLogs && activeSlot.existingLogs.length > 0 && (
+              <div className="mb-4 p-3 rounded-2xl border border-white/10 bg-black/20 text-xs">
+                <div className="font-bold opacity-75 mb-1.5 flex items-center justify-between">
+                  <span>Recorded Logs for this Day:</span>
+                  <span className="font-mono text-emerald-400 font-extrabold">
+                    {activeSlot.hours.toFixed(1)} hrs total
+                  </span>
+                </div>
+                <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                  {activeSlot.existingLogs.map((l, idx) => (
+                    <div key={l.id || idx} className="flex items-center justify-between py-1 border-b border-white/5 last:border-0 text-[11px]">
+                      <span className="truncate opacity-80">{l.projectTask || l.timestamp || 'Shift Log'}</span>
+                      <span className="font-mono font-bold text-emerald-300 ml-2">{l.hours}h</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Attendance Status Toggle */}
+            <div className="mb-4">
+              <label className="text-xs font-extrabold uppercase tracking-wider opacity-60 block mb-2">
+                Shift Status
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShiftIsAbsent(false);
+                    if (shiftHours === 0) setShiftHours(8.0);
+                    setShiftNote('Shift Attendance');
+                  }}
+                  className={`p-3 rounded-2xl border text-center font-extrabold text-xs transition flex items-center justify-center gap-2 ${
+                    !shiftIsAbsent
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg'
+                      : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10 opacity-70' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 opacity-70'
+                  }`}
+                >
+                  🟢 Present (Working Shift)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShiftIsAbsent(true);
+                    setShiftHours(0);
+                    setShiftNote('Out of Office / Vacation');
+                  }}
+                  className={`p-3 rounded-2xl border text-center font-extrabold text-xs transition flex items-center justify-center gap-2 ${
+                    shiftIsAbsent
+                      ? 'bg-amber-600 text-white border-amber-500 shadow-lg'
+                      : isDark ? 'border-white/10 bg-black/30 hover:bg-white/10 opacity-70' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 opacity-70'
+                  }`}
+                >
+                  🏖️ Out of Office (Absent)
+                </button>
+              </div>
             </div>
 
             {/* Quick Presets */}
