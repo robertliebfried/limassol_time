@@ -322,16 +322,35 @@ export async function fetchFirestoreShiftEvents(dateStr: string): Promise<Firest
     for (const item of data) {
       if (item.document && item.document.fields) {
         const fields = item.document.fields;
-        results.push({
-          id: item.document.name.split('/').pop(),
-          employeeId: fields.employeeId?.stringValue || '',
-          type: fields.type?.stringValue || '',
-          label: fields.label?.stringValue || '',
-          time: fields.time?.stringValue || '',
-          timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
-          date: fields.date?.stringValue || '',
-          source: fields.source?.stringValue || ''
-        });
+        const empId = fields.employeeId?.stringValue || '';
+        const docDate = fields.date?.stringValue || dateStr;
+
+        if (fields.events?.arrayValue?.values) {
+          for (const evVal of fields.events.arrayValue.values) {
+            const evFields = evVal.mapValue?.fields || {};
+            results.push({
+              id: evFields.id?.stringValue || `${empId}_${evFields.timestamp?.integerValue || Date.now()}`,
+              employeeId: empId,
+              type: evFields.type?.stringValue || '',
+              label: evFields.label?.stringValue || '',
+              time: evFields.time?.stringValue || '',
+              timestamp: evFields.timestamp?.integerValue ? parseInt(evFields.timestamp.integerValue, 10) : 0,
+              date: docDate,
+              source: evFields.source?.stringValue || fields.source?.stringValue || ''
+            });
+          }
+        } else if (fields.type?.stringValue) {
+          results.push({
+            id: item.document.name.split('/').pop(),
+            employeeId: empId,
+            type: fields.type?.stringValue || '',
+            label: fields.label?.stringValue || '',
+            time: fields.time?.stringValue || '',
+            timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
+            date: docDate,
+            source: fields.source?.stringValue || ''
+          });
+        }
       }
     }
     results.sort((a, b) => a.timestamp - b.timestamp);
@@ -367,16 +386,35 @@ export async function fetchFirestoreShiftEventsForEmployee(employeeId: string): 
     for (const item of data) {
       if (item.document && item.document.fields) {
         const fields = item.document.fields;
-        results.push({
-          id: item.document.name.split('/').pop(),
-          employeeId: fields.employeeId?.stringValue || '',
-          type: fields.type?.stringValue || '',
-          label: fields.label?.stringValue || '',
-          time: fields.time?.stringValue || '',
-          timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
-          date: fields.date?.stringValue || '',
-          source: fields.source?.stringValue || ''
-        });
+        const empId = fields.employeeId?.stringValue || employeeId;
+        const docDate = fields.date?.stringValue || '';
+
+        if (fields.events?.arrayValue?.values) {
+          for (const evVal of fields.events.arrayValue.values) {
+            const evFields = evVal.mapValue?.fields || {};
+            results.push({
+              id: evFields.id?.stringValue || `${empId}_${evFields.timestamp?.integerValue || Date.now()}`,
+              employeeId: empId,
+              type: evFields.type?.stringValue || '',
+              label: evFields.label?.stringValue || '',
+              time: evFields.time?.stringValue || '',
+              timestamp: evFields.timestamp?.integerValue ? parseInt(evFields.timestamp.integerValue, 10) : 0,
+              date: docDate,
+              source: evFields.source?.stringValue || fields.source?.stringValue || ''
+            });
+          }
+        } else if (fields.type?.stringValue) {
+          results.push({
+            id: item.document.name.split('/').pop(),
+            employeeId: empId,
+            type: fields.type?.stringValue || '',
+            label: fields.label?.stringValue || '',
+            time: fields.time?.stringValue || '',
+            timestamp: fields.timestamp?.integerValue ? parseInt(fields.timestamp.integerValue, 10) : 0,
+            date: docDate,
+            source: fields.source?.stringValue || ''
+          });
+        }
       }
     }
     results.sort((a, b) => a.timestamp - b.timestamp);

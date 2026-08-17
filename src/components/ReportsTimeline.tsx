@@ -19,7 +19,6 @@ export function ReportsTimeline({
   const HOURS = Array.from({ length: 19 }, (_, i) => i + 6);
 
   const calculateLeftPercent = (timeStr: string) => {
-    // timeStr e.g. "09:30 AM" or "10:00"
     try {
       let hrs = 0;
       let mins = 0;
@@ -28,8 +27,8 @@ export function ReportsTimeline({
         const [hStr, mStr] = timeMatch.split(':');
         hrs = parseInt(hStr, 10);
         mins = parseInt(mStr || '0', 10);
-        if (modifier.toLowerCase() === 'pm' && hrs !== 12) hrs += 12;
-        if (modifier.toLowerCase() === 'am' && hrs === 12) hrs = 0;
+        if (modifier && modifier.toLowerCase() === 'pm' && hrs !== 12) hrs += 12;
+        if (modifier && modifier.toLowerCase() === 'am' && hrs === 12) hrs = 0;
       } else {
         const [hStr, mStr] = timeStr.split(':');
         hrs = parseInt(hStr, 10);
@@ -47,6 +46,11 @@ export function ReportsTimeline({
     } catch {
       return 0;
     }
+  };
+
+  const normKey = (idOrUnameOrName?: string) => {
+    if (!idOrUnameOrName) return '';
+    return idOrUnameOrName.toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
   };
 
   const activeEmployees = employees.filter(emp => emp.role !== 'admin' && emp.name !== 'Admin' && !emp.isDeleted);
@@ -79,9 +83,16 @@ export function ReportsTimeline({
           {/* Rows for each employee */}
           <div className="divide-y divide-white/5">
             {activeEmployees.map(emp => {
+              const empK1 = normKey(emp.id);
+              const empK2 = normKey(emp.username);
+              const empK3 = normKey(emp.name);
+
               // Get all events for this employee on this day
               const empEvents = historicalShiftEvents
-                .filter(ev => ev.employeeId === emp.id)
+                .filter(ev => {
+                  const evKey = normKey(ev.employeeId);
+                  return evKey === empK1 || evKey === empK2 || evKey === empK3;
+                })
                 .sort((a, b) => a.timestamp - b.timestamp);
 
               // Pair up IN and OUT events
@@ -95,8 +106,6 @@ export function ReportsTimeline({
                   if (currentIn) {
                     blocks.push({ start: currentIn.time, end: ev.time, label: currentIn.label || ev.label });
                     currentIn = null;
-                  } else {
-                    // OUT without IN (orphan out), ignore or assume start of day
                   }
                 }
               }
@@ -114,11 +123,10 @@ export function ReportsTimeline({
                 blocks.push({ start: currentIn.time, end: endStr, label: currentIn.label || 'Ongoing' });
               }
 
-              // Fallback to logs if no specific events are recorded for historical dates
+              // Fallback to employee live status if today
               if (blocks.length === 0 && (emp.checkInTime || emp.checkOutTime)) {
-                 // Try to use live state if viewing today
                  const isToday = reportStartDate === new Date().toISOString().split('T')[0];
-                 if (isToday) {
+                 if (isToday && emp.checkInTime) {
                     let endStr = emp.checkOutTime;
                     if (!endStr) {
                       const now = new Date();
@@ -128,16 +136,14 @@ export function ReportsTimeline({
                       const hrs12 = currentHrs % 12 || 12;
                       endStr = `${hrs12.toString().padStart(2, '0')}:${currentMins.toString().padStart(2, '0')} ${ampm}`;
                     }
-                    if (emp.checkInTime) {
-                      blocks.push({ start: emp.checkInTime, end: endStr, label: 'Live Session' });
-                    }
+                    blocks.push({ start: emp.checkInTime, end: endStr, label: 'Live Session' });
                  }
               }
 
               return (
                 <div key={emp.id} className="flex relative hover:bg-white/5 transition-colors group">
                   <div className="w-48 shrink-0 p-3 border-r border-white/10 flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white">
+                    <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                       {emp.name.charAt(0).toUpperCase()}
                     </div>
                     <span className="font-bold text-sm truncate">{emp.name}</span>
@@ -152,7 +158,7 @@ export function ReportsTimeline({
                     {blocks.map((block, idx) => {
                       const left = calculateLeftPercent(block.start);
                       const right = calculateLeftPercent(block.end);
-                      const width = Math.max(0.5, right - left); // Ensure at least a sliver is visible
+                      const width = Math.max(0.5, right - left);
                       
                       return (
                         <div 

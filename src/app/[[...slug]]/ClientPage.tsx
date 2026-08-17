@@ -5,8 +5,8 @@ import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee
 import { type FirestoreShiftEvent } from '@/lib/firebase';
 import AgentProfileView from '@/components/AgentProfileView';
 import { ReportsOverview } from '@/components/ReportsOverview';
-import { ReportsTimeline } from '@/components/ReportsTimeline';
 import { ReportsSchedule } from '@/components/ReportsSchedule';
+import { downloadPdfReport } from '@/lib/pdfExport';
 
 const TRANSLATIONS = {
   en: {
@@ -486,7 +486,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
 
   // View mode & Shift Editing State
   const [viewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
-  const [reportsTab, setReportsTab] = useState<'overview' | 'timeline' | 'grid' | 'schedule' | 'absence'>('overview');
+  const [reportsTab, setReportsTab] = useState<'overview' | 'calendar' | 'grid' | 'logs'>('overview');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
   const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
@@ -503,8 +503,12 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         setActiveAgentUsername(username);
       } else if (path === '/team') {
         setActiveTab('employees');
-      } else if (path === '/reports') {
+      } else if (path === '/reports' || path.startsWith('/reports/')) {
         setActiveTab('reports');
+        if (path === '/reports/calendar') setReportsTab('calendar');
+        else if (path === '/reports/members' || path === '/reports/grid') setReportsTab('grid');
+        else if (path === '/reports/logs' || path === '/reports/time-logs') setReportsTab('logs');
+        else setReportsTab('overview');
       } else if (path === '/setup') {
         setActiveTab('setup');
       } else if (path === '/' || path === '/dashboard') {
@@ -512,6 +516,57 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
       }
     }
   }, []);
+
+  // Timeframe Presets Helper
+  const setTimeframePreset = (preset: 'this_week' | 'last_week' | 'this_month' | 'last_month') => {
+    const now = new Date();
+    
+    if (preset === 'this_week') {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d.setDate(diff));
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      
+      setCurrentWeekStart(mon);
+      setReportStartDate(mon.toISOString().split('T')[0]);
+      setReportEndDate(sun.toISOString().split('T')[0]);
+      setLogDate(mon.toISOString().split('T')[0]);
+    } else if (preset === 'last_week') {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1) - 7;
+      const mon = new Date(d.setDate(diff));
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      
+      setCurrentWeekStart(mon);
+      setReportStartDate(mon.toISOString().split('T')[0]);
+      setReportEndDate(sun.toISOString().split('T')[0]);
+      setLogDate(mon.toISOString().split('T')[0]);
+    } else if (preset === 'this_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const day = firstDay.getDay();
+      const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
+      setCurrentWeekStart(new Date(firstDay.setDate(diff)));
+      setReportStartDate(firstDay.toISOString().split('T')[0]);
+      setReportEndDate(lastDay.toISOString().split('T')[0]);
+      setLogDate(firstDay.toISOString().split('T')[0]);
+    } else if (preset === 'last_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+      
+      const day = firstDay.getDay();
+      const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1);
+      setCurrentWeekStart(new Date(firstDay.setDate(diff)));
+      setReportStartDate(firstDay.toISOString().split('T')[0]);
+      setReportEndDate(lastDay.toISOString().split('T')[0]);
+      setLogDate(firstDay.toISOString().split('T')[0]);
+    }
+  };
 
   // Advanced Reporting State
   const [reportStartDate, setReportStartDate] = useState<string>(() => {
@@ -528,12 +583,22 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   });
 
   useEffect(() => {
-    if (authRole === 'admin' && reportStartDate && reportEndDate) {
-      fetchFirestoreLogs(reportStartDate, reportEndDate).then(fetched => {
+    if (authRole === 'admin') {
+      const mon = new Date(currentWeekStart);
+      const sun = new Date(currentWeekStart);
+      sun.setDate(mon.getDate() + 6);
+      
+      const monStr = mon.toISOString().split('T')[0];
+      const sunStr = sun.toISOString().split('T')[0];
+      
+      const start = reportStartDate && reportStartDate < monStr ? reportStartDate : monStr;
+      const end = reportEndDate && reportEndDate > sunStr ? reportEndDate : sunStr;
+      
+      fetchFirestoreLogs(start, end).then(fetched => {
         setLogs(fetched as TimeLog[]);
       });
     }
-  }, [authRole, reportStartDate, reportEndDate]);
+  }, [authRole, reportStartDate, reportEndDate, currentWeekStart]);
   const [showPrintReportModal, setShowPrintReportModal] = useState<boolean>(false);
 
 
@@ -3324,93 +3389,156 @@ saveFirestoreEmployee(username, restored);
 
         {activeTab === 'reports' && (
           <div className="flex flex-col lg:flex-row gap-6 mt-6">
-            {/* Left Sidebar: Date Selector */}
-            <div className="w-full lg:w-64 flex-shrink-0 flex flex-col gap-2">
-              <h3 className={`font-serif text-lg font-bold mb-2 pl-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Select Day</h3>
+            {/* Left Sidebar: Date & Timeframe Presets */}
+            <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
               
-              <div className={`flex items-center justify-between mb-2 rounded-xl p-2 ${isDark ? 'bg-black/40' : 'bg-slate-100'}`}>
-                <button 
-                  onClick={() => {
-                    const d = new Date(currentWeekStart);
-                    d.setDate(d.getDate() - 7);
-                    setCurrentWeekStart(d);
-                  }}
-                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
-                >
-                  ◀
-                </button>
-                <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - 
-                  {new Date(new Date(currentWeekStart).setDate(currentWeekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-                <button 
-                  onClick={() => {
-                    const d = new Date(currentWeekStart);
-                    d.setDate(d.getDate() + 7);
-                    setCurrentWeekStart(d);
-                  }}
-                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
-                >
-                  ▶
-                </button>
+              {/* Quick Timeframe Presets */}
+              <div className={`rounded-3xl border p-5 shadow-sm ${isDark ? 'border-white/10 bg-[#16363d]/70 text-white' : 'border-slate-200 bg-white text-black'}`}>
+                <h4 className="text-[0.7rem] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+                  ⚡ Quick Timeframes
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setTimeframePreset('this_week')}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
+                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    📌 This Week
+                  </button>
+                  <button
+                    onClick={() => setTimeframePreset('last_week')}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
+                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    ⏪ Last Week
+                  </button>
+                  <button
+                    onClick={() => setTimeframePreset('this_month')}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
+                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    📅 This Month
+                  </button>
+                  <button
+                    onClick={() => setTimeframePreset('last_month')}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold text-left border transition ${
+                      isDark ? 'border-white/10 bg-white/5 hover:bg-white/15' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    ⏮️ Last Month
+                  </button>
+                </div>
               </div>
 
-              {(() => {
-                const buttons = [];
-                const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); setLogDate(iso); };
-                const todayIso = new Date().toISOString().split('T')[0];
-                
-                for (let i = 0; i < 7; i++) {
-                  const d = new Date(currentWeekStart);
-                  d.setDate(currentWeekStart.getDate() + i);
-                  const iso = d.toISOString().split('T')[0];
-                  const isSelected = reportStartDate === iso;
-                  const isToday = todayIso === iso;
-                  
-                  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
-                  const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
-                  const label = isToday ? `Today, ${weekday} ${dateStr}` : `${weekday} ${dateStr}`;
-                  
-                  buttons.push(
-                    <button
-                      key={iso}
-                      onClick={() => goToDate(iso)}
-                      className={`text-left rounded-2xl px-4 py-3 text-sm font-bold transition-all border ${
-                        isSelected 
-                          ? 'bg-emerald-600 border-emerald-500 text-white shadow-md' 
-                          : isDark 
-                            ? (isToday ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-black/30 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20')
-                            : (isToday ? 'bg-slate-200 border-slate-300 text-slate-900 hover:bg-slate-300' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm')
-                      }`}
+              {/* Day Navigator */}
+              <div className={`rounded-3xl border p-5 shadow-sm ${isDark ? 'border-white/10 bg-[#16363d]/70 text-white' : 'border-slate-200 bg-white text-black'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-[0.7rem] font-extrabold uppercase tracking-widest text-slate-400">
+                    📆 Select Day
+                  </h4>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => {
+                        const d = new Date(currentWeekStart);
+                        d.setDate(d.getDate() - 7);
+                        setCurrentWeekStart(d);
+                      }}
+                      className={`p-1.5 rounded-lg border transition ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'}`}
+                      title="Previous Week"
                     >
-                      {label}
+                      ◀
                     </button>
-                  );
-                }
-                
-                return (
-                  <div className="flex flex-col gap-2">
-                    {buttons}
+                    <button 
+                      onClick={() => {
+                        const d = new Date(currentWeekStart);
+                        d.setDate(d.getDate() + 7);
+                        setCurrentWeekStart(d);
+                      }}
+                      className={`p-1.5 rounded-lg border transition ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-slate-100 hover:bg-slate-200'}`}
+                      title="Next Week"
+                    >
+                      ▶
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs font-bold opacity-60 mb-3 px-1">
+                  {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(new Date(currentWeekStart).setDate(currentWeekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
+
+                {(() => {
+                  const buttons = [];
+                  const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); setLogDate(iso); };
+                  const todayIso = new Date().toISOString().split('T')[0];
+                  
+                  for (let i = 0; i < 7; i++) {
+                    const d = new Date(currentWeekStart);
+                    d.setDate(currentWeekStart.getDate() + i);
+                    const iso = d.toISOString().split('T')[0];
+                    const isSelected = reportStartDate === iso;
+                    const isToday = todayIso === iso;
                     
-                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
-                      <label className={`text-xs font-bold uppercase tracking-wider mb-2 block pl-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Custom Date</label>
+                    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+                    const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+                    const label = isToday ? `Today (${weekday.slice(0, 3)}) ${dateStr}` : `${weekday} ${dateStr}`;
+                    
+                    buttons.push(
+                      <button
+                        key={iso}
+                        onClick={() => goToDate(iso)}
+                        className={`w-full text-left rounded-xl px-3.5 py-2.5 text-xs font-extrabold transition-all border flex items-center justify-between ${
+                          isSelected 
+                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/50' 
+                            : isDark 
+                              ? (isToday ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-black/20 border-white/5 text-slate-300 hover:bg-white/10')
+                              : (isToday ? 'bg-slate-200 border-slate-300 text-slate-900 hover:bg-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')
+                        }`}
+                      >
+                        <span>{label}</span>
+                        {isSelected && <span className="text-[10px]">🟢</span>}
+                      </button>
+                    );
+                  }
+                  
+                  return <div className="flex flex-col gap-1.5">{buttons}</div>;
+                })()}
+
+                {/* Custom Date Range */}
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/10 space-y-2">
+                  <label className="text-[0.65rem] font-extrabold uppercase tracking-widest text-slate-400 block">
+                    Custom Date Range
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[10px] opacity-60 block mb-0.5">From</span>
                       <input
                         type="date"
-                        max={new Date().toISOString().split('T')[0]}
-                        value={reportStartDate || new Date().toISOString().split('T')[0]}
-                        onChange={e => {
-                          goToDate(e.target.value);
-                          const d = new Date(e.target.value);
-                          const day = d.getDay();
-                          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-                          setCurrentWeekStart(new Date(d.setDate(diff)));
-                        }}
-                        className={`w-full rounded-xl border px-4 py-2.5 text-sm font-bold outline-none cursor-pointer transition ${isDark ? 'bg-black/50 border-white/10 text-white focus:border-emerald-500' : 'bg-white border-slate-200 text-black focus:border-emerald-500'}`}
+                        value={reportStartDate}
+                        onChange={e => setReportStartDate(e.target.value)}
+                        className={`w-full rounded-xl border px-2 py-1.5 text-[0.7rem] font-bold outline-none ${
+                          isDark ? 'bg-black/50 border-white/10 text-white' : 'bg-white border-slate-200 text-black'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] opacity-60 block mb-0.5">To</span>
+                      <input
+                        type="date"
+                        value={reportEndDate}
+                        onChange={e => setReportEndDate(e.target.value)}
+                        className={`w-full rounded-xl border px-2 py-1.5 text-[0.7rem] font-bold outline-none ${
+                          isDark ? 'bg-black/50 border-white/10 text-white' : 'bg-white border-slate-200 text-black'
+                        }`}
                       />
                     </div>
                   </div>
-                );
-              })()}
+                </div>
+
+              </div>
+
             </div>
 
             {/* Right Side: Main Content */}
@@ -3432,21 +3560,36 @@ saveFirestoreEmployee(username, restored);
 
                   {/* Export Actions */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
-                      <button onClick={() => setShowPrintReportModal(true)} title="Download PDF Report for This Week" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                        📥 Download PDF Report for This Week
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => {
+                        const weekLabel = reportStartDate === reportEndDate 
+                          ? `Date: ${reportStartDate}` 
+                          : `${reportStartDate} to ${reportEndDate}`;
+                        downloadPdfReport({
+                          employees,
+                          logs,
+                          historicalShiftEvents,
+                          startDate: reportStartDate,
+                          endDate: reportEndDate,
+                          weekLabel,
+                          isSingleDay: reportStartDate === reportEndDate,
+                        });
+                      }} 
+                      title="Download PDF Report for selected timeframe" 
+                      className="rounded-2xl px-5 py-3 text-xs font-black transition bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg flex items-center gap-2 active:scale-95 cursor-pointer"
+                    >
+                      📥 Download PDF Report
+                    </button>
                     
                     <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
-                      <button onClick={() => setShowPrintReportModal(true)} title="Print / PDF Report" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
+                      <button onClick={() => setShowPrintReportModal(true)} title="Print Preview" className="rounded-xl px-3.5 py-2 text-xs font-bold transition hover:bg-black/5 dark:hover:bg-white/10">
                         🖨️ Print
                       </button>
-                      <button onClick={() => setShowClockifyModal(true)} title="Sync to Clockify" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white">
+                      <button onClick={() => setShowClockifyModal(true)} title="Sync to Clockify" className="rounded-xl px-3.5 py-2 text-xs font-bold transition bg-blue-600/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white">
                         ☁️ Clockify
                       </button>
                       {googleSheetUrl && (
-                        <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" title="View in Google Sheets" className="rounded-xl px-4 py-2.5 text-sm font-bold transition bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white inline-block">
+                        <a href={googleSheetUrl} target="_blank" rel="noopener noreferrer" title="View in Google Sheets" className="rounded-xl px-3.5 py-2 text-xs font-bold transition bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white inline-block">
                           📊 Sheets
                         </a>
                       )}
@@ -3460,23 +3603,27 @@ saveFirestoreEmployee(username, restored);
               <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1">
                 {[
                   { id: 'overview', label: '📊 Overview' },
-                  { id: 'timeline', label: '⏳ Daily Timeline' },
+                  { id: 'calendar', label: '📅 Calendar & Timeline' },
                   { id: 'grid', label: '👥 Compare by members' },
-                  { id: 'schedule', label: '📅 Work Schedules' },
-                  { id: 'absence', label: '⛱️ Absence Calendar' }
+                  { id: 'logs', label: '📋 Detailed Time Logs' }
                 ].map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => setReportsTab(tab.id as 'overview' | 'timeline' | 'grid' | 'schedule' | 'absence')}
-                    className={`whitespace-nowrap px-1 py-3 text-sm font-bold transition-all relative ${
+                    onClick={() => {
+                      setReportsTab(tab.id as 'overview' | 'calendar' | 'grid' | 'logs');
+                      if (typeof window !== 'undefined') {
+                        window.history.pushState(null, '', tab.id === 'overview' ? '/reports' : `/reports/${tab.id}`);
+                      }
+                    }}
+                    className={`whitespace-nowrap px-3 py-3 text-sm font-extrabold transition-all relative ${
                       reportsTab === tab.id 
-                        ? (isDark ? 'text-white' : 'text-emerald-700') 
+                        ? (isDark ? 'text-emerald-300' : 'text-emerald-700') 
                         : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
                     }`}
                   >
                     {tab.label}
                     {reportsTab === tab.id && (
-                      <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full ${isDark ? 'bg-white' : 'bg-emerald-600'}`}></div>
+                      <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full ${isDark ? 'bg-emerald-400' : 'bg-emerald-600'}`}></div>
                     )}
                   </button>
                 ))}
@@ -3684,31 +3831,13 @@ saveFirestoreEmployee(username, restored);
             />
           )}
 
-          {reportsTab === 'timeline' && (
-            <ReportsTimeline
+          {reportsTab === 'calendar' && (
+            <ReportsSchedule
               isDark={isDark}
-              employees={filteredEmployees}
+              employees={employees}
+              logs={logs}
+              reportStartDate={reportStartDate}
               historicalShiftEvents={historicalShiftEvents}
-              reportStartDate={reportStartDate}
-            />
-          )}
-
-          {reportsTab === 'schedule' && (
-            <ReportsSchedule
-              isDark={isDark}
-              employees={employees}
-              logs={logs}
-              reportStartDate={reportStartDate}
-            />
-          )}
-
-          {reportsTab === 'absence' && (
-            <ReportsSchedule
-              isDark={isDark}
-              employees={employees}
-              logs={logs}
-              reportStartDate={reportStartDate}
-              isAbsenceOnly={true}
             />
           )}
 
@@ -3748,7 +3877,12 @@ saveFirestoreEmployee(username, restored);
                         let activeHrsDisplay = '';
 
                         if (isHistorical) {
-                          const empEvents = historicalShiftEvents.filter(ev => ev.employeeId === emp.id).sort((a,b) => a.timestamp - b.timestamp);
+                          const empK = (emp.username || emp.name).toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                          const empEvents = historicalShiftEvents.filter(ev => {
+                            const evK = (ev.employeeId || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                            return evK === empK || ev.employeeId === emp.id || ev.employeeId === emp.username;
+                          }).sort((a,b) => a.timestamp - b.timestamp);
+
                           const inEvents = empEvents.filter(ev => ev.type === 'clock_in' || ev.type === 'IN');
                           const outEvents = empEvents.filter(ev => ev.type === 'clock_out' || ev.type === 'OUT');
                           
@@ -3758,12 +3892,25 @@ saveFirestoreEmployee(username, restored);
                           if (checkOut) status = 'completed';
                           else if (checkIn) status = 'checked_in';
                           else {
-                            const oldLogs = logs.filter(l => l.employeeId === emp.id && l.date === reportStartDate);
+                            const oldLogs = logs.filter(l => {
+                              const lK = (l.employeeId || l.employeeName || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                              return (lK === empK || l.employeeId === emp.id || l.employeeId === emp.username) && l.date === reportStartDate;
+                            });
                             if (oldLogs.length > 0) {
-                              status = 'completed';
-                              // Approximate for old tracker data
-                              checkIn = '10:00 AM';
-                              checkOut = '06:00 PM';
+                              const firstLog = oldLogs[0];
+                              if (firstLog.hours > 0) {
+                                status = 'completed';
+                                if (firstLog.timestamp && firstLog.timestamp.includes(' - ')) {
+                                  const [inT, outT] = firstLog.timestamp.split(' - ');
+                                  checkIn = inT.trim();
+                                  checkOut = outT.trim();
+                                } else {
+                                  checkIn = '10:00 AM';
+                                  checkOut = '06:00 PM';
+                                }
+                              } else {
+                                status = 'absent';
+                              }
                             } else {
                               status = 'absent';
                             }
@@ -3853,201 +4000,186 @@ saveFirestoreEmployee(username, restored);
             </div>
           )}
 
-          
-{/* Date Range Selection */}
+          {reportsTab === 'logs' && (
+            <div className="space-y-6">
+              {/* Date Range Selection */}
+              <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
+                <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
+                  <div className="flex items-center gap-2">
+                    <label>{T.fromLabel2}</label>
+                    <input
+                      type="date"
+                      value={reportStartDate}
+                      onChange={(e) => setReportStartDate(e.target.value)}
+                      className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
+                      }`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label>{T.toLabel2}</label>
+                    <input
+                      type="date"
+                      value={reportEndDate}
+                      onChange={(e) => setReportEndDate(e.target.value)}
+                      className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
+                      }`}
+                    />
+                  </div>
 
+                  {/* Presets */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setTimeframePreset('this_month')}
+                      className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                    >
+                      This Month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeframePreset('last_month')}
+                      className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
+                    >
+                      Last Month
+                    </button>
+                  </div>
+                </div>
 
-          <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
-              <div className="flex items-center gap-2">
-                <label>{T.fromLabel2}</label>
-                <input
-                  type="date"
-                  value={reportStartDate}
-                  onChange={(e) => setReportStartDate(e.target.value)}
-                  className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
-                  }`}
-                />
+                {/* Summary Stat for Selected Period */}
+                <div className="text-right text-xs font-bold">
+                  <span className="text-slate-400">Total Hours in Period: </span>
+                  <span className="font-mono text-sm font-extrabold text-emerald-400">
+                    {logs
+                      .filter(l => (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate))
+                      .reduce((sum, l) => sum + l.hours, 0)
+                      .toFixed(1)} hrs
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label>{T.toLabel2}</label>
-                <input
-                  type="date"
-                  value={reportEndDate}
-                  onChange={(e) => setReportEndDate(e.target.value)}
-                  className={`rounded-2xl border px-3 py-1.5 font-bold outline-none ${
-                    isDark ? 'border-white/40 bg-black/60 text-white' : 'border-slate-400 bg-white text-black'
-                  }`}
-                />
+
+              {/* Section 2: Time Log Table & Actions */}
+              <div className={`rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                      {T.timeLogsTableTitle}
+                    </h2>
+                    <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>Detailed work hours and task descriptions</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => {
+                        if (employees.length > 0) setLogEmployeeId(employees[0].id);
+                        setShowAddLogModal(true);
+                      }}
+                      className={`rounded-2xl px-4 py-2.5 text-xs font-extrabold shadow-md transition ${
+                        isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
+                      }`}
+                    >
+                      📝 Log Hours / Task
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className={`mt-5 flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-200/60 bg-slate-100 text-black'}`}>
+                  <div>
+                    <label className={`mr-2 text-xs font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>Filter Language:</label>
+                    <select
+                      value={filterLang}
+                      onChange={(e) => setFilterLang(e.target.value)}
+                      className={`rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
+                        isDark ? 'border-white/40 bg-black/70 text-white focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
+                      }`}
+                    >
+                      <option value="ALL" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>All Languages</option>
+                      <option value="EN" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>EN (English)</option>
+                      <option value="DE" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>DE (German)</option>
+                      <option value="FR" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>FR (French)</option>
+                      <option value="ES" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>ES (Spanish)</option>
+                      <option value="AR" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>AR (Arabic)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Log Table */}
+                <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className={`text-xs font-extrabold uppercase tracking-wider border-b ${
+                        isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-200/60'
+                      }`}>
+                        <tr>
+                          <th className="px-5 py-4">Date</th>
+                          <th className="px-5 py-4">Employee</th>
+                          <th className="px-5 py-4">Project / Task</th>
+                          <th className="px-5 py-4">Hours Logged</th>
+                          <th className="px-5 py-4">Check-In Time</th>
+                          <th className="px-5 py-4">Source</th>
+                          <th className="px-5 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
+                        {filteredLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className={`px-5 py-8 text-center text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                              {T.noLogsFilter}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredLogs.map((log) => (
+                            <tr key={log.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${log.source === 'aw_auto' ? 'opacity-90' : ''}`}>
+                              <td className="px-5 py-4 font-mono text-xs font-bold">{log.date}</td>
+                              <td className="px-5 py-4 font-extrabold">
+                                {log.employeeName}
+                              </td>
+                              <td className="px-5 py-4 text-xs font-bold">
+                                {log.projectTask}
+                              </td>
+                              <td className={`px-5 py-4 font-mono text-xs font-extrabold ${isDark ? 'text-emerald-300' : 'text-slate-700'}`}>
+                                {log.hours} hrs
+                              </td>
+                              <td className="px-5 py-4 font-mono text-xs font-bold">
+                                {log.timestamp}
+                              </td>
+                              <td className="px-5 py-4">
+                                {log.source === 'aw_auto' && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">AW Auto</span>
+                                )}
+                                {log.source === 'manual_admin' && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-sky-500/15 border border-sky-500/30 text-sky-400">Manual Admin</span>
+                                )}
+                                {log.source === 'manual_agent' && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">Agent</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 text-right">
+                                {log.source?.startsWith('manual') ? (
+                                  <button
+                                    onClick={() => handleDeleteLog(log.id)}
+                                    className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-slate-600 hover:text-red-800'}`}
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <span className="text-[0.65rem] text-slate-600 italic">auto</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-
-              {/* Presets */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    const start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-                    const end = d.toISOString().split('T')[0];
-                    setReportStartDate(start);
-                    setReportEndDate(end);
-                  }}
-                  className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
-                >
-                  This Month
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    const end = d.toISOString().split('T')[0];
-                    d.setDate(d.getDate() - 30);
-                    const start = d.toISOString().split('T')[0];
-                    setReportStartDate(start);
-                    setReportEndDate(end);
-                  }}
-                  className={`rounded-2xl border px-2.5 py-1 text-[0.7rem] font-bold ${isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-white hover:bg-slate-200'}`}
-                >
-                  Past 30 Days
-                </button>
-              </div>
             </div>
-
-            {/* Summary Stat for Selected Period */}
-            <div className="text-right text-xs font-bold">
-              <span className="text-slate-400">Total Hours in Period: </span>
-              <span className="font-mono text-sm font-extrabold text-emerald-400">
-                {logs
-                  .filter(l => (!reportStartDate || l.date >= reportStartDate) && (!reportEndDate || l.date <= reportEndDate))
-                  .reduce((sum, l) => sum + l.hours, 0)
-                  .toFixed(1)} hrs
-              </span>
+          )}
             </div>
           </div>
-
-        {/* Section 2: Time Log Table & Actions */}
-        <div className={`mt-8 rounded-2xl border-2 p-6 shadow-xl ${isDark ? 'border-white/20 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                {T.timeLogsTableTitle}
-              </h2>
-              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>Detailed work hours and task descriptions</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => {
-                  if (employees.length > 0) setLogEmployeeId(employees[0].id);
-                  setShowAddLogModal(true);
-                }}
-                className={`rounded-2xl px-4 py-2.5 text-xs font-extrabold shadow-md transition ${
-                  isDark ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-[#133137] text-white hover:bg-[#1a444c]'
-                }`}
-              >
-                📝 Log Hours / Task
-              </button>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className={`mt-5 flex flex-wrap items-center gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-200/60 bg-slate-100 text-black'}`}>
-            <div>
-              <label className={`mr-2 text-xs font-extrabold ${isDark ? 'text-white' : 'text-black'}`}>Filter Language:</label>
-              <select
-                value={filterLang}
-                onChange={(e) => setFilterLang(e.target.value)}
-                className={`rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
-                  isDark ? 'border-white/40 bg-black/70 text-white focus:border-white' : 'border-slate-400 bg-white text-black focus:border-black'
-                }`}
-              >
-                <option value="ALL" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>All Languages</option>
-                <option value="EN" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>EN (English)</option>
-                <option value="DE" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>DE (German)</option>
-                <option value="FR" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>FR (French)</option>
-                <option value="ES" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>ES (Spanish)</option>
-                <option value="AR" className={isDark ? "bg-[#091a1d] text-white" : "bg-white text-black"}>AR (Arabic)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Log Table */}
-          <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className={`text-xs font-extrabold uppercase tracking-wider border-b ${
-                  isDark ? 'bg-black/80 text-white border-white/20' : 'bg-slate-200 text-black border-slate-200/60'
-                }`}>
-                  <tr>
-                    <th className="px-5 py-4">Date</th>
-                    <th className="px-5 py-4">Employee</th>
-                    <th className="px-5 py-4">Project / Task</th>
-                    <th className="px-5 py-4">Hours Logged</th>
-                    <th className="px-5 py-4">Check-In Time</th>
-                    <th className="px-5 py-4">Source</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-white/15' : 'divide-slate-200'}`}>
-                  {filteredLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className={`px-5 py-8 text-center text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                        {T.noLogsFilter}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredLogs.map((log) => (
-                      <tr key={log.id} className={`transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${log.source === 'aw_auto' ? 'opacity-90' : ''}`}>
-                        <td className="px-5 py-4 font-mono text-xs font-bold">{log.date}</td>
-                        <td className="px-5 py-4 font-extrabold">
-                          {log.employeeName}
-                        </td>
-                        <td className="px-5 py-4 text-xs font-bold">
-                          {log.projectTask}
-                        </td>
-                        <td className={`px-5 py-4 font-mono text-xs font-extrabold ${isDark ? 'text-emerald-300' : 'text-slate-700'}`}>
-                          {log.hours} hrs
-                        </td>
-                        <td className="px-5 py-4 font-mono text-xs font-bold">
-                          {log.timestamp}
-                        </td>
-                        <td className="px-5 py-4">
-                          {log.source === 'aw_auto' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">AW Auto</span>
-                          )}
-                          {log.source === 'manual_admin' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-sky-500/15 border border-sky-500/30 text-sky-400">Manual Admin</span>
-                          )}
-                          {log.source === 'manual_agent' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.65rem] font-extrabold bg-violet-500/15 border border-violet-500/30 text-violet-400">Self-logged</span>
-                          )}
-                          {!log.source && (
-                            <span className="text-[0.65rem] text-slate-500">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          {log.source !== 'aw_auto' ? (
-                            <button
-                              onClick={() => handleDeleteLog(log.id)}
-                              className={`text-xs font-bold underline transition ${isDark ? 'text-red-300 hover:text-red-100' : 'text-slate-600 hover:text-red-800'}`}
-                            >
-                              Delete
-                            </button>
-                          ) : (
-                            <span className="text-[0.65rem] text-slate-600 italic">auto</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        </div>
-        </div>
         )}
       </main>
 
