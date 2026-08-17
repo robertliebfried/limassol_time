@@ -45,6 +45,9 @@ export function ReportsSchedule({
     return new Date(d.setDate(diff));
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [teamFilter, setTeamFilter] = useState('ALL');
+
   const activeWeekStart = currentWeekStart || internalWeekStart;
   const weekDates = getWeekDates(activeWeekStart);
   const [filterMode, setFilterMode] = useState<'all' | 'present' | 'absence'>(initialAbsenceOnly ? 'absence' : 'all');
@@ -94,20 +97,81 @@ export function ReportsSchedule({
 
   const activeEmployees = employees.filter(emp => emp.role !== 'admin' && emp.name !== 'Admin' && !emp.isDeleted);
 
+  const displayedEmployees = activeEmployees.filter(emp => {
+    if (teamFilter !== 'ALL' && emp.team?.trim() !== teamFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return emp.name.toLowerCase().includes(q) || emp.role.toLowerCase().includes(q) || (emp.username || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Calculate week-wide metrics
+  let totalWeeklyHours = 0;
+  let totalActiveShifts = 0;
+
+  activeEmployees.forEach(emp => {
+    const k1 = normKey(emp.id);
+    const k2 = normKey(emp.username);
+    const k3 = normKey(emp.name);
+
+    weekDates.forEach(d => {
+      const iso = d.toISOString().split('T')[0];
+      const dayLogs = logsMap[k1]?.[iso] || logsMap[k2]?.[iso] || logsMap[k3]?.[iso] || [];
+      const hrs = dayLogs.reduce((sum, l) => sum + l.hours, 0);
+      if (hrs > 0) {
+        totalWeeklyHours += hrs;
+        totalActiveShifts += 1;
+      }
+    });
+  });
+
+  const uniqueTeams = Array.from(new Set(activeEmployees.map(e => e.team?.trim()).filter(Boolean)));
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* ── CALENDAR HERO / CONTROLS ── */}
+      {/* ── 1. KPI SUMMARY STRIP ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`p-5 rounded-3xl border shadow-sm ${isDark ? 'border-white/10 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
+          <div className="text-[0.65rem] font-extrabold uppercase tracking-widest text-emerald-400 mb-1">
+            ⏱️ Total Hours This Week
+          </div>
+          <div className="font-serif text-2xl font-black text-emerald-400">
+            {totalWeeklyHours.toFixed(1)} <span className="text-xs font-sans font-medium opacity-60">hrs logged</span>
+          </div>
+        </div>
+
+        <div className={`p-5 rounded-3xl border shadow-sm ${isDark ? 'border-white/10 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
+          <div className="text-[0.65rem] font-extrabold uppercase tracking-widest text-blue-400 mb-1">
+            🟢 Completed Shifts
+          </div>
+          <div className="font-serif text-2xl font-black text-blue-400">
+            {totalActiveShifts} <span className="text-xs font-sans font-medium opacity-60">shifts filled</span>
+          </div>
+        </div>
+
+        <div className={`p-5 rounded-3xl border shadow-sm ${isDark ? 'border-white/10 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
+          <div className="text-[0.65rem] font-extrabold uppercase tracking-widest text-indigo-400 mb-1">
+            👥 Active Roster
+          </div>
+          <div className="font-serif text-2xl font-black text-indigo-400">
+            {activeEmployees.length} <span className="text-xs font-sans font-medium opacity-60">team members</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. CALENDAR HERO & FILTERS ── */}
       <div className={`overflow-hidden rounded-3xl border shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
         
         {/* Header Toolbar */}
         <div className="p-6 border-b border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h3 className="font-serif text-2xl font-bold flex items-center gap-2.5">
-              📅 Team Schedule & Absence Calendar
+              📅 Team Schedule & Absence Matrix
             </h3>
             <p className="text-xs opacity-75 mt-1">
-              Click on any day column or cell to inspect the <strong className="text-emerald-400">⏳ Daily Timeline</strong> in Reports for that day.
+              Click on any day column or shift cell to open the <strong className="text-emerald-400">⏳ Daily Timeline</strong> in Reports.
             </p>
           </div>
 
@@ -123,7 +187,7 @@ export function ReportsSchedule({
               </button>
               <button
                 onClick={handleThisWeek}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-white shadow-sm text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white shadow-sm text-slate-900'}`}
               >
                 {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </button>
@@ -160,12 +224,50 @@ export function ReportsSchedule({
           </div>
         </div>
 
+        {/* Secondary Filter & Search Bar */}
+        <div className="px-6 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-black/10">
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search agent in schedule..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
+                isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-600'
+              }`}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1.5 text-xs opacity-60 hover:opacity-100">
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            <button
+              onClick={() => setTeamFilter('ALL')}
+              className={`px-2.5 py-1 rounded-xl transition ${teamFilter === 'ALL' ? (isDark ? 'bg-white text-black font-extrabold shadow' : 'bg-[#133137] text-white font-extrabold shadow') : 'opacity-60 hover:opacity-100'}`}
+            >
+              All Teams
+            </button>
+            {uniqueTeams.map(t => (
+              <button
+                key={t}
+                onClick={() => setTeamFilter(t as string)}
+                className={`px-2.5 py-1 rounded-xl transition ${teamFilter === t ? 'bg-emerald-600 text-white font-extrabold shadow' : 'opacity-60 hover:opacity-100'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Matrix Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead className={`font-extrabold border-b ${isDark ? 'bg-black/60 text-slate-300 border-white/10' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
               <tr>
-                <th className="px-5 py-4 min-w-[200px] border-r border-white/10">Employees</th>
+                <th className="px-5 py-4 min-w-[220px] border-r border-white/10">Employees</th>
                 {weekDates.map((date, i) => {
                   const dateIso = date.toISOString().split('T')[0];
                   const isSelected = reportStartDate === dateIso;
@@ -200,7 +302,7 @@ export function ReportsSchedule({
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
-              {activeEmployees.map(emp => {
+              {displayedEmployees.map(emp => {
                 const k1 = normKey(emp.id);
                 const k2 = normKey(emp.username);
                 const k3 = normKey(emp.name);
@@ -230,8 +332,15 @@ export function ReportsSchedule({
                           {emp.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="font-extrabold text-sm truncate">{emp.name}</span>
-                          <span className="text-[0.65rem] opacity-60 font-mono">{h}h {m}m total</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-sm truncate">{emp.name}</span>
+                            {emp.team && (
+                              <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-white/10 border border-white/15">
+                                {emp.team}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[0.65rem] opacity-60 font-mono">{h}h {m}m weekly total</span>
                         </div>
                       </div>
                     </td>

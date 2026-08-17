@@ -3525,28 +3525,86 @@ saveFirestoreEmployee(username, restored);
 
             {/* Google Sheets Integration */}
             <div className={`mt-6 rounded-3xl border p-8 shadow-xl ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200 bg-white text-black'}`}>
-              <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2">
-                📊 Google Sheets Integration
-              </h2>
-              <p className="text-sm opacity-75 mb-6">
-                Paste the URL of your Google Sheet connected to LimassolTime. This adds a &quot;View in Google Sheets&quot; button on the Reports page.
-              </p>
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-xl font-extrabold flex items-center gap-2">
+                    📊 Live Google Sheets Sync
+                  </h2>
+                  <p className="text-xs opacity-75 mt-1">
+                    Connect any Google Sheet to receive live timesheet and attendance updates directly from the database.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const scriptCode = `function syncLimassolTimeLogs() {
+  var projectId = "karfigestsa";
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/time_logs?pageSize=1000";
+  var response = UrlFetchApp.fetch(url, { method: "GET", muteHttpExceptions: true });
+  if (response.getResponseCode() !== 200) { Logger.log("Error: " + response.getContentText()); return; }
+  var json = JSON.parse(response.getContentText());
+  var documents = json.documents;
+  if (!documents) { Logger.log("No logs"); return; }
+  sheet.clear();
+  sheet.appendRow(["Date", "Employee", "Hours", "Project/Task", "Source", "Timestamp"]);
+  sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#d1fae5");
+  var rows = [];
+  for (var i = 0; i < documents.length; i++) {
+    var f = documents[i].fields;
+    if (!f) continue;
+    rows.push([
+      f.date ? f.date.stringValue : "",
+      f.employeeName ? f.employeeName.stringValue : "",
+      f.hours ? (f.hours.doubleValue || f.hours.integerValue || 0) : 0,
+      f.projectTask ? f.projectTask.stringValue : "",
+      f.source ? f.source.stringValue : "",
+      f.timestamp ? f.timestamp.stringValue : ""
+    ]);
+  }
+  rows.sort(function(a,b){ return b[0].localeCompare(a[0]); });
+  if (rows.length > 0) sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+}`;
+                    navigator.clipboard.writeText(scriptCode);
+                    alert('📋 Google Apps Script code copied to clipboard!\n\nNow open your Google Sheet > Extensions > Apps Script, paste it, save and run.');
+                  }}
+                  className="rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-2 self-start md:self-auto"
+                >
+                  📋 Copy Apps Script Code
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-4 text-xs">
+                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-emerald-400 block mb-1">Step 1: Open Apps Script</strong>
+                  In your Google Sheet, click <em>Extensions ➔ Apps Script</em>.
+                </div>
+                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-emerald-400 block mb-1">Step 2: Paste & Run</strong>
+                  Paste the copied script code, click the <em>Save</em> icon and click <em>Run</em>.
+                </div>
+                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-emerald-400 block mb-1">Step 3: Set Trigger</strong>
+                  Click <em>Triggers (Clock)</em> ➔ <em>Add Trigger</em> ➔ Run every 15 mins.
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 mt-4">
                 <input
                   type="text"
                   value={googleSheetUrl}
                   onChange={(e) => setGoogleSheetUrl(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className={`flex-1 rounded-2xl border px-4 py-3 text-sm outline-none ${isDark ? 'border-white/20 bg-black/50' : 'border-slate-300 bg-white'}`}
+                  className={`flex-1 rounded-2xl border px-4 py-3 text-xs outline-none font-mono ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-300 bg-white text-black'}`}
                 />
                 <button
                   onClick={() => {
                     localStorage.setItem('google_sheet_url', googleSheetUrl);
-                    alert('Google Sheet URL saved!');
+                    alert('✅ Google Sheet URL saved successfully!');
                   }}
-                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-500 shadow-lg"
+                  className="rounded-2xl bg-slate-900 hover:bg-black text-white px-6 py-3 text-xs font-bold shadow-lg transition"
                 >
-                  💾 Save
+                  💾 Save URL
                 </button>
               </div>
             </div>
