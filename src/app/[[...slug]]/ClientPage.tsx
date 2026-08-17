@@ -490,7 +490,8 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
 
 
   // Shift Editing State
-  const [reportsTab, setReportsTab] = useState<'overview' | 'timeline' | 'grid' | 'logs'>('overview');
+  const [calendarSubTab, setCalendarSubTab] = useState<'matrix' | 'timeline'>('matrix');
+  const [reportsTab, setReportsTab] = useState<'overview' | 'grid' | 'logs'>('overview');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
   const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
@@ -506,12 +507,19 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
         setActiveAgentUsername(username);
       } else if (path === '/team' || path === '/employees' || path === '/directory') {
         setActiveTab('team');
-      } else if (path === '/calendar' || path === '/schedule') {
+      } else if (path === '/calendar' || path === '/schedule' || path.startsWith('/calendar/')) {
         setActiveTab('calendar');
+        if (path === '/calendar/timeline' || path === '/calendar/daily') {
+          setCalendarSubTab('timeline');
+        } else {
+          setCalendarSubTab('matrix');
+        }
       } else if (path === '/reports' || path.startsWith('/reports/')) {
         setActiveTab('reports');
-        if (path === '/reports/timeline') setReportsTab('timeline');
-        else if (path === '/reports/members' || path === '/reports/grid') setReportsTab('grid');
+        if (path === '/reports/timeline') {
+          setActiveTab('calendar');
+          setCalendarSubTab('timeline');
+        } else if (path === '/reports/members' || path === '/reports/grid') setReportsTab('grid');
         else if (path === '/reports/logs' || path === '/reports/time-logs') setReportsTab('logs');
         else setReportsTab('overview');
       } else if (path === '/setup') {
@@ -3611,23 +3619,125 @@ saveFirestoreEmployee(username, restored);
           </div>
         )}
 
-        {/* Calendar Page (Separate full-width Schedule & Absence Hub) */}
+        {/* Calendar Page (Unified Schedule, Absence & Daily Timeline Hub) */}
         {activeTab === 'calendar' && (
           <div className="space-y-6 mt-4">
-            <ReportsSchedule
-              isDark={isDark}
-              employees={employees}
-              logs={logs}
-              reportStartDate={reportStartDate}
-              currentWeekStart={currentWeekStart}
-              onWeekChange={(newWeek) => setCurrentWeekStart(newWeek)}
-              onSelectDay={(dateIso) => {
-                setReportStartDate(dateIso);
-                setReportEndDate(dateIso);
-                setReportsTab('timeline');
-                handleTabChange('reports', '/reports');
-              }}
-            />
+            
+            {/* Sub-Tabs for Calendar */}
+            <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {[
+                { id: 'matrix', label: '📅 Weekly Schedule & Absence Matrix' },
+                { id: 'timeline', label: '⏳ Daily Visual Timeline' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setCalendarSubTab(tab.id as 'matrix' | 'timeline');
+                    if (typeof window !== 'undefined') {
+                      window.history.pushState(null, '', tab.id === 'matrix' ? '/calendar' : '/calendar/timeline');
+                    }
+                  }}
+                  className={`whitespace-nowrap px-4 py-3 text-sm font-extrabold transition-all relative ${
+                    calendarSubTab === tab.id 
+                      ? (isDark ? 'text-emerald-300' : 'text-emerald-700') 
+                      : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
+                  }`}
+                >
+                  {tab.label}
+                  {calendarSubTab === tab.id && (
+                    <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full ${isDark ? 'bg-emerald-400' : 'bg-emerald-600'}`}></div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Calendar View 1: Weekly Matrix */}
+            {calendarSubTab === 'matrix' && (
+              <ReportsSchedule
+                isDark={isDark}
+                employees={employees}
+                logs={logs}
+                reportStartDate={reportStartDate}
+                currentWeekStart={currentWeekStart}
+                onWeekChange={(newWeek) => setCurrentWeekStart(newWeek)}
+                onSelectDay={(dateIso) => {
+                  setReportStartDate(dateIso);
+                  setReportEndDate(dateIso);
+                  setCalendarSubTab('timeline');
+                  if (typeof window !== 'undefined') {
+                    window.history.pushState(null, '', '/calendar/timeline');
+                  }
+                }}
+              />
+            )}
+
+            {/* Calendar View 2: Daily Timeline */}
+            {calendarSubTab === 'timeline' && (
+              <div className="space-y-4">
+                {/* Date Navigator for Daily Timeline */}
+                <div className={`flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl border ${isDark ? 'border-white/10 bg-[#133137]/60' : 'border-slate-200 bg-white'}`}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        const d = new Date(reportStartDate || new Date());
+                        d.setDate(d.getDate() - 1);
+                        const iso = d.toISOString().split('T')[0];
+                        setReportStartDate(iso);
+                        setReportEndDate(iso);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'}`}
+                    >
+                      ◀ Previous Day
+                    </button>
+
+                    <input
+                      type="date"
+                      value={reportStartDate}
+                      onChange={(e) => {
+                        setReportStartDate(e.target.value);
+                        setReportEndDate(e.target.value);
+                      }}
+                      className={`rounded-xl border px-3 py-1.5 text-xs font-bold outline-none font-mono ${isDark ? 'border-white/20 bg-black/50 text-white' : 'border-slate-300 bg-white text-black'}`}
+                    />
+
+                    <button
+                      onClick={() => {
+                        const d = new Date(reportStartDate || new Date());
+                        d.setDate(d.getDate() + 1);
+                        const iso = d.toISOString().split('T')[0];
+                        setReportStartDate(iso);
+                        setReportEndDate(iso);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'}`}
+                    >
+                      Next Day ▶
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setReportStartDate(today);
+                        setReportEndDate(today);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}
+                    >
+                      Today
+                    </button>
+                  </div>
+
+                  <div className="text-xs font-bold opacity-75">
+                    Showing 24h timeline for: <span className="font-mono text-emerald-400 font-extrabold">{reportStartDate}</span>
+                  </div>
+                </div>
+
+                <ReportsTimeline
+                  isDark={isDark}
+                  employees={filteredEmployees}
+                  historicalShiftEvents={historicalShiftEvents}
+                  reportStartDate={reportStartDate}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -3724,20 +3834,18 @@ saveFirestoreEmployee(username, restored);
               {/* Sub-Tabs for Reports */}
               <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {[
-                  { id: 'overview', label: '📊 Reports Overview' },
-                  { id: 'timeline', label: '⏳ Daily Timeline' },
-                  { id: 'grid', label: '👥 Compare by members' },
-                  { id: 'logs', label: '📋 Time Logs' }
+                  { id: 'overview', label: '📊 Overview & Attendance Roster' },
+                  { id: 'logs', label: '📋 Detailed Time Logs' }
                 ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => {
-                      setReportsTab(tab.id as 'overview' | 'timeline' | 'grid' | 'logs');
+                      setReportsTab(tab.id as 'overview' | 'logs');
                       if (typeof window !== 'undefined') {
                         window.history.pushState(null, '', tab.id === 'overview' ? '/reports' : `/reports/${tab.id}`);
                       }
                     }}
-                    className={`whitespace-nowrap px-3 py-3 text-sm font-extrabold transition-all relative ${
+                    className={`whitespace-nowrap px-4 py-3 text-sm font-extrabold transition-all relative ${
                       reportsTab === tab.id 
                         ? (isDark ? 'text-emerald-300' : 'text-emerald-700') 
                         : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
@@ -3759,276 +3867,8 @@ saveFirestoreEmployee(username, restored);
               logs={logs}
               reportStartDate={reportStartDate}
               reportEndDate={reportEndDate}
+              onEditTimes={handleOpenEditTimes}
             />
-          )}
-
-          {/* Sub-Tab 2: Daily Visual Timeline */}
-          {reportsTab === 'timeline' && (
-            <ReportsTimeline
-              isDark={isDark}
-              employees={filteredEmployees}
-              historicalShiftEvents={historicalShiftEvents}
-              reportStartDate={reportStartDate}
-            />
-          )}
-
-          {/* VIEW MODE 1: Clean Timesheet Table View */}
-          {reportsTab === 'grid' && (
-            <div className={`mt-5 overflow-hidden rounded-3xl border shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
-              
-              {/* Table Toolbar & Search */}
-              <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="relative w-full sm:w-80">
-                  <input
-                    type="text"
-                    placeholder="Search employee by name, role or shift..."
-                    value={empSearchQuery}
-                    onChange={(e) => setEmpSearchQuery(e.target.value)}
-                    className={`w-full rounded-2xl border px-3.5 py-2 text-xs font-bold outline-none ${
-                      isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-slate-50 text-black focus:border-emerald-600'
-                    }`}
-                  />
-                  {empSearchQuery && (
-                    <button 
-                      onClick={() => setEmpSearchQuery('')}
-                      className="absolute right-3 top-2 text-xs opacity-60 hover:opacity-100"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
-                  <button
-                    onClick={() => setEmpStatusFilter('ALL')}
-                    className={`rounded-xl px-3 py-1.5 transition ${
-                      empStatusFilter === 'ALL'
-                        ? isDark ? 'bg-white text-black font-extrabold shadow' : 'bg-[#133137] text-white font-extrabold shadow'
-                        : isDark ? 'bg-black/30 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    All ({employees.length})
-                  </button>
-                  <button
-                    onClick={() => setEmpStatusFilter('checked_in')}
-                    className={`rounded-xl px-3 py-1.5 transition ${
-                      empStatusFilter === 'checked_in'
-                        ? 'bg-emerald-600 text-white font-extrabold shadow'
-                        : isDark ? 'bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950/70' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                    }`}
-                  >
-                    🟢 Working ({employees.filter(e => e.status === 'checked_in').length})
-                  </button>
-                  <button
-                    onClick={() => setEmpStatusFilter('completed')}
-                    className={`rounded-xl px-3 py-1.5 transition ${
-                      empStatusFilter === 'completed'
-                        ? 'bg-blue-600 text-white font-extrabold shadow'
-                        : isDark ? 'bg-blue-950/40 text-blue-300 hover:bg-blue-950/70' : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
-                    }`}
-                  >
-                    🔵 Done ({employees.filter(e => e.status === 'completed').length})
-                  </button>
-                  <button
-                    onClick={() => setEmpStatusFilter('absent')}
-                    className={`rounded-xl px-3 py-1.5 transition ${
-                      empStatusFilter === 'absent'
-                        ? 'bg-amber-600 text-white font-extrabold shadow'
-                        : isDark ? 'bg-amber-950/40 text-amber-300 hover:bg-amber-950/70' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
-                  >
-                    🏖️ Off ({employees.filter(e => e.status === 'absent').length})
-                  </button>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className={`font-extrabold uppercase tracking-wider border-b ${
-                    isDark ? 'bg-black/60 text-slate-300 border-white/10' : 'bg-slate-100 text-slate-700 border-slate-200'
-                  }`}>
-                    <tr>
-                      <th className="px-5 py-3.5 min-w-[200px]">{T.colNameRole}</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colArrival}</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colDeparture}</th>
-                      <th className="px-4 py-3.5 text-center whitespace-nowrap">{T.colWorkedHrs}</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">{T.colShiftStatus}</th>
-                      <th className="px-5 py-3.5 text-right whitespace-nowrap">{T.colActions}</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
-                    {filteredEmployees.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-5 py-8 text-center font-bold opacity-75">
-                          {T.noEmployeesFilter}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredEmployees.map((emp) => {
-                        const todayStr = new Date().toISOString().split('T')[0];
-                        const isHistorical = reportStartDate && reportStartDate !== todayStr;
-                        
-                        let status = emp.status;
-                        let checkIn = emp.checkInTime;
-                        let checkOut = emp.checkOutTime;
-                        let isLiveFromClockify = false;
-                        let activeHrsDisplay = '';
-
-                        if (isHistorical) {
-                          const empK = (emp.username || emp.name).toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
-                          const empEvents = historicalShiftEvents.filter(ev => {
-                            const evK = (ev.employeeId || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
-                            return evK === empK || ev.employeeId === emp.id || ev.employeeId === emp.username;
-                          }).sort((a,b) => a.timestamp - b.timestamp);
-
-                          const inEvents = empEvents.filter(ev => ev.type === 'clock_in' || ev.type === 'IN');
-                          const outEvents = empEvents.filter(ev => ev.type === 'clock_out' || ev.type === 'OUT');
-                          
-                          checkIn = inEvents.length > 0 ? inEvents[0].time : undefined;
-                          checkOut = outEvents.length > 0 ? outEvents[outEvents.length - 1].time : undefined;
-                          
-                          if (checkOut) status = 'completed';
-                          else if (checkIn) status = 'checked_in';
-                          else {
-                            const oldLogs = logs.filter(l => {
-                              const lK = (l.employeeId || l.employeeName || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
-                              return (lK === empK || l.employeeId === emp.id || l.employeeId === emp.username) && l.date === reportStartDate;
-                            });
-                            if (oldLogs.length > 0) {
-                              const firstLog = oldLogs[0];
-                              if (firstLog.hours > 0) {
-                                status = 'completed';
-                                checkIn = '09:00 AM';
-                                const outHr = Math.min(23, 9 + Math.round(firstLog.hours));
-                                checkOut = `${outHr > 12 ? outHr - 12 : outHr}:00 ${outHr >= 12 ? 'PM' : 'AM'}`;
-                              }
-                            } else {
-                              status = 'absent';
-                            }
-                          }
-                        } else {
-                          const liveState = getMergedEmployeeState(emp);
-                          status = liveState.status;
-                          checkIn = liveState.checkIn;
-                          checkOut = liveState.checkOut;
-                          isLiveFromClockify = liveState.isLiveFromClockify;
-                          activeHrsDisplay = liveState.activeHrsDisplay;
-                        }
-
-                        const calculatedHrs = calculateExactHours(checkIn, checkOut);
-                        
-                        return (
-                          <tr key={emp.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                  {emp.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-extrabold text-sm">{emp.name}</span>
-                                    {emp.languages?.[0] && (
-                                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${isDark ? 'bg-white/10 text-white border-white/20' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
-                                        {emp.languages[0]}
-                                      </span>
-                                    )}
-                                    {isLiveFromClockify && (
-                                      <span className="animate-pulse rounded bg-indigo-500/20 border border-indigo-500/40 px-1 py-0.2 text-[9px] font-bold text-indigo-400">
-                                        CLOCKIFY
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[0.7rem] opacity-60">{emp.role}</div>
-                                </div>
-                              </div>
-                            </td>
-                            
-                            {/* Arrival */}
-                            <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap">
-                              {checkIn ? (
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold border ${
-                                  isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                }`}>
-                                  🟢 {formatNiceDisplayTime(checkIn)}
-                                </span>
-                              ) : (
-                                <span className="opacity-40 font-mono">—</span>
-                              )}
-                            </td>
-
-                            {/* Departure */}
-                            <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap">
-                              {checkOut ? (
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold border ${
-                                  isDark ? 'bg-blue-950/60 text-blue-300 border-blue-500/30' : 'bg-blue-50 text-blue-800 border-blue-200'
-                                }`}>
-                                  🔴 {formatNiceDisplayTime(checkOut)}
-                                </span>
-                              ) : (
-                                <span className="opacity-40 font-mono">—</span>
-                              )}
-                            </td>
-
-                            {/* Worked Hours */}
-                            <td className="px-4 py-3.5 text-center font-mono font-black text-sm text-emerald-500 dark:text-emerald-300 whitespace-nowrap">
-                              {status === 'completed' ? `${calculatedHrs} hrs` : status === 'checked_in' ? (activeHrsDisplay || `${calculatedHrs} hrs`) : '0.0 hrs'}
-                            </td>
-
-                            {/* Shift Status */}
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              {status === 'expected' && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 dark:text-amber-300 border border-amber-500/30">
-                                  🕒 Expected
-                                </span>
-                              )}
-                              {status === 'checked_in' && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 animate-pulse">
-                                  🟢 In Office
-                                </span>
-                              )}
-                              {status === 'completed' && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30">
-                                  🔵 Shift Done
-                                </span>
-                              )}
-                              {status === 'absent' && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-                                  🏖️ Out of Office
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Actions */}
-                            <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-2">
-                                {status !== 'checked_in' ? (
-                                  <button onClick={() => handleStatusChange(emp.id, 'checked_in')} className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition shadow-sm">
-                                    In
-                                  </button>
-                                ) : (
-                                  <button onClick={() => handleStatusChange(emp.id, 'completed')} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-black transition shadow-sm">
-                                    Out
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleOpenEditTimes(emp)}
-                                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-sm ${
-                                    isDark ? 'border-white/15 bg-black/40 text-slate-300 hover:bg-white/10' : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                  }`}
-                                  title="Modify shift entry and exit hours"
-                                >
-                                  Edit Times
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           )}
 
           {reportsTab === 'logs' && (

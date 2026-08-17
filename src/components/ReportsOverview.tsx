@@ -7,6 +7,7 @@ interface ReportsOverviewProps {
   logs: TimeLog[];
   reportStartDate: string;
   reportEndDate: string;
+  onEditTimes?: (emp: Employee) => void;
 }
 
 export function ReportsOverview({
@@ -15,6 +16,7 @@ export function ReportsOverview({
   logs,
   reportStartDate,
   reportEndDate,
+  onEditTimes,
 }: ReportsOverviewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterView, setFilterView] = useState<'all' | 'working' | 'absent'>('all');
@@ -353,12 +355,23 @@ export function ReportsOverview({
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
-                  <span className="opacity-70 text-[0.7rem]">
-                    {isPresent ? `Shift: ${shiftTime}` : 'Expected: ' + emp.expectedShift}
+                  <span className="opacity-70 text-[0.7rem] truncate max-w-[130px]">
+                    {isPresent ? `Shift: ${shiftTime}` : 'Expected: ' + (emp.expectedShift || '09:00 - 17:00')}
                   </span>
-                  <span className={`font-black ${isPresent ? 'text-emerald-500 dark:text-emerald-300' : 'text-slate-500'}`}>
-                    {isPresent ? `${hours.toFixed(1)} hrs` : '0.0 hrs'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black ${isPresent ? 'text-emerald-500 dark:text-emerald-300' : 'text-slate-500'}`}>
+                      {isPresent ? `${hours.toFixed(1)} hrs` : '0.0 hrs'}
+                    </span>
+                    {onEditTimes && (
+                      <button
+                        onClick={() => onEditTimes(emp)}
+                        className="rounded-lg px-2 py-0.5 text-[0.65rem] font-bold border border-white/20 bg-white/5 hover:bg-white/10 transition"
+                        title="Edit shift hours"
+                      >
+                        ✏️
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
