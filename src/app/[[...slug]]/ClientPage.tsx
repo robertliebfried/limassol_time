@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { fetchFirestoreEmployees, saveFirestoreEmployee, deleteFirestoreEmployee, purgeFirestoreEmployee, fetchFirestoreLogs, saveFirestoreLog, saveFirestoreShiftEvent, fetchFirestoreShiftEvents } from '@/lib/firebase';
 import { type FirestoreShiftEvent } from '@/lib/firebase';
 import AgentProfileView from '@/components/AgentProfileView';
+import { ReportsOverview } from '@/components/ReportsOverview';
+import { ReportsTimeline } from '@/components/ReportsTimeline';
+import { ReportsSchedule } from '@/components/ReportsSchedule';
 
 const TRANSLATIONS = {
   en: {
@@ -482,17 +485,46 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
 
   // View mode & Shift Editing State
   const [viewMode] = useState<'calendar' | 'grid' | 'cards'>('grid');
+  const [reportsTab, setReportsTab] = useState<'overview' | 'timeline' | 'grid' | 'schedule' | 'absence'>('overview');
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [editingTimesEmp, setEditingTimesEmp] = useState<Employee | null>(null);
   const [editTimesCheckIn, setEditTimesCheckIn] = useState<string>('');
   const [editTimesCheckOut, setEditTimesCheckOut] = useState<string>('');
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
+  // Handle Initial Deep Linking for SPA
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/team/') && path.length > 6) {
+        const username = path.substring(6);
+        setActiveTab('agentProfile');
+        setActiveAgentUsername(username);
+      } else if (path === '/team') {
+        setActiveTab('employees');
+      } else if (path === '/reports') {
+        setActiveTab('reports');
+      } else if (path === '/setup') {
+        setActiveTab('setup');
+      } else if (path === '/' || path === '/dashboard') {
+        setActiveTab('timeTracker');
+      }
+    }
+  }, []);
+
   // Advanced Reporting State
   const [reportStartDate, setReportStartDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
   const [reportEndDate, setReportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
+  // State for Week Navigation
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(d.setDate(diff));
+  });
 
   useEffect(() => {
     if (authRole === 'admin' && reportStartDate && reportEndDate) {
@@ -1418,29 +1450,78 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     e.preventDefault();
     if (!editingTimesEmp) return;
 
+    const dateStr = reportStartDate;
+    const inTime12 = editTimesCheckIn ? format24To12Hour(editTimesCheckIn) : undefined;
+    const outTime12 = editTimesCheckOut ? format24To12Hour(editTimesCheckOut) : undefined;
+    const hrs = calculateExactHours(inTime12, outTime12);
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
     const updatedEmployees = employees.map(emp => {
       if (emp.id === editingTimesEmp.id) {
         const updatedEmp = { ...emp };
-        if (editTimesCheckIn) {
-          updatedEmp.checkInTime = format24To12Hour(editTimesCheckIn);
-          const parts = editTimesCheckIn.split(':');
-          if (parts.length >= 2) {
-            const hrs = parseInt(parts[0], 10);
-            const mins = parseInt(parts[1], 10);
-            const d = new Date();
-            d.setHours(hrs, mins, 0, 0);
-            updatedEmp.checkInTimestamp = d.getTime();
+        if (isToday) {
+          if (inTime12) updatedEmp.checkInTime = inTime12;
+          if (outTime12) {
+             updatedEmp.checkOutTime = outTime12;
+             updatedEmp.status = 'completed';
           }
-        }
-        if (editTimesCheckOut) {
-          updatedEmp.checkOutTime = format24To12Hour(editTimesCheckOut);
-          updatedEmp.status = 'completed';
+          saveFirestoreEmployee(emp.username || emp.name.replace(/\s+/g, '').toLowerCase(), updatedEmp);
         }
         return updatedEmp;
       }
       return emp;
     });
     saveEmployees(updatedEmployees);
+
+    const timestampMs = new Date(dateStr).getTime();
+    if (inTime12) {
+       saveFirestoreShiftEvent({
+         id: `manual_in_${Date.now()}`,
+         employeeId: editingTimesEmp.id,
+         date: dateStr,
+         type: 'clock_in',
+         label: 'Manual Edit',
+         time: inTime12,
+         timestamp: timestampMs,
+         source: 'manual_admin'
+       });
+    }
+    
+    if (outTime12) {
+       saveFirestoreShiftEvent({
+         id: `manual_out_${Date.now()}`,
+         employeeId: editingTimesEmp.id,
+         date: dateStr,
+         type: 'clock_out',
+         label: 'Manual Edit',
+         time: outTime12,
+         timestamp: timestampMs + 1000,
+         source: 'manual_admin'
+       });
+    }
+
+    if (hrs > 0) {
+      const log: TimeLog = {
+         id: `log-${Date.now()}`,
+         date: dateStr,
+         employeeId: editingTimesEmp.id,
+         employeeName: editingTimesEmp.name,
+         hours: hrs,
+         projectTask: `Shift Attendance (${inTime12} - ${outTime12})`,
+         timestamp: `${inTime12} - ${outTime12}`,
+         source: 'manual_admin'
+      };
+      saveFirestoreLog(log);
+      setLogs(prev => [...prev, log]);
+    }
+    
+    // Optimistically update historicalShiftEvents for the UI
+    const fetchAgain = async () => {
+      const data = await fetchFirestoreShiftEvents(dateStr);
+      setHistoricalShiftEvents(data as FirestoreShiftEvent[]);
+    };
+    setTimeout(fetchAgain, 1000);
+
     setEditingTimesEmp(null);
   };
 
@@ -1583,123 +1664,10 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
 
     const restored: Employee = { ...emp, status: 'expected', checkInTime: undefined, checkOutTime: undefined };
     const username = restored.username || restored.name.toLowerCase().replace(/\s+/g, '');
-    saveFirestoreEmployee(username, restored);
+saveFirestoreEmployee(username, restored);
     saveEmployees([...employees.filter(e => e.id !== empId && (e.username || '').toLowerCase().replace(/\s+/g, '') !== key), restored]);
   };
 
-
-  // Export Detailed CSV for Selected Date Range
-  const exportFilteredLogsCSV = () => {
-    const filtered = logs.filter(l => {
-      if (reportStartDate && l.date < reportStartDate) return false;
-      if (reportEndDate && l.date > reportEndDate) return false;
-      return true;
-    });
-
-    const headers = ['Date', 'Employee Name', 'Hours Worked', 'Shift / Task Description', 'Timestamps'];
-    const rows = filtered.map(l => {
-      return [
-        l.date,
-        `"${l.employeeName}"`,
-        l.hours,
-        `"${l.projectTask.replace(/"/g, '""')}"`,
-        `"${l.timestamp}"`,
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `limassol_logs_${reportStartDate}_to_${reportEndDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Export Payroll Summary CSV per Employee
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const syncToClockify = async (config: { apiKey: string; workspaceId: string }, logsToSync: TimeLog[], emps: Employee[]) => {
-    const apiKey = config.apiKey || localStorage.getItem('clockify_api_key') || '';
-    const wsId = config.workspaceId || localStorage.getItem('clockify_workspace_id') || '';
-    
-    if (!apiKey || !wsId) {
-      alert('Please configure Clockify API Key and Workspace ID in Setup first.');
-      return;
-    }
-
-    if (!confirm('Are you sure you want to sync ' + logsToSync.length + ' logs to Clockify?')) return;
-
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const log of logsToSync) {
-      const emp = emps.find(e => e.id === log.employeeId);
-      if (!emp) continue;
-
-      const [y, m, d] = log.date.split('-');
-      const [h, min] = log.timestamp.split(':');
-      const dateObj = new Date(Number(y), Number(m)-1, Number(d), Number(h), Number(min));
-      const endObj = new Date(dateObj.getTime() + log.hours * 3600000);
-
-      const payload = {
-        start: dateObj.toISOString(),
-        end: endObj.toISOString(),
-        description: `${emp.name}: ${log.projectTask}`,
-      };
-
-      try {
-        const res = await fetch(`https://api.clockify.me/api/v1/workspaces/${wsId}/time-entries`, {
-          method: 'POST',
-          headers: {
-            'X-Api-Key': apiKey,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) successCount++;
-        else failCount++;
-      } catch {
-        failCount++;
-      }
-    }
-    
-    alert(`Sync complete! Successfully synced: ${successCount}, Failed: ${failCount}`);
-  };
-
-  const exportPayrollSummaryCSV = () => {
-    const filtered = logs.filter(l => {
-      if (reportStartDate && l.date < reportStartDate) return false;
-      if (reportEndDate && l.date > reportEndDate) return false;
-      return true;
-    });
-
-    const headers = ['Employee Name', 'Role', 'Languages', 'Shifts Worked', 'Total Hours Logged', 'Avg Hours / Shift'];
-    const rows = employees.map(emp => {
-      const empLogs = filtered.filter(l => l.employeeId === emp.id);
-      const totalHours = empLogs.reduce((sum, l) => sum + l.hours, 0);
-      const shiftsCount = empLogs.length;
-      const avgHours = shiftsCount > 0 ? (totalHours / shiftsCount).toFixed(1) : '0.0';
-
-      return [
-        `"${emp.name}"`,
-        `"${emp.role}"`,
-        `"${emp.languages.join('/')}"`,
-        shiftsCount,
-        totalHours.toFixed(1),
-        avgHours,
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `limassol_payroll_summary_${reportStartDate}_to_${reportEndDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Clockify Integration Actions
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -2126,8 +2094,6 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     };
 
     if (empSortOrder === 'name_desc') {
-      const awDiff = awScore(b) - awScore(a);
-      if (awDiff !== 0) return awDiff;
       return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' });
     }
     if (empSortOrder === 'last_online') {
@@ -2144,13 +2110,7 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     if (empSortOrder === 'last_registered') {
       return (b.sortOrder ?? 0) - (a.sortOrder ?? 0);
     }
-    // Default: name_asc (A - Z) — AW machines bubble to top within each status group
-    const aOnline = a.status === 'checked_in' ? 1 : 0;
-    const bOnline = b.status === 'checked_in' ? 1 : 0;
-    const statusDiff = bOnline - aOnline;
-    if (statusDiff !== 0) return statusDiff;
-    const awDiff = awScore(b) - awScore(a);
-    if (awDiff !== 0) return awDiff;
+    // Default: name_asc (A - Z)
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 
@@ -3255,26 +3215,51 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         {activeTab === 'reports' && (
           <div className="flex flex-col lg:flex-row gap-6 mt-6">
             {/* Left Sidebar: Date Selector */}
-            <div className="w-full lg:w-56 flex-shrink-0 flex flex-col gap-2">
+            <div className="w-full lg:w-64 flex-shrink-0 flex flex-col gap-2">
               <h3 className={`font-serif text-lg font-bold mb-2 pl-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Select Day</h3>
+              
+              <div className={`flex items-center justify-between mb-2 rounded-xl p-2 ${isDark ? 'bg-black/40' : 'bg-slate-100'}`}>
+                <button 
+                  onClick={() => {
+                    const d = new Date(currentWeekStart);
+                    d.setDate(d.getDate() - 7);
+                    setCurrentWeekStart(d);
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                >
+                  ◀
+                </button>
+                <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - 
+                  {new Date(new Date(currentWeekStart).setDate(currentWeekStart.getDate() + 6)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <button 
+                  onClick={() => {
+                    const d = new Date(currentWeekStart);
+                    d.setDate(d.getDate() + 7);
+                    setCurrentWeekStart(d);
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                >
+                  ▶
+                </button>
+              </div>
+
               {(() => {
-                const today = new Date();
                 const buttons = [];
                 const goToDate = (iso: string) => { setReportStartDate(iso); setReportEndDate(iso); setLogDate(iso); };
+                const todayIso = new Date().toISOString().split('T')[0];
                 
-                for (let i = 0; i < 5; i++) {
-                  const d = new Date(today);
-                  d.setDate(today.getDate() - i);
+                for (let i = 0; i < 7; i++) {
+                  const d = new Date(currentWeekStart);
+                  d.setDate(currentWeekStart.getDate() + i);
                   const iso = d.toISOString().split('T')[0];
                   const isSelected = reportStartDate === iso;
+                  const isToday = todayIso === iso;
                   
-                  let label = '';
                   const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
                   const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
-                  
-                  if (i === 0) label = `Today, ${weekday} ${dateStr}`;
-                  else if (i === 1) label = `Yesterday, ${weekday} ${dateStr}`;
-                  else label = `${weekday} ${dateStr}`;
+                  const label = isToday ? `Today, ${weekday} ${dateStr}` : `${weekday} ${dateStr}`;
                   
                   buttons.push(
                     <button
@@ -3284,8 +3269,8 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                         isSelected 
                           ? 'bg-emerald-600 border-emerald-500 text-white shadow-md' 
                           : isDark 
-                            ? 'bg-black/30 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20' 
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
+                            ? (isToday ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-black/30 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20')
+                            : (isToday ? 'bg-slate-200 border-slate-300 text-slate-900 hover:bg-slate-300' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm')
                       }`}
                     >
                       {label}
@@ -3301,9 +3286,15 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                       <label className={`text-xs font-bold uppercase tracking-wider mb-2 block pl-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Custom Date</label>
                       <input
                         type="date"
-                        max={today.toISOString().split('T')[0]}
-                        value={reportStartDate || today.toISOString().split('T')[0]}
-                        onChange={e => goToDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        value={reportStartDate || new Date().toISOString().split('T')[0]}
+                        onChange={e => {
+                          goToDate(e.target.value);
+                          const d = new Date(e.target.value);
+                          const day = d.getDay();
+                          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                          setCurrentWeekStart(new Date(d.setDate(diff)));
+                        }}
                         className={`w-full rounded-xl border px-4 py-2.5 text-sm font-bold outline-none cursor-pointer transition ${isDark ? 'bg-black/50 border-white/10 text-white focus:border-emerald-500' : 'bg-white border-slate-200 text-black focus:border-emerald-500'}`}
                       />
                     </div>
@@ -3332,11 +3323,8 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                   {/* Export Actions */}
                   <div className="flex flex-wrap items-center gap-2">
                     <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50'}`}>
-                      <button onClick={exportPayrollSummaryCSV} title="Export Payroll Summary CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                        📥 Export Summary CSV
-                      </button>
-                      <button onClick={exportFilteredLogsCSV} title="Export Detailed Shift CSV" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
-                        📥 Export Details CSV
+                      <button onClick={() => setShowPrintReportModal(true)} title="Download PDF Report for This Week" className="rounded-xl px-4 py-2.5 text-sm font-bold transition hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2">
+                        📥 Download PDF Report for This Week
                       </button>
                     </div>
                     
@@ -3356,6 +3344,32 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                   </div>
 
                 </div>
+              </div>
+
+              {/* Sub-Tabs for Reports */}
+              <div className="flex overflow-x-auto gap-4 border-b border-slate-200 dark:border-white/10 pb-1">
+                {[
+                  { id: 'overview', label: '📊 Overview' },
+                  { id: 'timeline', label: '⏳ Daily Timeline' },
+                  { id: 'grid', label: '👥 Compare by members' },
+                  { id: 'schedule', label: '📅 Work Schedules' },
+                  { id: 'absence', label: '⛱️ Absence Calendar' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setReportsTab(tab.id as 'overview' | 'timeline' | 'grid' | 'schedule' | 'absence')}
+                    className={`whitespace-nowrap px-1 py-3 text-sm font-bold transition-all relative ${
+                      reportsTab === tab.id 
+                        ? (isDark ? 'text-white' : 'text-emerald-700') 
+                        : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')
+                    }`}
+                  >
+                    {tab.label}
+                    {reportsTab === tab.id && (
+                      <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full ${isDark ? 'bg-white' : 'bg-emerald-600'}`}></div>
+                    )}
+                  </button>
+                ))}
               </div>
 
 {/* VIEW MODE 0: Interactive Monthly Calendar */}
@@ -3550,8 +3564,46 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
           </div>
 
           
+          {reportsTab === 'overview' && (
+            <ReportsOverview
+              isDark={isDark}
+              employees={employees}
+              logs={logs}
+              reportStartDate={reportStartDate}
+              reportEndDate={reportEndDate}
+            />
+          )}
+
+          {reportsTab === 'timeline' && (
+            <ReportsTimeline
+              isDark={isDark}
+              employees={filteredEmployees}
+              historicalShiftEvents={historicalShiftEvents}
+              reportStartDate={reportStartDate}
+            />
+          )}
+
+          {reportsTab === 'schedule' && (
+            <ReportsSchedule
+              isDark={isDark}
+              employees={employees}
+              logs={logs}
+              reportStartDate={reportStartDate}
+            />
+          )}
+
+          {reportsTab === 'absence' && (
+            <ReportsSchedule
+              isDark={isDark}
+              employees={employees}
+              logs={logs}
+              reportStartDate={reportStartDate}
+              isAbsenceOnly={true}
+            />
+          )}
+
 {/* VIEW MODE 1: Clean Timesheet Table View */}
-          {viewMode === 'grid' && (
+          {reportsTab === 'grid' && (
             <div className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? 'border-white/20 bg-black/40 text-white' : 'border-slate-200/60 bg-white text-black'}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -3693,6 +3745,8 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
 
           
 {/* Date Range Selection */}
+
+
           <div className={`mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 ${isDark ? 'border-white/20 bg-black/40' : 'border-slate-200/60 bg-slate-100'}`}>
             <div className="flex flex-wrap items-center gap-4 text-xs font-extrabold">
               <div className="flex items-center gap-2">
@@ -3783,14 +3837,6 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
                 }`}
               >
                 📝 Log Hours / Task
-              </button>
-              <button
-                onClick={exportFilteredLogsCSV}
-                className={`rounded-2xl border px-4 py-2.5 text-xs font-bold transition ${
-                  isDark ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' : 'border-slate-400 bg-slate-100 text-black hover:bg-slate-200'
-                }`}
-              >
-                📥 Export CSV Report
               </button>
             </div>
           </div>
