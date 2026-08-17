@@ -3547,34 +3547,68 @@ saveFirestoreEmployee(username, restored);
                   onClick={() => {
                     const scriptCode = `function syncLimassolTimeLogs() {
   var projectId = "karfigestsa";
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/time_logs?pageSize=1000";
   var response = UrlFetchApp.fetch(url, { method: "GET", muteHttpExceptions: true });
-  if (response.getResponseCode() !== 200) { Logger.log("Error: " + response.getContentText()); return; }
+  if (response.getResponseCode() !== 200) return;
   var json = JSON.parse(response.getContentText());
-  var documents = json.documents;
-  if (!documents) { Logger.log("No logs"); return; }
-  sheet.clear();
-  sheet.appendRow(["Date", "Employee", "Hours", "Project/Task", "Source", "Timestamp"]);
-  sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#d1fae5");
-  var rows = [];
+  var documents = json.documents || [];
+  var logs = [], empMap = {};
   for (var i = 0; i < documents.length; i++) {
     var f = documents[i].fields;
     if (!f) continue;
-    rows.push([
-      f.date ? f.date.stringValue : "",
-      f.employeeName ? f.employeeName.stringValue : "",
-      f.hours ? (f.hours.doubleValue || f.hours.integerValue || 0) : 0,
-      f.projectTask ? f.projectTask.stringValue : "",
-      f.source ? f.source.stringValue : "",
-      f.timestamp ? f.timestamp.stringValue : ""
-    ]);
+    var d = f.date ? f.date.stringValue : "";
+    var n = f.employeeName ? f.employeeName.stringValue : "";
+    var h = f.hours ? (f.hours.doubleValue || f.hours.integerValue || 0) : 0;
+    var t = f.projectTask ? f.projectTask.stringValue : "";
+    var s = f.source ? f.source.stringValue : "";
+    var ts = f.timestamp ? f.timestamp.stringValue : "";
+    if (n && d) { logs.push({ date: d, name: n, hours: h, task: t, source: s, timestamp: ts }); empMap[n] = true; }
   }
-  rows.sort(function(a,b){ return b[0].localeCompare(a[0]); });
-  if (rows.length > 0) sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+  var employees = Object.keys(empMap).sort();
+  var weeks = [
+    { name: "Week 1 (Aug 10 - Aug 16)", dates: ["2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16"], labels: ["Mon 10/08","Tue 11/08","Wed 12/08","Thu 13/08","Fri 14/08","Sat 15/08","Sun 16/08"] },
+    { name: "Week 2 (Aug 17 - Aug 23)", dates: ["2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23"], labels: ["Mon 17/08","Tue 18/08","Wed 19/08","Thu 20/08","Fri 21/08","Sat 22/08","Sun 23/08"] }
+  ];
+  for (var w = 0; w < weeks.length; w++) {
+    var week = weeks[w];
+    var sheet = ss.getSheetByName(week.name) || ss.insertSheet(week.name, w);
+    sheet.clear();
+    var headers = ["#", "Employee Name"].concat(week.labels).concat(["Total Hours", "Status"]);
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#133137").setFontColor("#ffffff").setHorizontalAlignment("center");
+    var matrix = [], colSums = [0,0,0,0,0,0,0], grandTotal = 0;
+    for (var e = 0; e < employees.length; e++) {
+      var emp = employees[e], empTotal = 0, dHours = [];
+      for (var d = 0; d < week.dates.length; d++) {
+        var dayHrs = 0;
+        for (var l = 0; l < logs.length; l++) { if (logs[l].name === emp && logs[l].date === week.dates[d]) dayHrs += logs[l].hours; }
+        dHours.push(dayHrs > 0 ? Math.round(dayHrs * 10) / 10 : 0);
+        empTotal += dayHrs; colSums[d] += dayHrs;
+      }
+      empTotal = Math.round(empTotal * 10) / 10;
+      grandTotal += empTotal;
+      matrix.push([e + 1, emp].concat(dHours).concat([empTotal, empTotal > 0 ? "Present" : "Out of Office"]));
+    }
+    if (matrix.length > 0) {
+      sheet.getRange(2, 1, matrix.length, headers.length).setValues(matrix);
+      sheet.getRange(2, 3, matrix.length, 8).setNumberFormat("0.0");
+      sheet.appendRow(["", "TOTAL HOURS"].concat(colSums.map(function(s){return Math.round(s*10)/10;})).concat([Math.round(grandTotal*10)/10, ""]));
+      sheet.getRange(matrix.length + 2, 1, 1, headers.length).setFontWeight("bold").setBackground("#e2e8f0");
+      sheet.getRange(matrix.length + 2, 3, 1, 8).setNumberFormat("0.0");
+    }
+    sheet.setFrozenRows(1); sheet.setFrozenColumns(2); sheet.autoResizeColumns(1, headers.length);
+  }
+  var raw = ss.getSheetByName("All Raw Logs") || ss.insertSheet("All Raw Logs", weeks.length);
+  raw.clear(); raw.appendRow(["Date", "Employee", "Hours", "Project/Task", "Source", "Timestamp"]);
+  raw.getRange("A1:F1").setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
+  raw.setFrozenRows(1);
+  var rRows = logs.map(function(l){ return [l.date, l.name, l.hours, l.task, l.source, l.timestamp]; });
+  rRows.sort(function(a,b){ return b[0].localeCompare(a[0]); });
+  if (rRows.length > 0) { raw.getRange(2, 1, rRows.length, 6).setValues(rRows); raw.getRange(2, 3, rRows.length, 1).setNumberFormat("0.0"); raw.autoResizeColumns(1, 6); }
 }`;
                     navigator.clipboard.writeText(scriptCode);
-                    alert('📋 Google Apps Script code copied to clipboard!\n\nNow open your Google Sheet > Extensions > Apps Script, paste it, save and run.');
+                    alert('📋 Multi-Week Google Apps Script copied to clipboard!\n\nPaste it into your Google Sheet > Extensions > Apps Script and click Run to generate separate tabs for each week.');
                   }}
                   className="rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-2 self-start md:self-auto"
                 >
