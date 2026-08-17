@@ -3797,7 +3797,69 @@ saveFirestoreEmployee(username, restored);
                   isDark={isDark}
                   employees={filteredEmployees}
                   historicalShiftEvents={historicalShiftEvents}
+                  logs={logs}
                   reportStartDate={reportStartDate}
+                  onSaveShift={(emp, dateIso, hours, inTime, outTime, isAbsent, note) => {
+                    const empK = (emp.username || emp.name).toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                    const timestampStr = inTime && outTime ? `${inTime} - ${outTime}` : `${hours} hrs`;
+                    
+                    const newLog: TimeLog = {
+                      id: `log-${Date.now()}`,
+                      date: dateIso,
+                      employeeId: emp.id,
+                      employeeName: emp.name,
+                      hours: isAbsent ? 0 : hours,
+                      projectTask: isAbsent ? 'Out of Office / Vacation' : (note || `Shift Attendance (${timestampStr})`),
+                      timestamp: timestampStr,
+                      source: 'manual_admin'
+                    };
+
+                    const filteredLogs = logs.filter(l => {
+                      const lK = (l.employeeId || l.employeeName || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                      return !(lK === empK && l.date === dateIso);
+                    });
+
+                    if (!isAbsent && hours > 0) {
+                      filteredLogs.unshift(newLog);
+                      saveFirestoreLog(newLog).catch(console.error);
+                    }
+
+                    saveLogs(filteredLogs);
+
+                    const baseTimestamp = new Date(dateIso).getTime();
+                    if (inTime && !isAbsent) {
+                      saveFirestoreShiftEvent({
+                        id: `shift_in_${emp.id}_${dateIso}_${Date.now()}`,
+                        employeeId: emp.id,
+                        date: dateIso,
+                        type: 'clock_in',
+                        label: 'Admin Manual Shift',
+                        time: inTime,
+                        timestamp: baseTimestamp + 9 * 3600000,
+                        source: 'manual_admin'
+                      }).catch(console.error);
+                    }
+                    if (outTime && !isAbsent) {
+                      saveFirestoreShiftEvent({
+                        id: `shift_out_${emp.id}_${dateIso}_${Date.now()}`,
+                        employeeId: emp.id,
+                        date: dateIso,
+                        type: 'clock_out',
+                        label: 'Admin Manual Shift',
+                        time: outTime,
+                        timestamp: baseTimestamp + 17 * 3600000,
+                        source: 'manual_admin'
+                      }).catch(console.error);
+                    }
+                  }}
+                  onDeleteShift={(emp, dateIso) => {
+                    const empK = (emp.username || emp.name).toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                    const filteredLogs = logs.filter(l => {
+                      const lK = (l.employeeId || l.employeeName || '').toLowerCase().trim().replace(/^emp-fs-/, '').replace(/^emp-/, '').replace(/[\s-_.]/g, '');
+                      return !(lK === empK && l.date === dateIso);
+                    });
+                    saveLogs(filteredLogs);
+                  }}
                 />
               </div>
             )}

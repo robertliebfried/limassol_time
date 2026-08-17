@@ -101,6 +101,7 @@ export function ReportsSchedule({
   const [shiftHours, setShiftHours] = useState(8.0);
   const [shiftNote, setShiftNote] = useState('');
   const [shiftIsAbsent, setShiftIsAbsent] = useState(false);
+  const [applyToWholeWeek, setApplyToWholeWeek] = useState(false);
 
   const handlePrevWeek = () => {
     const d = new Date(activeWeekStart);
@@ -123,6 +124,40 @@ export function ReportsSchedule({
     const mon = new Date(d.setDate(diff));
     if (onWeekChange) onWeekChange(mon);
     else setInternalWeekStart(mon);
+  };
+
+  // CSV Export for the current week schedule
+  const handleExportCSV = () => {
+    const headers = ['Employee', 'Team', 'Weekly Total (hrs)', ...weekDates.map(d => d.toISOString().split('T')[0])];
+    const rows = displayedEmployees.map(emp => {
+      const k1 = normKey(emp.id);
+      const k2 = normKey(emp.username);
+      const k3 = normKey(emp.name);
+
+      let totalHrs = 0;
+      const dayValues = weekDates.map(d => {
+        const iso = d.toISOString().split('T')[0];
+        const dayLogs = logsMap[k1]?.[iso] || logsMap[k2]?.[iso] || logsMap[k3]?.[iso] || [];
+        const hrs = dayLogs.reduce((sum, l) => sum + l.hours, 0);
+        totalHrs += hrs;
+        return hrs > 0 ? `${hrs.toFixed(1)}h` : '';
+      });
+
+      return [
+        `"${emp.name}"`,
+        `"${emp.team || ''}"`,
+        totalHrs.toFixed(1),
+        ...dayValues
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Schedule_${weekDates[0].toISOString().split('T')[0]}_to_${weekDates[6].toISOString().split('T')[0]}.csv`;
+    link.click();
   };
 
   // Normalize key helper
@@ -195,17 +230,18 @@ export function ReportsSchedule({
       hours: totalHrs,
       isAbsent,
     });
+    setApplyToWholeWeek(false);
 
     if (totalHrs > 0) {
       setShiftIn24('09:00');
       setShiftOut24('17:00');
-      setShiftHours(totalHrs);
+      setShiftHours(Math.round(totalHrs * 10) / 10);
       setShiftNote(dayLogs[0]?.projectTask || 'Shift Attendance');
       setShiftIsAbsent(false);
     } else {
       setShiftIn24('09:00');
       setShiftOut24('17:00');
-      setShiftHours(totalHrs > 0 ? totalHrs : 8.0);
+      setShiftHours(isAbsent ? 0 : 8.0);
       setShiftNote(isAbsent ? 'Out of Office / Vacation' : 'Shift Attendance');
       setShiftIsAbsent(isAbsent);
     }
@@ -227,15 +263,33 @@ export function ReportsSchedule({
     if (onSaveShift) {
       const inTime12 = shiftIsAbsent ? undefined : format24To12(shiftIn24);
       const outTime12 = shiftIsAbsent ? undefined : format24To12(shiftOut24);
-      onSaveShift(
-        activeSlot.emp,
-        activeSlot.dateIso,
-        shiftIsAbsent ? 0 : shiftHours,
-        inTime12,
-        outTime12,
-        shiftIsAbsent,
-        shiftNote
-      );
+      const targetHours = shiftIsAbsent ? 0 : shiftHours;
+
+      if (applyToWholeWeek) {
+        // Apply to all 5 weekdays (Mon - Fri)
+        weekDates.slice(0, 5).forEach(d => {
+          const iso = d.toISOString().split('T')[0];
+          onSaveShift(
+            activeSlot.emp,
+            iso,
+            targetHours,
+            inTime12,
+            outTime12,
+            shiftIsAbsent,
+            shiftNote
+          );
+        });
+      } else {
+        onSaveShift(
+          activeSlot.emp,
+          activeSlot.dateIso,
+          targetHours,
+          inTime12,
+          outTime12,
+          shiftIsAbsent,
+          shiftNote
+        );
+      }
     }
 
     setActiveSlot(null);
@@ -244,7 +298,14 @@ export function ReportsSchedule({
   const handleDeleteModal = () => {
     if (!activeSlot) return;
     if (onDeleteShift) {
-      onDeleteShift(activeSlot.emp, activeSlot.dateIso);
+      if (applyToWholeWeek) {
+        weekDates.slice(0, 5).forEach(d => {
+          const iso = d.toISOString().split('T')[0];
+          onDeleteShift(activeSlot.emp, iso);
+        });
+      } else {
+        onDeleteShift(activeSlot.emp, activeSlot.dateIso);
+      }
     }
     setActiveSlot(null);
   };
@@ -282,104 +343,126 @@ export function ReportsSchedule({
         </div>
       </div>
 
-      {/* ── 2. CALENDAR HERO & FILTERS ── */}
+      {/* ── 2. CALENDAR HERO & COMPACT TOOLBAR ── */}
       <div className={`overflow-hidden rounded-3xl border shadow-lg ${isDark ? 'border-white/15 bg-[#133137]/80 text-white' : 'border-slate-200 bg-white text-black'}`}>
         
-        {/* Header Toolbar */}
-        <div className="p-6 border-b border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div>
-            <h3 className="font-serif text-2xl font-bold flex items-center gap-2.5">
-              📅 Team Schedule & Absence Matrix
-            </h3>
-            <p className="text-xs opacity-75 mt-1">
-              Click on <strong className="text-emerald-400">any slot</strong> to add or edit working hours. Click column headers to view the full <strong className="text-emerald-400">⏳ Daily Timeline</strong>.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Week Switcher */}
-            <div className={`flex items-center gap-1.5 p-1 rounded-2xl border ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+        {/* Compact All-in-One Toolbar */}
+        <div className="p-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-black/20">
+          
+          {/* Week Navigation (Prominent & Easy to click) */}
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1 p-1 rounded-2xl border ${isDark ? 'border-white/20 bg-black/60 shadow-inner' : 'border-slate-300 bg-white shadow-sm'}`}>
               <button 
                 onClick={handlePrevWeek}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1 ${
+                  isDark ? 'bg-white/10 hover:bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-800'
+                }`}
                 title="Previous Week"
               >
-                ◀
+                ◀ <span className="hidden sm:inline">Prev Week</span>
               </button>
-              <button
-                onClick={handleThisWeek}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white shadow-sm text-slate-900'}`}
-              >
-                {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </button>
+
+              <div className="px-3 py-1 text-xs font-black font-mono tracking-tight flex items-center gap-1.5 text-emerald-400">
+                <span>📅</span>
+                <span>
+                  {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+
               <button 
                 onClick={handleNextWeek}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${isDark ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-200 text-slate-600'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1 ${
+                  isDark ? 'bg-white/10 hover:bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-800'
+                }`}
                 title="Next Week"
               >
-                ▶
+                <span className="hidden sm:inline">Next Week</span> ▶
               </button>
             </div>
 
-            {/* Filter Mode Switcher */}
-            <div className={`flex items-center p-1 rounded-2xl border text-xs font-bold ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
+            <button
+              onClick={handleThisWeek}
+              className={`px-3 py-2 rounded-2xl border text-xs font-extrabold transition active:scale-95 ${
+                isDark ? 'border-white/15 bg-white/5 hover:bg-white/15 text-emerald-300' : 'border-slate-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+              }`}
+              title="Return to Current Week"
+            >
+              Today
+            </button>
+          </div>
+
+          {/* Filters & Actions Bar */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            
+            {/* Search Input */}
+            <div className="relative w-40 sm:w-48">
+              <input
+                type="text"
+                placeholder="🔍 Search agent..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
+                  isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-600'
+                }`}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1.5 text-xs opacity-60 hover:opacity-100">
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Teams Filter Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className={`rounded-2xl border px-3 py-1.5 text-xs font-extrabold outline-none cursor-pointer ${
+                  isDark ? 'border-white/15 bg-black/60 text-white' : 'border-slate-300 bg-white text-black'
+                }`}
+              >
+                <option value="ALL">👥 All Teams ({activeEmployees.length})</option>
+                {uniqueTeams.map(t => (
+                  <option key={t} value={t as string}>
+                    📍 {t} ({activeEmployees.filter(e => e.team?.trim() === t).length})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className={`flex items-center p-0.5 rounded-2xl border text-[11px] font-bold ${isDark ? 'border-white/10 bg-black/40' : 'border-slate-200 bg-slate-100'}`}>
               <button
                 onClick={() => setFilterMode('all')}
-                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'all' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+                className={`px-2.5 py-1 rounded-xl transition ${filterMode === 'all' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
               >
-                Unified (All)
+                All
               </button>
               <button
                 onClick={() => setFilterMode('present')}
-                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'present' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+                className={`px-2.5 py-1 rounded-xl transition ${filterMode === 'present' ? (isDark ? 'bg-emerald-600 text-white shadow' : 'bg-white text-emerald-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
               >
-                📅 Work Schedules
+                Work
               </button>
               <button
                 onClick={() => setFilterMode('absence')}
-                className={`px-3 py-1.5 rounded-xl transition ${filterMode === 'absence' ? (isDark ? 'bg-amber-600 text-white shadow' : 'bg-white text-amber-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
+                className={`px-2.5 py-1 rounded-xl transition ${filterMode === 'absence' ? (isDark ? 'bg-amber-600 text-white shadow' : 'bg-white text-amber-700 shadow-sm') : 'opacity-60 hover:opacity-100'}`}
               >
-                ⛱️ Absence Calendar
+                Absence
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Secondary Filter & Search Bar */}
-        <div className="px-6 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-black/10">
-          <div className="relative w-full sm:w-72">
-            <input
-              type="text"
-              placeholder="Search agent in schedule..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded-2xl border px-3 py-1.5 text-xs font-bold outline-none ${
-                isDark ? 'border-white/15 bg-black/40 text-white placeholder-slate-400 focus:border-emerald-500' : 'border-slate-300 bg-white text-black focus:border-emerald-600'
-              }`}
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1.5 text-xs opacity-60 hover:opacity-100">
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            {/* Export CSV Button */}
             <button
-              onClick={() => setTeamFilter('ALL')}
-              className={`px-2.5 py-1 rounded-xl transition ${teamFilter === 'ALL' ? (isDark ? 'bg-white text-black font-extrabold shadow' : 'bg-[#133137] text-white font-extrabold shadow') : 'opacity-60 hover:opacity-100'}`}
+              onClick={handleExportCSV}
+              className={`px-3 py-1.5 rounded-2xl border text-xs font-extrabold transition flex items-center gap-1 ${
+                isDark ? 'border-white/20 bg-white/5 hover:bg-white/10 text-white' : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800 shadow-sm'
+              }`}
+              title="Export weekly schedule to CSV"
             >
-              All Teams
+              📥 CSV
             </button>
-            {uniqueTeams.map(t => (
-              <button
-                key={t}
-                onClick={() => setTeamFilter(t as string)}
-                className={`px-2.5 py-1 rounded-xl transition ${teamFilter === t ? 'bg-emerald-600 text-white font-extrabold shadow' : 'opacity-60 hover:opacity-100'}`}
-              >
-                {t}
-              </button>
-            ))}
+
           </div>
         </div>
 
@@ -829,6 +912,25 @@ export function ReportsSchedule({
                     }`}
                   />
                 </div>
+              </div>
+
+              {/* Apply to entire week checkbox */}
+              <div className="p-3 rounded-2xl border border-white/10 bg-black/20 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="applyWholeWeek"
+                    checked={applyToWholeWeek}
+                    onChange={(e) => setApplyToWholeWeek(e.target.checked)}
+                    className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                  />
+                  <label htmlFor="applyWholeWeek" className="text-xs font-bold cursor-pointer">
+                    ⚡ Apply to entire week (Mon – Fri, 5 days)
+                  </label>
+                </div>
+                <span className="text-[10px] opacity-60 font-mono">
+                  {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[4].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
               </div>
 
               {/* Action Buttons */}
