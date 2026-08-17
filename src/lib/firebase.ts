@@ -27,7 +27,7 @@ export interface FirestoreEmployeeDoc {
 export async function fetchFirestoreEmployees(): Promise<Record<string, FirestoreEmployeeDoc>> {
   try {
     const res = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees?key=${FIREBASE_API_KEY}`,
+      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/employees?pageSize=300&key=${FIREBASE_API_KEY}`,
       { cache: 'no-store' }
     );
     if (!res.ok) return {};

@@ -258,6 +258,7 @@ export interface Employee {
   awCurrentApp?: string;
   awCurrentTitle?: string;
   awTopAppsJson?: string;
+  isDeleted?: boolean;
 }
 
 interface TimeLog {
@@ -729,12 +730,15 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
   }, []);
 
   // Helper to filter out archived/deleted employees
-  const filterActiveEmps = (list: Employee[], deletedList: Employee[]): Employee[] => {
+  const filterActiveEmps = (list: Employee[], deletedList: (string | Employee)[]): Employee[] => {
     const deletedKeys = new Set(
-      deletedList.map(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, ''))
+      deletedList.map(d => {
+        if (typeof d === 'string') return d.toLowerCase().trim().replace(/\s+/g, '');
+        return (d.username || d.name || '').toLowerCase().trim().replace(/\s+/g, '');
+      })
     );
     return list.filter(e => {
-      const key = (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '');
+      const key = (e.username || e.name || '').toLowerCase().trim().replace(/\s+/g, '');
       return !deletedKeys.has(key);
     });
   };
@@ -763,8 +767,8 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
         if (fsData && Object.keys(fsData).length > 0) {
           const fsEmps: Employee[] = Object.values(fsData).map((doc, idx) => ({
             id: `emp-fs-${doc.username}`,
-            name: doc.name || doc.username,
-            username: doc.username,
+            name: doc.name || doc.username || 'Unknown',
+            username: doc.username || '',
             pin: doc.pin || '1234',
             role: doc.role || 'Team Member',
             languages: doc.languages || [],
@@ -852,6 +856,39 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
           deletedEmployees.map(d => (d.username || d.name).toLowerCase().trim().replace(/\s+/g, ''))
         );
 
+        const existingKeys = new Set(
+          prevEmps.map(e => (e.username || e.name).toLowerCase().trim().replace(/\s+/g, ''))
+        );
+
+        const newFromFirestore: Employee[] = [];
+        Object.values(fsData).forEach((doc, idx) => {
+          const k = (doc.username || '').toLowerCase().trim().replace(/\s+/g, '');
+          if (k && !existingKeys.has(k) && !deletedKeys.has(k)) {
+            newFromFirestore.push({
+              id: `emp-fs-${doc.username}`,
+              name: doc.name || doc.username || 'Unknown',
+              username: doc.username || '',
+              pin: doc.pin || '1234',
+              role: doc.role || 'Team Member',
+              languages: doc.languages || [],
+              expectedShift: doc.expectedShift || '',
+              status: doc.status || 'expected',
+              checkInTime: doc.checkInTime,
+              checkOutTime: doc.checkOutTime,
+              sortOrder: doc.sortOrder ?? (prevEmps.length + idx),
+              team: doc.team || '',
+              trackingClient: doc.trackingClient,
+              lastSeen: doc.lastSeen,
+              awActiveSecondsToday: doc.awActiveSecondsToday,
+              awAfkSecondsToday: doc.awAfkSecondsToday,
+              awCurrentApp: doc.awCurrentApp,
+              awCurrentTitle: doc.awCurrentTitle,
+              awTopAppsJson: doc.awTopAppsJson,
+            });
+            hasChanges = true;
+          }
+        });
+
         const newEmps = prevEmps.filter(e => {
           const k = (e.username || e.name).toLowerCase().trim().replace(/\s+/g, '');
           return !deletedKeys.has(k);
@@ -896,9 +933,11 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
           }
           return emp;
         });
-        if (hasChanges || newEmps.length !== prevEmps.length) {
-          localStorage.setItem('team_employees_v5', JSON.stringify(newEmps));
-          return newEmps;
+
+        const combined = [...newEmps, ...newFromFirestore];
+        if (hasChanges || combined.length !== prevEmps.length) {
+          localStorage.setItem('team_employees_v5', JSON.stringify(combined));
+          return combined;
         }
         return prevEmps;
       });
@@ -1177,16 +1216,27 @@ export default function ClientPage({ initialTab = 'timeTracker', initialAgentUse
     }
 
     const newEmp: Employee = {
-      id: `emp-${Date.now()}`,
+      id: `emp-fs-${uname}`,
       name: newEmpName.trim() || newEmpUsername.trim(),
       username: uname,
       pin: newEmpPin.trim() || '1234',
       languages: newEmpLangs ? newEmpLangs.split(',').map(l => l.trim().toUpperCase()).filter(Boolean) : [],
       role: newEmpRole.trim() || 'Team Member',
-      expectedShift: newEmpShift,
+      expectedShift: newEmpShift.trim() || '11:00 AM',
       status: 'expected',
       team: newEmpTeam.trim() || '',
     };
+
+    saveFirestoreEmployee(uname, {
+      name: newEmp.name,
+      username: uname,
+      pin: newEmp.pin,
+      languages: newEmp.languages,
+      role: newEmp.role,
+      expectedShift: newEmp.expectedShift,
+      status: 'expected',
+      team: newEmp.team,
+    }).catch(console.error);
 
     saveEmployees([...employees.filter(e => (e.username || '').toLowerCase().replace(/\s+/g, '') !== uname), newEmp]);
     setNewEmpName('');
@@ -2074,7 +2124,7 @@ saveFirestoreEmployee(username, restored);
   };
 
   const filteredEmployees = employees.filter(emp => {
-    if (empStatusFilter !== 'ALL' && emp.status !== empStatusFilter) return false;
+    if (activeTab !== 'employees' && empStatusFilter !== 'ALL' && emp.status !== empStatusFilter) return false;
     if (empSearchQuery.trim()) {
       const q = empSearchQuery.toLowerCase();
       return (
@@ -2088,13 +2138,15 @@ saveFirestoreEmployee(username, restored);
     // AW-active machines always first (secondary sort applied after all primary sorts)
     const awScore = (e: Employee) => {
       const seenRecently = e.lastSeen
-        ? (Date.now() - new Date(e.lastSeen).getTime()) < 5 * 60 * 1000
+        ? (5 * 60 * 1000) > (Date.now() - new Date(e.lastSeen).getTime())
         : false;
       return (e.trackingClient === 'AW' && seenRecently) ? 1 : 0;
     };
 
     if (empSortOrder === 'name_desc') {
-      return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' });
+      const nameA = (a.name || a.username || '').trim().toLowerCase();
+      const nameB = (b.name || b.username || '').trim().toLowerCase();
+      return nameB.localeCompare(nameA);
     }
     if (empSortOrder === 'last_online') {
       const statusWeight = (s: string) => (s === 'checked_in' ? 2 : s === 'on_break' ? 1 : 0);
@@ -2111,11 +2163,15 @@ saveFirestoreEmployee(username, restored);
       return (b.sortOrder ?? 0) - (a.sortOrder ?? 0);
     }
     // Default: name_asc (A - Z)
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    const nameA = (a.name || a.username || '').trim().toLowerCase();
+    const nameB = (b.name || b.username || '').trim().toLowerCase();
+    return nameA.localeCompare(nameB);
   });
 
+  const mainThemeClass = isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f4f5f7] text-black';
+
   return (
-    <div className={`min-h-screen font-sans antialiased transition-colors duration-200 ${isDark ? 'bg-[#091a1d] text-white' : 'bg-[#f4f5f7] text-black'}`}>
+    <div className={`min-h-screen font-sans antialiased transition-colors duration-200 ${mainThemeClass}`}>
       {/* Header & Sticky Navigation Menu */}
       <header className={`border-b sticky top-0 z-50 shadow-md backdrop-blur-md transition-colors duration-200 ${isDark ? 'border-white/10 bg-[#091a1d]/80 text-white' : 'border-slate-200/60 bg-white/80 text-black'}`}>
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-2">
@@ -2321,282 +2377,338 @@ saveFirestoreEmployee(username, restored);
       <main className="mx-auto max-w-7xl px-6 py-8">
         {/* User / Employee View */}
         {authRole === 'user' && activeEmployee && activeTab !== 'setup' && (
-          <div className="space-y-8">
-            <div className={`rounded-3xl border-2 p-8 shadow-2xl ${isDark ? 'border-white/30 bg-[#133137] text-white' : 'border-slate-200/60 bg-white text-black'}`}>
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-extrabold ${isDark ? 'bg-slate-800/20 border-slate-300/30 text-emerald-300' : 'bg-slate-100 border-emerald-300 text-emerald-800'}`}>
-                    🟢 Employee Shift Kiosk
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 mt-3">
-                    <h2 className="text-3xl font-serif font-bold tracking-tight">
-                      {T.welcomeLabel} {activeEmployee.name}!
-                    </h2>
-                    <button
-                      onClick={() => handleOpenEditShift(activeEmployee)}
-                      className={`rounded-2xl border px-3 py-1.5 text-xs font-extrabold shadow transition active:scale-95 flex items-center gap-1 ${
-                        isDark ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : 'border-slate-400 bg-slate-100 text-slate-900 hover:bg-slate-200'
-                      }`}
-                      title="Edit your optional profile info"
-                    >
-                      ✏️ Edit Profile
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs font-semibold opacity-85">
-                    {T.roleLabel} {activeEmployee.role || 'Team Member'} {activeEmployee.languages && activeEmployee.languages.length > 0 && `| Languages: ${activeEmployee.languages.join(' / ')}`}
-                  </p>
+          <>
+            <div className="flex flex-col lg:flex-row gap-8 min-h-[75vh]">
+              {/* LEFT PANE: MY STATUS */}
+            <div className={`flex-1 rounded-[2.5rem] border-2 p-8 lg:p-12 shadow-2xl flex flex-col relative overflow-hidden ${
+              activeEmployee.status === 'checked_in'
+                ? isDark ? 'border-emerald-500/50 bg-gradient-to-br from-[#0f2e27] to-[#0a1a16] text-white' : 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white text-black'
+                : activeEmployee.status === 'on_break'
+                ? isDark ? 'border-amber-500/50 bg-gradient-to-br from-[#2e230f] to-[#1a130a] text-white' : 'border-amber-300 bg-gradient-to-br from-amber-50 to-white text-black'
+                : isDark ? 'border-white/10 bg-[#161b22] text-white' : 'border-slate-200 bg-slate-50 text-black'
+            }`}>
+              
+              {/* Background Glow */}
+              <div className={`absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none ${
+                activeEmployee.status === 'checked_in' ? 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-400/40 via-transparent to-transparent animate-pulse' : ''
+              }`} />
 
-                  {/* Status Badge & Live Billable Ticking Timer */}
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <span className={`rounded-2xl px-3.5 py-2 font-mono text-sm font-extrabold shadow border ${
-                      activeEmployee.status === 'checked_in'
-                        ? isDark ? 'bg-emerald-950/80 text-emerald-300 border-slate-300/50 animate-pulse' : 'bg-slate-100 text-emerald-800 border-emerald-400 animate-pulse'
-                        : activeEmployee.status === 'on_break'
-                        ? isDark ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-slate-100 text-amber-800 border-slate-300'
-                        : activeEmployee.status === 'completed'
-                        ? isDark ? 'bg-blue-950/80 text-blue-300 border-slate-300/50' : 'bg-slate-100 text-blue-800 border-blue-400'
-                        : isDark ? 'bg-black/40 text-slate-300 border-white/20' : 'bg-slate-100 text-slate-600 border-slate-200/60'
-                    }`}>
-                      {activeEmployee.status === 'checked_in' && `🟢 WORKING (Arrived at ${activeEmployee.checkInTime || '11:00 AM'})`}
-                      {activeEmployee.status === 'on_break' && (
-                        <div className="flex flex-col items-center">
-                          <div>{`${T.onBreakLabel}: ${activeEmployee.breakType || 'Pause'}`}</div>
-                          <div className="text-4xl mt-2 mb-1 font-mono tracking-widest text-amber-400 drop-shadow-md">
+              <div className="relative z-10 flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-black uppercase tracking-widest shadow-sm ${isDark ? 'bg-black/50 border-white/20' : 'bg-white border-slate-300'}`}>
+                      Kiosk Terminal
+                    </div>
+                    <h2 className="mt-4 text-4xl lg:text-5xl font-serif font-bold tracking-tight">
+                      {T.welcomeLabel} {activeEmployee.name}
+                    </h2>
+                    <div className="mt-2 flex items-center gap-3">
+                      <p className="text-sm font-bold opacity-80 uppercase tracking-widest">
+                        {activeEmployee.role || 'Team Member'}
+                      </p>
+                      <button
+                        onClick={() => handleOpenEditShift(activeEmployee)}
+                        className={`rounded-full border px-3 py-1 text-[0.65rem] font-black uppercase tracking-wider shadow transition active:scale-95 ${
+                          isDark ? 'border-white/30 bg-white/10 hover:bg-white/20' : 'border-slate-400 bg-slate-200 hover:bg-slate-300'
+                        }`}
+                      >
+                        Edit Profile
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Digital Clock */}
+                  <div className={`text-right ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <div className="text-5xl font-mono font-black tracking-tighter">
+                      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </div>
+                    <div className="text-sm font-bold opacity-70 uppercase tracking-widest">
+                      Cyprus Time
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-center items-center py-12 text-center">
+                  {/* Status Display */}
+                  <div className="flex flex-col items-center gap-4">
+                    {activeEmployee.status === 'checked_in' && (
+                      <>
+                        <div className="text-7xl mb-4">🟢</div>
+                        <div className="text-4xl lg:text-5xl font-black tracking-tight uppercase">Working</div>
+                        <div className="text-lg font-bold opacity-70">Arrived at {activeEmployee.checkInTime || '11:00 AM'}</div>
+                        
+                        <div className={`mt-8 rounded-[2rem] border px-12 py-6 shadow-inner flex flex-col items-center ${isDark ? 'border-emerald-500/30 bg-black/40' : 'border-emerald-200 bg-white/60'}`}>
+                          <div className={`text-xs font-black uppercase tracking-widest mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                            Billable Time
+                          </div>
+                          <div className={`font-mono text-7xl lg:text-8xl font-black tracking-tighter tabular-nums ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
+                            {kioskBillableTime}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {activeEmployee.status === 'on_break' && (
+                      <>
+                        <div className="text-7xl mb-4 animate-bounce">☕</div>
+                        <div className="text-4xl lg:text-5xl font-black tracking-tight uppercase">On Break</div>
+                        <div className="text-lg font-bold opacity-70">{activeEmployee.breakType || 'Resting'}</div>
+                        
+                        <div className={`mt-8 rounded-[2rem] border px-12 py-6 shadow-inner flex flex-col items-center ${isDark ? 'border-amber-500/30 bg-black/40' : 'border-amber-200 bg-white/60'}`}>
+                          <div className={`text-xs font-black uppercase tracking-widest mb-2 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                            Break Duration
+                          </div>
+                          <div className={`font-mono text-7xl lg:text-8xl font-black tracking-tighter tabular-nums ${isDark ? 'text-amber-300 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'text-amber-600'}`}>
                             {formatBreakTime(breakElapsedSeconds)}
                           </div>
                         </div>
-                      )}
-                      {activeEmployee.status === 'completed' && `🏁 SHIFT COMPLETED (Left at ${activeEmployee.checkOutTime || '7:00 PM'})`}
-                      {activeEmployee.status === 'expected' && `⏰ EXPECTED TODAY`}
-                    </span>
-
-                    {/* Live Billable Ticking Time */}
-                    {(activeEmployee.status === 'checked_in' || activeEmployee.status === 'on_break') && (
-                      <div className={`rounded-2xl border px-4 py-2 text-center shadow-inner ${isDark ? 'border-amber-500/50 bg-black/60' : 'border-slate-300 bg-slate-50'}`}>
-                        <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-slate-700'}`}>
-                          ⏱️ BILLABLE WORKING TIME
-                        </div>
-                        <div className={`font-mono text-xl font-black tracking-wider ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
-                          {kioskBillableTime}
-                        </div>
-                      </div>
+                      </>
                     )}
 
-                    {/* AW Live Tracker Status */}
+                    {activeEmployee.status === 'completed' && (
+                      <>
+                        <div className="text-7xl mb-4">🏁</div>
+                        <div className="text-4xl lg:text-5xl font-black tracking-tight uppercase opacity-50">Shift Ended</div>
+                        <div className="text-lg font-bold opacity-70">Left at {activeEmployee.checkOutTime || '19:00'}</div>
+                      </>
+                    )}
+
+                    {activeEmployee.status === 'expected' && (
+                      <>
+                        <div className="text-7xl mb-4">⏰</div>
+                        <div className="text-4xl lg:text-5xl font-black tracking-tight uppercase opacity-50">Expected</div>
+                        <div className="text-lg font-bold opacity-70">Shift starts at {activeEmployee.expectedShift.split('-')[0].trim()}</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* AW Live Tracker & Actions */}
+                <div className="flex flex-col lg:flex-row gap-6 mt-auto">
+                  {/* AW Status */}
+                  <div className="flex-1">
                     {(() => {
-                      const { isLiveFromAW, isLiveFromClockify, liveDurationStr } = getMergedEmployeeState(activeEmployee);
+                      const { isLiveFromAW, isLiveFromClockify } = getMergedEmployeeState(activeEmployee);
                       const isTrackerLive = isLiveFromAW || isLiveFromClockify;
                       return (
-                        <div className={`rounded-2xl border px-4 py-2 flex flex-col justify-center shadow-inner ${
+                        <div className={`h-full rounded-[1.5rem] border p-5 flex flex-col justify-center shadow-inner ${
                           isTrackerLive 
-                            ? isDark ? 'border-slate-300/50 bg-sky-950/60' : 'border-sky-400 bg-slate-100'
-                            : isDark ? 'border-rose-500/50 bg-rose-950/60' : 'border-rose-400 bg-slate-100'
+                            ? isDark ? 'border-sky-500/30 bg-sky-950/40' : 'border-sky-300 bg-sky-50/80'
+                            : isDark ? 'border-rose-500/30 bg-rose-950/40' : 'border-rose-300 bg-rose-50/80'
                         }`}>
-                          <div className={`text-[0.65rem] font-extrabold uppercase tracking-wider ${
-                            isTrackerLive
-                              ? isDark ? 'text-sky-400' : 'text-slate-700'
-                              : isDark ? 'text-rose-400' : 'text-slate-700'
-                          }`}>
-                            {isTrackerLive ? 'AW TRACKER: CONNECTED' : 'AW TRACKER: OFFLINE'}
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-3 h-3 rounded-full ${isTrackerLive ? 'bg-sky-500 animate-ping' : 'bg-rose-500'}`} />
+                            <div className={`text-xs font-black uppercase tracking-widest ${
+                              isTrackerLive ? (isDark ? 'text-sky-400' : 'text-sky-700') : (isDark ? 'text-rose-400' : 'text-rose-700')
+                            }`}>
+                              {isTrackerLive ? 'Tracker Connected' : 'Tracker Offline'}
+                            </div>
                           </div>
-                          {isLiveFromClockify && liveStatuses[activeEmployee.id] && (
-                            <div className={`font-mono text-xs font-black tracking-wider mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
-                              {liveStatuses[activeEmployee.id].task} ({liveDurationStr})
+
+                          {isLiveFromAW && activeEmployee.awCurrentApp && (
+                            <div className={`text-sm font-bold truncate opacity-90 ${isDark ? 'text-sky-100' : 'text-slate-800'}`}>
+                              Focus: {activeEmployee.awCurrentApp}{activeEmployee.awCurrentTitle ? ` — ${activeEmployee.awCurrentTitle.slice(0, 40)}` : ''}
                             </div>
                           )}
-                          {isLiveFromAW && !isLiveFromClockify && (
-                            <div className={`text-xs font-bold mt-1 ${isDark ? 'text-sky-300' : 'text-sky-800'}`}>
-                              Tracking Activity (Desktop)
-                            </div>
-                          )}
-                          {/* AW Telemetry — Active time + current app */}
+                          
+                          {/* AW Telemetry Bar */}
                           {isLiveFromAW && activeEmployee.awActiveSecondsToday !== undefined && (
-                            <div className="mt-2 space-y-1.5">
+                            <div className="mt-4">
                               {(() => {
                                 const total = (activeEmployee.awActiveSecondsToday || 0) + (activeEmployee.awAfkSecondsToday || 0);
                                 const pct = total > 0 ? Math.round((activeEmployee.awActiveSecondsToday || 0) / total * 100) : 0;
                                 return (
                                   <div>
-                                    <div className="flex items-center justify-between text-[0.65rem] font-bold mb-1">
-                                      <span className="text-emerald-400">Active today: {formatAwSeconds(activeEmployee.awActiveSecondsToday || 0)}</span>
-                                      <span className="text-slate-500">AFK: {formatAwSeconds(activeEmployee.awAfkSecondsToday || 0)}</span>
+                                    <div className="flex items-center justify-between text-[0.65rem] font-bold mb-1.5 uppercase tracking-wider">
+                                      <span className={isDark ? "text-emerald-400" : "text-emerald-700"}>Active: {formatAwSeconds(activeEmployee.awActiveSecondsToday || 0)}</span>
+                                      <span className={isDark ? "text-slate-500" : "text-slate-500"}>AFK: {formatAwSeconds(activeEmployee.awAfkSecondsToday || 0)}</span>
                                     </div>
-                                    <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                    <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-black/50' : 'bg-slate-200'}`}>
                                       <div className="h-full rounded-full bg-emerald-500 transition-all duration-1000" style={{ width: `${pct}%` }} />
                                     </div>
                                   </div>
                                 );
                               })()}
-                              {activeEmployee.awCurrentApp && (
-                                <div className={`text-[0.65rem] font-bold truncate ${isDark ? 'text-sky-300' : 'text-sky-700'}`} title={activeEmployee.awCurrentTitle || activeEmployee.awCurrentApp}>
-                                  Now: {activeEmployee.awCurrentApp}{activeEmployee.awCurrentTitle ? ` — ${activeEmployee.awCurrentTitle.slice(0, 35)}` : ''}
-                                </div>
-                              )}
-                              {parseTopApps(activeEmployee.awTopAppsJson).length > 0 && (
-                                <div className="mt-1">
-                                  <div className="text-[0.55rem] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Top apps today</div>
-                                  <div className="space-y-0.5">
-                                    {parseTopApps(activeEmployee.awTopAppsJson).slice(0, 4).map((a, i) => {
-                                      const totalActive = activeEmployee.awActiveSecondsToday || 1;
-                                      const pct = Math.min(100, Math.round(a.seconds / totalActive * 100));
-                                      return (
-                                        <div key={i} className="flex items-center gap-2">
-                                          <span className="text-[0.6rem] text-slate-400 font-bold w-20 truncate">{a.app.split('.')[0].slice(0, 14)}</span>
-                                          <div className="flex-1 h-1 rounded-full bg-slate-700 overflow-hidden">
-                                            <div className="h-full rounded-full bg-sky-500/60" style={{ width: `${pct}%` }} />
-                                          </div>
-                                          <span className="text-[0.6rem] text-slate-500 font-bold w-10 text-right">{formatAwSeconds(a.seconds)}</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
                       );
                     })()}
                   </div>
-                </div>
 
-                {/* Kiosk Action Buttons (Clock In, Pause / Break, Resume, Clock Out) */}
-                <div className="flex flex-col gap-3 sm:flex-row items-center">
-                  
-                  {/* State 1: Expected -> Clock In */}
-                  {activeEmployee.status === 'expected' && (
-                    <button
-                      onClick={() => {
-                        const nowTime = cyprusTime || '11:00 AM';
-                        const nowTs = Date.now();
-                        addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In (Start of Shift)', time: nowTime, timestamp: nowTs });
-                        const updated = employees.map(e => e.id === activeEmployee.id ? { 
-                          ...e, 
-                          status: 'checked_in' as const, 
-                          checkInTime: nowTime,
-                          checkInTimestamp: nowTs,
-                          accumulatedSeconds: 0
-                        } : e);
-                        saveEmployees(updated);
-                        setActiveEmployee(prev => prev ? { 
-                          ...prev, 
-                          status: 'checked_in', 
-                          checkInTime: nowTime,
-                          checkInTimestamp: nowTs,
-                          accumulatedSeconds: 0
-                        } : null);
-                      }}
-                      className="w-full sm:w-auto rounded-2xl bg-slate-900 px-8 py-5 text-base font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center justify-center gap-2 active:scale-95"
-                    >
-                      <span>🟢</span> {T.clockInBtn.replace('🟢 ', '')}
-                    </button>
-                  )}
+                  {/* Kiosk Action Buttons */}
+                  <div className="flex-[1.5] flex gap-3">
+                    {/* State 1: Expected -> Clock In */}
+                    {activeEmployee.status === 'expected' && (
+                      <button
+                        onClick={() => {
+                          const nowTime = cyprusTime || '11:00 AM';
+                          const nowTs = Date.now();
+                          addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In', time: nowTime, timestamp: nowTs });
+                          const updated = employees.map(e => e.id === activeEmployee.id ? { 
+                            ...e, status: 'checked_in' as const, checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0
+                          } : e);
+                          saveEmployees(updated);
+                          setActiveEmployee(prev => prev ? { 
+                            ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0
+                          } : null);
+                        }}
+                        className="flex-1 rounded-[1.5rem] bg-emerald-500 text-white font-black text-2xl tracking-tight shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition active:scale-95 flex items-center justify-center gap-3"
+                      >
+                        <span>🟢</span> CLOCK IN
+                      </button>
+                    )}
 
-                  {/* State 2: Working -> Pause / Break or Clock Out */}
-                  {activeEmployee.status === 'checked_in' && (
-                    <>
-                      {/* Pause / Break Dropdown Menu */}
-                      <div className="relative">
+                    {/* State 2: Working -> Pause / Clock Out */}
+                    {activeEmployee.status === 'checked_in' && (
+                      <>
+                        <div className="flex-1 relative flex">
+                          <button
+                            onClick={() => setShowBreakMenu(v => !v)}
+                            className="flex-1 rounded-[1.5rem] bg-amber-500 text-white font-black text-xl lg:text-2xl tracking-tight shadow-xl shadow-amber-500/20 hover:bg-amber-400 transition active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            <span>⏸️</span> PAUSE
+                          </button>
+                          
+                          {showBreakMenu && (
+                            <div className="absolute bottom-[calc(100%+10px)] left-0 w-full rounded-3xl border-2 border-white/20 bg-slate-900 p-3 shadow-[0_0_40px_rgba(0,0,0,0.5)] text-sm font-bold text-white z-50">
+                              <div className="px-4 py-2 text-[0.75rem] uppercase font-black tracking-widest text-amber-400 border-b border-white/10 mb-2">
+                                Take a Break
+                              </div>
+                              <button onClick={() => handleTakeBreak('🚬 Smoke Break')} className="w-full text-left rounded-2xl px-4 py-3 hover:bg-white/10 transition flex items-center gap-3">
+                                <span className="text-xl">🚬</span> Smoke Break
+                              </button>
+                              <button onClick={() => handleTakeBreak('🥪 Lunch Break')} className="w-full text-left rounded-2xl px-4 py-3 hover:bg-white/10 transition flex items-center gap-3">
+                                <span className="text-xl">🥪</span> Lunch Break
+                              </button>
+                              <button onClick={() => handleTakeBreak('☕ Coffee / Rest')} className="w-full text-left rounded-2xl px-4 py-3 hover:bg-white/10 transition flex items-center gap-3">
+                                <span className="text-xl">☕</span> Coffee / Rest
+                              </button>
+                              <button onClick={() => handleTakeBreak('❓ Short Break')} className="w-full text-left rounded-2xl px-4 py-3 hover:bg-white/10 transition flex items-center gap-3">
+                                <span className="text-xl">❓</span> Other
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
                         <button
-                          onClick={() => setShowBreakMenu(v => !v)}
-                          className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
+                          onClick={() => handleClockOutSimple()}
+                          className={`flex-1 rounded-[1.5rem] font-black text-xl lg:text-2xl tracking-tight shadow-xl transition active:scale-95 flex items-center justify-center gap-2 ${
+                            isDark ? 'bg-slate-800 text-rose-400 hover:bg-slate-700' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                          }`}
                         >
-                          <span>⏸️</span> {T.pauseBreakBtn.replace('⏸️ ', '')}
+                          <span>🔴</span> FINISH
+                        </button>
+                      </>
+                    )}
+
+                    {/* State 3: On Break -> Resume Work or Clock Out */}
+                    {activeEmployee.status === 'on_break' && (
+                      <>
+                        <button
+                          onClick={() => handleResumeWork()}
+                          className="flex-[2] rounded-[1.5rem] bg-emerald-500 text-white font-black text-2xl tracking-tight shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition active:scale-95 flex items-center justify-center gap-3 animate-pulse"
+                        >
+                          <span>▶️</span> RESUME
                         </button>
 
-                        {showBreakMenu && (
-                          <div className="absolute left-0 mt-2 z-50 w-56 rounded-2xl border-2 border-white/20 bg-slate-900 p-2 shadow-2xl text-xs font-bold text-white">
-                            <div className="px-3 py-1.5 text-[0.7rem] uppercase font-extrabold text-amber-400 border-b border-white/10">
-                              Select Break Type:
-                            </div>
-                            <button
-                              onClick={() => handleTakeBreak('🚬 Smoke Break')}
-                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
-                            >
-                              🚬 Smoke Break (5-10m)
-                            </button>
-                            <button
-                              onClick={() => handleTakeBreak('🥪 Lunch Break')}
-                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
-                            >
-                              🥪 Lunch Break (30-60m)
-                            </button>
-                            <button
-                              onClick={() => handleTakeBreak('☕ Coffee / Rest')}
-                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
-                            >
-                              ☕ Coffee / Rest Break
-                            </button>
-                            <button
-                              onClick={() => handleTakeBreak('❓ Short Break')}
-                              className="w-full text-left rounded-2xl px-3 py-2 hover:bg-white/10 transition flex items-center gap-2"
-                            >
-                              ❓ Short Break / Other
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                        <button
+                          onClick={() => handleClockOutSimple()}
+                          className={`flex-1 rounded-[1.5rem] font-black text-xl tracking-tight shadow-xl transition active:scale-95 flex items-center justify-center gap-2 ${
+                            isDark ? 'bg-slate-800 text-rose-400 hover:bg-slate-700' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                          }`}
+                        >
+                          <span>🔴</span> LEAVE
+                        </button>
+                      </>
+                    )}
 
-                      {/* Clock Out (Simple: No Popup!) */}
+                    {/* State 4: Shift Completed */}
+                    {activeEmployee.status === 'completed' && (
                       <button
-                        onClick={() => handleClockOutSimple()}
-                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
+                        onClick={() => {
+                          const nowTime = cyprusTime || '11:00 AM';
+                          const nowTs = Date.now();
+                          addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In Again', time: nowTime, timestamp: nowTs });
+                          const updated = employees.map(e => e.id === activeEmployee.id ? { 
+                            ...e, status: 'checked_in' as const, checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0
+                          } : e);
+                          saveEmployees(updated);
+                          setActiveEmployee(prev => prev ? { 
+                            ...prev, status: 'checked_in', checkInTime: nowTime, checkInTimestamp: nowTs, accumulatedSeconds: 0
+                          } : null);
+                        }}
+                        className={`w-full rounded-[1.5rem] border-2 font-black text-2xl tracking-tight shadow-xl transition active:scale-95 flex items-center justify-center gap-3 ${
+                          isDark ? 'border-slate-600 bg-slate-800 text-white hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
+                        }`}
                       >
-                        <span>🔴</span> {T.clockOutBtn.replace('🔴 ', '')}
+                        <span>↩️</span> RE-OPEN SHIFT
                       </button>
-                    </>
-                  )}
-
-                  {/* State 3: On Break -> Resume Work or Clock Out */}
-                  {activeEmployee.status === 'on_break' && (
-                    <>
-                      <button
-                        onClick={() => handleResumeWork()}
-                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2 animate-pulse"
-                      >
-                        <span>▶️</span> {T.resumeWorkBtn.replace('▶️ ', '')}
-                      </button>
-
-                      <button
-                        onClick={() => handleClockOutSimple()}
-                        className="rounded-2xl bg-slate-900 px-6 py-4 text-sm font-extrabold text-white shadow-xl hover:bg-slate-800 transition flex items-center gap-2"
-                      >
-                        <span>🔴</span> Clock Out (Left Office)
-                      </button>
-                    </>
-                  )}
-
-                  {/* State 4: Shift Completed */}
-                  {activeEmployee.status === 'completed' && (
-                    <button
-                      onClick={() => {
-                        const nowTime = cyprusTime || '11:00 AM';
-                        const nowTs = Date.now();
-                        addShiftEvent(activeEmployee.id, { type: 'clock_in', label: '🟢 Clocked In Again', time: nowTime, timestamp: nowTs });
-                        const updated = employees.map(e => e.id === activeEmployee.id ? { 
-                          ...e, 
-                          status: 'checked_in' as const, 
-                          checkInTime: nowTime,
-                          checkInTimestamp: nowTs,
-                          accumulatedSeconds: 0
-                        } : e);
-                        saveEmployees(updated);
-                        setActiveEmployee(prev => prev ? { 
-                          ...prev, 
-                          status: 'checked_in', 
-                          checkInTime: nowTime,
-                          checkInTimestamp: nowTs,
-                          accumulatedSeconds: 0
-                        } : null);
-                      }}
-                      className="rounded-2xl border border-slate-500 bg-slate-800 px-6 py-4 text-sm font-bold text-slate-200 hover:bg-slate-700 transition flex items-center gap-2"
-                    >
-                      <span>↩️</span> {T.reopenBtn.replace('↩️ ', '')}
-                    </button>
-                  )}
-
+                    )}
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* RIGHT PANE: TEAM PULSE */}
+            <div className={`w-full lg:w-[380px] rounded-[2.5rem] border-2 p-8 flex flex-col shadow-xl ${isDark ? 'border-white/10 bg-black/40 text-white' : 'border-slate-200/80 bg-slate-50 text-black'}`}>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="font-serif text-3xl font-bold flex items-center gap-3">
+                  Team Pulse
+                </h3>
+                <div className={`text-xs font-black px-3 py-1 rounded-full ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
+                  {employees.filter(e => !e.isDeleted && e.role !== 'admin' && e.name !== 'Admin' && (e.status === 'checked_in' || e.status === 'on_break')).length} Online
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                {employees
+                  .filter(e => !e.isDeleted && e.role !== 'admin' && e.name !== 'Admin')
+                  .sort((a, b) => {
+                    const statusWeights = { checked_in: 1, on_break: 2, expected: 3, completed: 4, absent: 5 };
+                    if (statusWeights[a.status] !== statusWeights[b.status]) return statusWeights[a.status] - statusWeights[b.status];
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map(emp => (
+                    <div key={emp.id} className={`p-4 rounded-2xl flex items-center gap-4 transition ${
+                      emp.status === 'checked_in' || emp.status === 'on_break'
+                        ? isDark ? 'bg-white/5' : 'bg-white shadow-sm'
+                        : isDark ? 'opacity-50 grayscale' : 'opacity-60 grayscale'
+                    }`}>
+                      {/* Avatar / Status Dot */}
+                      <div className="relative">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                          isDark ? 'bg-slate-800' : 'bg-slate-200'
+                        }`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        {emp.status === 'checked_in' && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-transparent shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />}
+                        {emp.status === 'on_break' && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-500 rounded-full border-2 border-transparent shadow-[0_0_10px_rgba(245,158,11,0.5)]" />}
+                        {emp.status === 'completed' && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-500 rounded-full border-2 border-transparent" />}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="font-extrabold text-sm truncate">{emp.name}</div>
+                        <div className="text-[0.65rem] font-bold uppercase tracking-wider opacity-60 mt-0.5">
+                          {emp.status === 'checked_in' ? 'Working' :
+                           emp.status === 'on_break' ? `On Break (${emp.breakType?.split(' ')[0] || ''})` :
+                           emp.status === 'completed' ? 'Left Office' :
+                           emp.status === 'expected' ? 'Expected' : 'Absent'}
+                        </div>
+                      </div>
+
+                      {/* Tracker Icon */}
+                      {(emp.status === 'checked_in' || emp.status === 'on_break') && (
+                        <div className="text-lg opacity-50">
+                          {getMergedEmployeeState(emp).isLiveFromAW ? '💻' : '📱'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
 
               {/* ── TODAY'S SHIFT EVENT HISTORY TIMELINE ── */}
               {shiftEvents.length > 0 && (
@@ -2651,9 +2763,7 @@ saveFirestoreEmployee(username, restored);
                   </div>
                 </div>
               )}
-
-            </div>
-          </div>
+          </>
         )}
 
         {/* Admin / Manager Combined Command Center */}
