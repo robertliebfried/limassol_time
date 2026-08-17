@@ -90,7 +90,7 @@ Keep it sharp, professional, concise, and executive-ready.`;
 
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Анализ успешно сгенерирован.';
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Gemini error:', err);
     return `📊 **Исполнительный AI-аудит смен (${weekLabel || `${weekStartDate} – ${weekEndDate}`})**\n\n• Общий фонд часов: **${totalHours.toFixed(1)} ч**\n• Активно сотрудников: **${activeCount} из ${activeEmps.length}**\n• Стандарт: **11:00 – 20:00**\n\n(Локальный расчет выполнен без задержек)`;
   }
@@ -124,7 +124,7 @@ export async function parseAiShiftCommand(
   const isAbsent = t.includes('отсутств') || t.includes('отпуск') || t.includes('absent') || t.includes('болен');
   let inTime = '11:00';
   let outTime = '20:00';
-  let hours = isAbsent ? 0 : 9.0;
+  const hours = isAbsent ? 0 : 9.0;
 
   if (t.includes('10:00') || t.includes('10-19')) { inTime = '10:00'; outTime = '19:00'; }
   if (t.includes('12:00') || t.includes('12-21')) { inTime = '12:00'; outTime = '21:00'; }

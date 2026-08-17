@@ -535,6 +535,7 @@ export function ReportsSchedule({
                         <div className="w-8 h-8 rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
                           {emp.name.charAt(0).toUpperCase()}
                         </div>
+                        <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-extrabold text-sm truncate">{emp.name}</span>
                             {emp.team && (

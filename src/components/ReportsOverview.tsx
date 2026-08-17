@@ -339,6 +339,15 @@ export function ReportsOverview({
           </div>
         )}
       </div>
+
+      {/* ── 1. KPI CARDS ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Attendance Rate */}
+        <div className={`relative overflow-hidden rounded-3xl p-6 border shadow-md transition-all hover:scale-[1.01] ${
+          isDark 
+            ? 'bg-gradient-to-br from-[#102a30] to-[#133137] border-emerald-500/30 text-white' 
+            : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-[0.7rem] font-extrabold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
               👥 Attendance Rate

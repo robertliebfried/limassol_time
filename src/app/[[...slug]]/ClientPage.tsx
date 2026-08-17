@@ -483,7 +483,6 @@ export default function ClientPage({ initialTab = 'dashboard', initialAgentUsern
 
   // Google Sheets Integration State
   const [googleSheetUrl, setGoogleSheetUrl] = useState<string>('');
-  const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
 
   // Real-Time Dashboard State
   type LiveStatus = { employeeId: string; employeeName?: string; status: 'online' | 'offline'; task: string; duration: string; startTime: string; };
@@ -3480,23 +3479,42 @@ saveFirestoreEmployee(username, restored);
               </div>
 
               {/* Step 2 */}
-              <div className={`rounded-2xl p-6 mb-4 border ${ isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+              <div className={`rounded-3xl p-7 mb-5 border shadow-lg transition-all ${ isDark ? 'bg-gradient-to-br from-[#102a30] to-[#133137] border-emerald-500/30 text-white' : 'bg-gradient-to-br from-emerald-50/60 to-white border-emerald-200 text-slate-900'}`}>
                 <div className="flex items-start gap-4">
-                  <div className="text-3xl">2️⃣</div>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+                    ⚡
+                  </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-1">{T.step2Header}</h3>
-                    <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-extrabold text-xl">{T.step2Header}</h3>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-black font-mono shadow-sm">
+                        v1.1.9 Latest
+                      </span>
+                    </div>
+                    <p className={`text-sm mb-5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                       {T.step2Text}
                     </p>
-                    <a
-                      href="/downloads/LimassolTracker_v1.1.8.zip"
-                      download
-                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-black transition"
-                    >
-                      {T.step2DownloadBtn}
-                    </a>
-                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {T.step2FolderNote}
+                    
+                    <div className="flex flex-wrap items-center gap-3">
+                      <a
+                        href="/downloads/LimassolTracker_v1.1.9.zip"
+                        download
+                        className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-6 py-3.5 text-sm font-extrabold text-white shadow-lg transition active:scale-95"
+                      >
+                        📦 Download v1.1.9 (.ZIP)
+                      </a>
+                      <a
+                        href="/downloads/LimassolTracker_v1.1.9.exe"
+                        download
+                        className={`inline-flex items-center gap-2 rounded-2xl border px-5 py-3.5 text-sm font-bold transition active:scale-95 ${
+                          isDark ? 'border-white/20 bg-white/5 hover:bg-white/15 text-white' : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
+                        }`}
+                      >
+                        🚀 Direct .EXE
+                      </a>
+                    </div>
+                    <p className={`text-xs mt-3 flex items-center gap-1.5 font-mono ${isDark ? 'text-emerald-400/80' : 'text-emerald-700'}`}>
+                      🛡️ Clean portable build with automatic 24/7 background sync.
                     </p>
                   </div>
                 </div>
