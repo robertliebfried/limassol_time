@@ -1,5 +1,5 @@
 """
-Limassol Tracker v1.1.9
+Limassol Tracker v1.2.0
 Production-Grade Windows 24/7 ActivityWatch & Time Sync Client
 """
 
@@ -31,7 +31,7 @@ MUTEX_HANDLE = None
 
 def acquire_single_instance_mutex():
     global MUTEX_HANDLE
-    mutex_name = "Global\\LimassolTracker_SingleInstance_Mutex_v119"
+    mutex_name = "Global\\LimassolTracker_SingleInstance_Mutex_v120"
     kernel32 = ctypes.windll.kernel32
     MUTEX_HANDLE = kernel32.CreateMutexW(None, False, mutex_name)
     last_error = kernel32.GetLastError()
@@ -45,7 +45,7 @@ acquire_single_instance_mutex()
 # -------------------------------------------------------------------
 # CONFIGURATION & PERSISTENT PATHS
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.9"
+CURRENT_VERSION = "1.2.0"
 FIREBASE_API_KEY = "AIzaSyBOQaJrFF6opjdymkh2fd4nmEw4A6r3tOY"
 FIREBASE_PROJECT = "karfigestsa"
 CLOCKIFY_API_KEY = "ZWVlYjQ1ZDMtODMzNS00NWZmLTg2NjAtYmMxZDQ0MWM1NzQ5"
@@ -243,7 +243,7 @@ exit
 def update_loop():
     while True:
         auto_update(manual=False)
-        time.sleep(86400)  # Check daily
+        time.sleep(300)  # Check every 5 minutes
 
 threading.Thread(target=update_loop, daemon=True).start()
 
@@ -476,7 +476,7 @@ class LimassolTrackerApp:
         # Tkinter Root (Window will be hidden when in tray)
         self.root = tk.Tk()
         self.root.title(f"Limassol Tracker v{CURRENT_VERSION}")
-        self.root.geometry("380x280")
+        self.root.geometry("600x450")
         self.root.resizable(False, False)
         self.root.configure(bg="#0f172a")
         
@@ -568,39 +568,39 @@ class LimassolTrackerApp:
 
         self.status_label = tk.Label(
             self.main_frame, text="Sync Active",
-            font=("Segoe UI", 11, "bold"), bg="#0f172a", fg="#4ade80"
+            font=("Segoe UI", 16, "bold"), bg="#0f172a", fg="#4ade80"
         )
-        self.status_label.pack(pady=(16, 2))
+        self.status_label.pack(pady=(20, 5))
 
         self.info_label = tk.Label(
             self.main_frame, text=f"v{CURRENT_VERSION} • ActivityWatch 24/7",
-            font=("Segoe UI", 8), bg="#0f172a", fg="#94a3b8"
+            font=("Segoe UI", 10), bg="#0f172a", fg="#94a3b8"
         )
         self.info_label.pack()
 
         # Kiosk shift controls
         self.kiosk_frame = tk.Frame(self.main_frame, bg="#0f172a")
-        self.kiosk_frame.pack(pady=10)
+        self.kiosk_frame.pack(pady=30)
 
-        tk.Button(self.kiosk_frame, text="Clock In", command=self.on_clock_in, bg="#10b981", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=11, cursor="hand2").grid(row=0, column=0, padx=5, pady=4)
-        tk.Button(self.kiosk_frame, text="Start Break", command=self.on_start_break, bg="#f59e0b", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=11, cursor="hand2").grid(row=0, column=1, padx=5, pady=4)
-        tk.Button(self.kiosk_frame, text="End Break", command=self.on_end_break, bg="#3b82f6", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=11, cursor="hand2").grid(row=1, column=0, padx=5, pady=4)
-        tk.Button(self.kiosk_frame, text="Clock Out", command=self.on_clock_out, bg="#ef4444", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", width=11, cursor="hand2").grid(row=1, column=1, padx=5, pady=4)
+        tk.Button(self.kiosk_frame, text="Clock In", command=self.on_clock_in, bg="#10b981", fg="white", font=("Segoe UI", 14, "bold"), relief="flat", width=15, height=2, cursor="hand2").grid(row=0, column=0, padx=10, pady=10)
+        tk.Button(self.kiosk_frame, text="Start Break", command=self.on_start_break, bg="#f59e0b", fg="white", font=("Segoe UI", 14, "bold"), relief="flat", width=15, height=2, cursor="hand2").grid(row=0, column=1, padx=10, pady=10)
+        tk.Button(self.kiosk_frame, text="End Break", command=self.on_end_break, bg="#3b82f6", fg="white", font=("Segoe UI", 14, "bold"), relief="flat", width=15, height=2, cursor="hand2").grid(row=1, column=0, padx=10, pady=10)
+        tk.Button(self.kiosk_frame, text="Clock Out", command=self.on_clock_out, bg="#ef4444", fg="white", font=("Segoe UI", 14, "bold"), relief="flat", width=15, height=2, cursor="hand2").grid(row=1, column=1, padx=10, pady=10)
 
         # Bottom Actions
         self.btn_frame = tk.Frame(self.main_frame, bg="#0f172a")
-        self.btn_frame.pack(pady=(8, 0))
+        self.btn_frame.pack(side="bottom", pady=20)
 
         tk.Button(
             self.btn_frame, text="🔄 Check Updates", command=lambda: auto_update(manual=True),
-            bg="#334155", fg="white", font=("Segoe UI", 8), relief="flat", cursor="hand2", padx=8, pady=2
-        ).pack(side="left", padx=4)
+            bg="#334155", fg="white", font=("Segoe UI", 10), relief="flat", cursor="hand2", padx=12, pady=6
+        ).pack(side="left", padx=10)
 
         self.auth_btn = tk.Button(
             self.btn_frame, text="🚪 Logout", command=self.logout,
-            bg="#b91c1c", fg="white", font=("Segoe UI", 8, "bold"), relief="flat", cursor="hand2", padx=8, pady=2
+            bg="#b91c1c", fg="white", font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2", padx=12, pady=6
         )
-        self.auth_btn.pack(side="left", padx=4)
+        self.auth_btn.pack(side="left", padx=10)
 
         self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
 
@@ -635,16 +635,27 @@ class LimassolTrackerApp:
     def _do_confirm_quit(self):
         self.root.deiconify()
         self.root.lift()
-        ans = messagebox.askyesno(
-            "Stop Tracking?",
-            "Are you sure you want to stop Limassol Tracker?\n\nActivity will no longer be tracked until restarted.",
-            icon="warning"
-        )
-        if ans:
-            if self.tray_icon:
-                self.tray_icon.stop()
-            self.root.destroy()
-            os._exit(0)
+        
+        # Admin Lock Prompt
+        import simpledialog
+        pin = simpledialog.askstring("Admin Required", "Enter Master PIN to Stop Tracking:", show="*", parent=self.root)
+        
+        if pin == "0000": # Master Admin PIN
+            ans = messagebox.askyesno(
+                "Stop Tracking?",
+                "Are you sure you want to stop Limassol Tracker?\n\nActivity will no longer be tracked until restarted.",
+                icon="warning"
+            )
+            if ans:
+                if self.tray_icon:
+                    self.tray_icon.stop()
+                self.root.destroy()
+                os._exit(0)
+            else:
+                self.hide_to_tray()
+        elif pin is not None:
+            messagebox.showerror("Access Denied", "Incorrect Admin PIN!")
+            self.hide_to_tray()
         else:
             self.hide_to_tray()
 
