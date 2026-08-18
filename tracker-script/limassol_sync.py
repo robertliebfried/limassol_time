@@ -100,42 +100,52 @@ USER_FILE = "selected_user.json"
 # -------------------------------------------------------------------
 # AUTO-UPDATE MECHANISM
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.1.11"
+CURRENT_VERSION = "1.1.9"
 
 def auto_update(manual=False):
     def _update():
         try:
             import urllib.request
             import subprocess
+            
             req = urllib.request.Request("https://limassoltime.web.app/downloads/version.txt", headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=10) as response:
                 latest_version = response.read().decode('utf-8-sig').strip()
 
             if latest_version > CURRENT_VERSION:
                 if manual:
-                    messagebox.showinfo("Update Found", f"New version {latest_version} found! Downloading and restarting...")
+                    messagebox.showinfo("Update Found", f"New version {latest_version} found! Downloading and updating...")
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] New version {latest_version} found (current: {CURRENT_VERSION}). Downloading...")
                 
+                # Determine safe writable target directory (AppData\Roaming\LimassolTracker)
+                appdata_dir = os.path.join(os.environ.get("APPDATA", ""), "LimassolTracker")
+                if not os.path.exists(appdata_dir):
+                    os.makedirs(appdata_dir, exist_ok=True)
+
+                current_exe_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else appdata_dir
+                target_dir = current_exe_dir if os.access(current_exe_dir, os.W_OK) else appdata_dir
+                
                 exe_url = f"https://limassoltime.web.app/downloads/LimassolTracker_v{latest_version}.exe"
-                new_exe = f"LimassolTracker_v{latest_version}.exe"
+                new_exe_name = f"LimassolTracker_v{latest_version}.exe"
+                new_exe_path = os.path.join(target_dir, new_exe_name)
 
                 req_exe = urllib.request.Request(exe_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe, 'wb') as out_file:
+                with urllib.request.urlopen(req_exe, timeout=60) as response, open(new_exe_path, 'wb') as out_file:
                     out_file.write(response.read())
 
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Download complete. Restarting as v{latest_version}...")
 
-                # Write a VBS launcher to avoid shell=True (reduces AV false positives)
+                # Write a VBS launcher in target_dir
+                vbs_path = os.path.join(target_dir, "update_run.vbs")
                 vbs_content = f'''Set oShell = CreateObject("WScript.Shell")
-WScript.Sleep 2000
+WScript.Sleep 1500
 oShell.Run "taskkill /pid {os.getpid()} /f", 0, True
-oShell.Run "cmd /c del /f ""LimassolTracker.exe"" && ren ""{new_exe}"" ""LimassolTracker.exe"" && start """" ""LimassolTracker.exe""", 0, False
+oShell.Run "cmd /c cd /d ""{target_dir}"" && del /f ""LimassolTracker.exe"" && ren ""{new_exe_name}"" ""LimassolTracker.exe"" && start """" ""LimassolTracker.exe""", 0, False
 '''
-                with open("update_run.vbs", "w") as f:
+                with open(vbs_path, "w", encoding="utf-8") as f:
                     f.write(vbs_content)
 
-                import subprocess
-                subprocess.Popen(["wscript.exe", "update_run.vbs"])
+                subprocess.Popen(["wscript.exe", "update_run.vbs"], cwd=target_dir)
                 os._exit(0)
             else:
                 if manual:
