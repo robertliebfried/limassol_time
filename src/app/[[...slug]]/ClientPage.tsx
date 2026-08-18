@@ -3488,7 +3488,7 @@ saveFirestoreEmployee(username, restored);
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="font-extrabold text-xl">{T.step2Header}</h3>
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-black font-mono shadow-sm">
-                        v1.2.0 Latest
+                        v1.2.1 Latest
                       </span>
                     </div>
                     <p className={`text-sm mb-5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
@@ -3497,15 +3497,14 @@ saveFirestoreEmployee(username, restored);
                     
                     <div className="flex flex-wrap items-center gap-3">
                       <a
-                        href="/downloads/LimassolTracker_v1.2.0.zip"
-                        download
+                        href="/downloads/LimassolTracker_v1.2.1.zip"
                         className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-6 py-3.5 text-sm font-extrabold text-white shadow-lg transition active:scale-95"
                       >
-                        📦 Download v1.2.0 (.ZIP)
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        📦 Download v1.2.1 (.ZIP)
                       </a>
                       <a
-                        href="/downloads/LimassolTracker_v1.2.0.exe"
-                        download
+                        href="/downloads/LimassolTracker_v1.2.1.exe"
                         className={`inline-flex items-center gap-2 rounded-2xl border px-5 py-3.5 text-sm font-bold transition active:scale-95 ${
                           isDark ? 'border-white/20 bg-white/5 hover:bg-white/15 text-white' : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
                         }`}

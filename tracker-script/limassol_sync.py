@@ -45,7 +45,7 @@ acquire_single_instance_mutex()
 # -------------------------------------------------------------------
 # CONFIGURATION & PERSISTENT PATHS
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.2.0"
+CURRENT_VERSION = "1.2.1"
 FIREBASE_API_KEY = "AIzaSyBOQaJrFF6opjdymkh2fd4nmEw4A6r3tOY"
 FIREBASE_PROJECT = "karfigestsa"
 CLOCKIFY_API_KEY = "ZWVlYjQ1ZDMtODMzNS00NWZmLTg2NjAtYmMxZDQ0MWM1NzQ5"
@@ -667,7 +667,7 @@ class LimassolTrackerApp:
             dlg.resizable(False, False)
             dlg.configure(bg="#1a1a2e")
             dlg.attributes("-topmost", True)
-            dlg.eval('tk::PlaceWindow . center')
+            dlg.tk.eval(f'tk::PlaceWindow {dlg._w} center')
 
             tk.Label(dlg, text="🕐 Limassol Time Tracker", font=("Segoe UI", 15, "bold"), bg="#1a1a2e", fg="white").pack(pady=(18, 4))
             tk.Label(dlg, text="Enter your agent credentials:", font=("Segoe UI", 10), bg="#1a1a2e", fg="#aaaacc").pack(pady=(0, 12))
