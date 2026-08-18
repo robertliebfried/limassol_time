@@ -45,7 +45,7 @@ acquire_single_instance_mutex()
 # -------------------------------------------------------------------
 # CONFIGURATION & PERSISTENT PATHS
 # -------------------------------------------------------------------
-CURRENT_VERSION = "1.2.1"
+CURRENT_VERSION = "1.2.2"
 FIREBASE_API_KEY = "AIzaSyBOQaJrFF6opjdymkh2fd4nmEw4A6r3tOY"
 FIREBASE_PROJECT = "karfigestsa"
 CLOCKIFY_API_KEY = "ZWVlYjQ1ZDMtODMzNS00NWZmLTg2NjAtYmMxZDQ0MWM1NzQ5"
@@ -372,7 +372,8 @@ def update_firestore_status(username, status, aw_stats=None, is_station=False):
         mask_fields.extend(["hostname", "isStation"])
 
     mask = "&".join(f"updateMask.fieldPaths={f}" for f in mask_fields)
-    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/employees/{doc_id}?key={FIREBASE_API_KEY}&{mask}"
+    collection_name = "stations" if is_station else "employees"
+    url = f"https://firestore.googleapis.com/v1/projects/{FIREBASE_PROJECT}/databases/(default)/documents/{collection_name}/{doc_id}?key={FIREBASE_API_KEY}&{mask}"
     
     now_str = datetime.now().strftime("%I:%M %p")
     fields = {
